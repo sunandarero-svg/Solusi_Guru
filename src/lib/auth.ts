@@ -4,7 +4,7 @@ import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "fallback_secret_for_build_only_do_not_use_in_prod",
   providers: [
     CredentialsProvider({
       name: "Credentials",
