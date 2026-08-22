@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  PROCESSING
+  OCR_COMPLETED
+  AI_COMPLETED
+  NEEDS_TEACHER_REVIEW
+  APPROVED
+  PUBLISHED
+  FAILED
+}
+
+enum ReviewStatus {
+  DRAFT
+  APPROVED
+  PUBLISHED
+}
+
+model User {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  email          String          @unique
+  passwordHash   String
+  role           Role
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  teacherProfile TeacherProfile?
+  studentProfile StudentProfile?
+}
+
+model TeacherProfile {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String          @unique @db.ObjectId
+  fullName    String
+  user        User            @relation(fields: [userId], references: [id])
+  classes     TeacherClass[]
+  assignments Assignment[]
+  reviews     TeacherReview[]
+}
+
+model StudentProfile {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String       @unique @db.ObjectId
+  studentNumber String       @unique
+  fullName      String
+  user          User         @relation(fields: [userId], references: [id])
+  enrollments   Enrollment[]
+  submissions   Submission[]
+}
+
+model Class {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  String?
+  enrollments  Enrollment[]
+  teachers     TeacherClass[]
+  assignments  Assignment[]
+}
+
+model Enrollment {
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  studentId  String         @db.ObjectId
+  classId    String         @db.ObjectId
+  student    StudentProfile @relation(fields: [studentId], references: [id])
+  class      Class          @relation(fields: [classId], references: [id])
+
+  @@unique([studentId, classId])
+}
+
+model TeacherClass {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  teacherId String         @db.ObjectId
+  classId   String         @db.ObjectId
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id])
+  class     Class          @relation(fields: [classId], references: [id])
+
+  @@unique([teacherId, classId])
+}
+
+model Assignment {
+  id           String           @id @default(auto()) @map("_id") @db.ObjectId
+  teacherId    String           @db.ObjectId
+  classId      String           @db.ObjectId
+  title        String
+  description  String?
+  instructions String?
+  deadline     DateTime?
+  maxPages     Int              @default(5)
+  status       AssignmentStatus @default(DRAFT)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  teacher      TeacherProfile   @relation(fields: [teacherId], references: [id])
+  class        Class            @relation(fields: [classId], references: [id])
+  rubrics      Rubric[]
+  submissions  Submission[]
+}
+
+model Rubric {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  assignmentId String            @db.ObjectId
+  title        String
+  totalScore   Float
+  assignment   Assignment        @relation(fields: [assignmentId], references: [id])
+  criteria     RubricCriterion[]
+}
+
+model RubricCriterion {
+  id                 String                @id @default(auto()) @map("_id") @db.ObjectId
+  rubricId           String                @db.ObjectId
+  name               String
+  description        String?
+  maxScore           Float
+  order              Int
+  rubric             Rubric                @relation(fields: [rubricId], references: [id])
+  assessmentCriteria AssessmentCriterion[]
+}
+
+model Submission {
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  assignmentId  String              @db.ObjectId
+  studentId     String              @db.ObjectId
+  status        SubmissionStatus    @default(DRAFT)
+  submittedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  assignment    Assignment          @relation(fields: [assignmentId], references: [id])
+  student       StudentProfile      @relation(fields: [studentId], references: [id])
+  pages         SubmissionPage[]
+  document      SubmissionDocument?
+  ocrResults    OCRResult[]
+  aiAssessment  AIAssessment?
+  teacherReview TeacherReview?
+}
+
+model SubmissionPage {
+  id               String     @id @default(auto()) @map("_id") @db.ObjectId
+  submissionId     String     @db.ObjectId
+  pageNumber       Int
+  storageKey       String
+  originalFileName String
+  mimeType         String
+  fileSize         Int
+  submission       Submission @relation(fields: [submissionId], references: [id])
+}
+
+model SubmissionDocument {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  submissionId String     @unique @db.ObjectId
+  storageKey   String
+  fileSize     Int
+  pageCount    Int
+  createdAt    DateTime   @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id])
+}
+
+model OCRResult {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  submissionId  String     @db.ObjectId
+  provider      String
+  extractedText String     
+  confidence    Float?
+  status        String
+  processedAt   DateTime   @default(now())
+  submission    Submission @relation(fields: [submissionId], references: [id])
+}
+
+model AIAssessment {
+  id             String                @id @default(auto()) @map("_id") @db.ObjectId
+  submissionId   String                @unique @db.ObjectId
+  provider       String
+  suggestedScore Float
+  confidence     Float?
+  feedback       String?               
+  status         String
+  createdAt      DateTime              @default(now())
+  submission     Submission            @relation(fields: [submissionId], references: [id])
+  criteria       AssessmentCriterion[]
+}
+
+model AssessmentCriterion {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  assessmentId      String          @db.ObjectId
+  rubricCriterionId String          @db.ObjectId
+  score             Float
+  maxScore          Float
+  reason            String?         
+  assessment        AIAssessment    @relation(fields: [assessmentId], references: [id])
+  rubricCriterion   RubricCriterion @relation(fields: [rubricCriterionId], references: [id])
+}
+
+model TeacherReview {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  submissionId  String         @unique @db.ObjectId
+  teacherId     String         @db.ObjectId
+  finalScore    Float
+  finalFeedback String?        
+  status        ReviewStatus   @default(DRAFT)
+  reviewedAt    DateTime?
+  submission    Submission     @relation(fields: [submissionId], references: [id])
+  teacher       TeacherProfile @relation(fields: [teacherId], references: [id])
+}

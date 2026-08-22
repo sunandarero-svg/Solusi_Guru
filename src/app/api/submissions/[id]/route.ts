@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireStudentSession } from "@/modules/auth/session";
+import { submissionService } from "@/modules/submission/submissionService";
+import { pdfService } from "@/modules/pdf/pdfService";
+import { ocrService } from "@/modules/ocr/ocrService";
+import { aiService } from "@/modules/ai/aiService";
+import { processingWorker } from "@/modules/queue/processingWorker";
+
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireStudentSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const resolvedParams = await props.params;
+    const submission = await submissionService.getSubmissionById(resolvedParams.id);
+    if (!submission) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    return NextResponse.json(submission);
+  } catch (error) {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireStudentSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const resolvedParams = await props.params;
+    const body = await req.json();
+    
+    if (body.action === "SUBMIT") {
+      // 1. Mark as SUBMITTED first so user knows it went through
+      await submissionService.submitAssignment(resolvedParams.id, "SUBMITTED");
+      
+      // 2. Trigger asynchronous background processing (fire-and-forget)
+      // This will handle PDF, OCR, and AI without blocking the HTTP response
+      processingWorker.processSubmissionPipeline(resolvedParams.id);
+
+      return NextResponse.json({ status: "PROCESSING_QUEUED", message: "Submission is being processed." });
+    } else if (body.action === "REORDER_PAGES") {
+      const { pageIdsInOrder } = body;
+      if (!Array.isArray(pageIdsInOrder)) {
+        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      }
+      await submissionService.reorderPages(resolvedParams.id, pageIdsInOrder);
+      return NextResponse.json({ success: true });
+    } else if (body.action === "DELETE_PAGE") {
+      const { pageId } = body;
+      await submissionService.removePage(pageId);
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (error) {
+    console.error("Submission PATCH error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
