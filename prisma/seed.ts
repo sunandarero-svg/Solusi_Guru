@@ -10,47 +10,67 @@ async function main() {
   const hashedPassword = await bcrypt.hash("password123", 10);
 
   // Create Teacher
-  const teacherUser = await prisma.user.upsert({
+  let teacherUser = await prisma.user.findUnique({
     where: { email: "guru@sekolah.com" },
-    update: {},
-    create: {
-      email: "guru@sekolah.com",
-      passwordHash: hashedPassword,
-      role: "TEACHER",
-      teacherProfile: {
-        create: {
-          fullName: "Budi Santoso, S.Pd",
-        },
-      },
-    },
     include: { teacherProfile: true },
   });
-  console.log(`✅ Teacher created: ${teacherUser.email}`);
+
+  if (!teacherUser) {
+    teacherUser = await prisma.user.create({
+      data: {
+        email: "guru@sekolah.com",
+        passwordHash: hashedPassword,
+        role: "TEACHER",
+        teacherProfile: {
+          create: {
+            fullName: "Budi Santoso, S.Pd",
+          },
+        },
+      },
+      include: { teacherProfile: true },
+    });
+    console.log(`✅ Teacher created: ${teacherUser.email}`);
+  } else {
+    console.log(`⏭️  Teacher already exists: ${teacherUser.email}`);
+  }
 
   // Create Class
-  const kelas = await prisma.class.upsert({
-    where: { id: "class-kelas-x-ipa-1" },
-    update: {},
-    create: {
-      id: "class-kelas-x-ipa-1",
-      name: "Kelas X IPA 1",
-      description: "Kelas X IPA 1 Tahun Ajaran 2025/2026",
-    },
+  let kelas = await prisma.class.findFirst({
+    where: { name: "Kelas X IPA 1" },
   });
-  console.log(`✅ Class created: ${kelas.name}`);
+
+  if (!kelas) {
+    kelas = await prisma.class.create({
+      data: {
+        name: "Kelas X IPA 1",
+        description: "Kelas X IPA 1 Tahun Ajaran 2025/2026",
+      },
+    });
+    console.log(`✅ Class created: ${kelas.name}`);
+  } else {
+    console.log(`⏭️  Class already exists: ${kelas.name}`);
+  }
 
   // Link Teacher to Class
   if (teacherUser.teacherProfile) {
-    await prisma.teacherClass.upsert({
-      where: { id: "teacher-class-1" },
-      update: {},
-      create: {
-        id: "teacher-class-1",
+    const existingTeacherClass = await prisma.teacherClass.findFirst({
+      where: {
         teacherId: teacherUser.teacherProfile.id,
         classId: kelas.id,
       },
     });
-    console.log(`✅ Teacher linked to class`);
+
+    if (!existingTeacherClass) {
+      await prisma.teacherClass.create({
+        data: {
+          teacherId: teacherUser.teacherProfile.id,
+          classId: kelas.id,
+        },
+      });
+      console.log(`✅ Teacher linked to class`);
+    } else {
+      console.log(`⏭️  Teacher already linked to class`);
+    }
   }
 
   // Create 5 Students
@@ -63,22 +83,30 @@ async function main() {
   ];
 
   for (const s of students) {
-    const studentUser = await prisma.user.upsert({
+    let studentUser = await prisma.user.findUnique({
       where: { email: s.email },
-      update: {},
-      create: {
-        email: s.email,
-        passwordHash: hashedPassword,
-        role: "STUDENT",
-        studentProfile: {
-          create: {
-            fullName: s.fullName,
-            studentNumber: s.studentNumber,
-          },
-        },
-      },
       include: { studentProfile: true },
     });
+
+    if (!studentUser) {
+      studentUser = await prisma.user.create({
+        data: {
+          email: s.email,
+          passwordHash: hashedPassword,
+          role: "STUDENT",
+          studentProfile: {
+            create: {
+              fullName: s.fullName,
+              studentNumber: s.studentNumber,
+            },
+          },
+        },
+        include: { studentProfile: true },
+      });
+      console.log(`✅ Student created: ${s.fullName} (${s.email})`);
+    } else {
+      console.log(`⏭️  Student already exists: ${s.fullName} (${s.email})`);
+    }
 
     // Enroll student to class
     if (studentUser.studentProfile) {
@@ -98,68 +126,72 @@ async function main() {
         });
       }
     }
-    console.log(`✅ Student created: ${s.fullName} (${s.email})`);
   }
 
   // Create Assignment
   if (teacherUser.teacherProfile) {
-    const assignment = await prisma.assignment.upsert({
-      where: { id: "assignment-1" },
-      update: {},
-      create: {
-        id: "assignment-1",
+    let assignment = await prisma.assignment.findFirst({
+      where: {
         title: "Tugas Esai Biologi",
-        description: "Buatlah esai tentang sistem pernapasan manusia.",
-        instructions: "Tulis dengan rapi di kertas folio bergaris, maksimal 2 halaman. Jangan lupa tulis nama dan kelas di pojok kanan atas.",
-        deadline: new Date(new Date().setDate(new Date().getDate() + 7)), // 7 days from now
-        maxPages: 2,
-        status: "PUBLISHED",
         teacherId: teacherUser.teacherProfile.id,
-        classId: kelas.id,
       },
     });
-    console.log(`✅ Assignment created: ${assignment.title}`);
 
-    // Create Rubric for the assignment
-    await prisma.rubric.upsert({
-      where: { id: "rubric-1" },
-      update: {},
-      create: {
-        id: "rubric-1",
-        title: "Rubrik Penilaian Esai Biologi",
-        totalScore: 100,
-        assignmentId: assignment.id,
-        criteria: {
-          create: [
-            {
-              name: "Pemahaman Konsep",
-              description: "Menjelaskan konsep sistem pernapasan dengan akurat.",
-              maxScore: 40,
-              order: 1,
-            },
-            {
-              name: "Struktur & Alur",
-              description: "Paragraf terstruktur dengan baik dan logis.",
-              maxScore: 30,
-              order: 2,
-            },
-            {
-              name: "Kerapian Tulisan",
-              description: "Tulisan tangan dapat dibaca dengan jelas.",
-              maxScore: 20,
-              order: 3,
-            },
-            {
-              name: "Ejaan & Tata Bahasa",
-              description: "Penggunaan tata bahasa yang baik dan benar.",
-              maxScore: 10,
-              order: 4,
-            },
-          ]
-        }
-      },
-    });
-    console.log(`✅ Rubric created for assignment`);
+    if (!assignment) {
+      assignment = await prisma.assignment.create({
+        data: {
+          title: "Tugas Esai Biologi",
+          description: "Buatlah esai tentang sistem pernapasan manusia.",
+          instructions: "Tulis dengan rapi di kertas folio bergaris, maksimal 2 halaman. Jangan lupa tulis nama dan kelas di pojok kanan atas.",
+          deadline: new Date(new Date().setDate(new Date().getDate() + 7)), // 7 days from now
+          maxPages: 2,
+          status: "PUBLISHED",
+          teacherId: teacherUser.teacherProfile.id,
+          classId: kelas.id,
+        },
+      });
+      console.log(`✅ Assignment created: ${assignment.title}`);
+
+      // Create Rubric for the assignment
+      await prisma.rubric.create({
+        data: {
+          title: "Rubrik Penilaian Esai Biologi",
+          totalScore: 100,
+          assignmentId: assignment.id,
+          criteria: {
+            create: [
+              {
+                name: "Pemahaman Konsep",
+                description: "Menjelaskan konsep sistem pernapasan dengan akurat.",
+                maxScore: 40,
+                order: 1,
+              },
+              {
+                name: "Struktur & Alur",
+                description: "Paragraf terstruktur dengan baik dan logis.",
+                maxScore: 30,
+                order: 2,
+              },
+              {
+                name: "Kerapian Tulisan",
+                description: "Tulisan tangan dapat dibaca dengan jelas.",
+                maxScore: 20,
+                order: 3,
+              },
+              {
+                name: "Ejaan & Tata Bahasa",
+                description: "Penggunaan tata bahasa yang baik dan benar.",
+                maxScore: 10,
+                order: 4,
+              },
+            ]
+          }
+        },
+      });
+      console.log(`✅ Rubric created for assignment`);
+    } else {
+      console.log(`⏭️  Assignment already exists: ${assignment.title}`);
+    }
   }
 
   console.log("\n🎉 Seeding complete!");
