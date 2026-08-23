@@ -1,215 +1,224 @@
-import { PrismaClient } from "@prisma/client";
+/**
+ * Seed script using native MongoDB driver (bypasses Prisma).
+ * Prisma requires MongoDB replica set for transactions/nested writes,
+ * but Railway MongoDB runs as standalone. This script uses the native
+ * driver which works perfectly with standalone MongoDB.
+ */
+import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  console.error("❌ DATABASE_URL is not set");
+  process.exit(1);
+}
 
 async function main() {
-  console.log("🌱 Seeding database...");
+  console.log("🌱 Seeding database (native MongoDB driver)...");
 
-  // Hash password
-  const hashedPassword = await bcrypt.hash("password123", 10);
+  const client = new MongoClient(DATABASE_URL!);
 
-  // Create Teacher (split into separate calls to avoid transaction)
-  let teacherUser = await prisma.user.findUnique({
-    where: { email: "guru@sekolah.com" },
-  });
+  try {
+    await client.connect();
+    console.log("✅ Connected to MongoDB");
 
-  if (!teacherUser) {
-    teacherUser = await prisma.user.create({
-      data: {
+    const db = client.db(); // uses database name from connection string
+
+    // Collections
+    const users = db.collection("User");
+    const teacherProfiles = db.collection("TeacherProfile");
+    const studentProfiles = db.collection("StudentProfile");
+    const classes = db.collection("Class");
+    const teacherClasses = db.collection("TeacherClass");
+    const enrollments = db.collection("Enrollment");
+    const assignments = db.collection("Assignment");
+    const rubrics = db.collection("Rubric");
+    const rubricCriteria = db.collection("RubricCriterion");
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash("password123", 10);
+    const now = new Date();
+
+    // ─── Create Teacher ───
+    let teacherUser = await users.findOne({ email: "guru@sekolah.com" });
+    if (!teacherUser) {
+      const result = await users.insertOne({
         email: "guru@sekolah.com",
         passwordHash: hashedPassword,
         role: "TEACHER",
-      },
-    });
-    console.log(`✅ Teacher user created: ${teacherUser.email}`);
-  } else {
-    console.log(`⏭️  Teacher user already exists: ${teacherUser.email}`);
-  }
+        createdAt: now,
+        updatedAt: now,
+      });
+      teacherUser = { _id: result.insertedId, email: "guru@sekolah.com" };
+      console.log("✅ Teacher user created: guru@sekolah.com");
+    } else {
+      console.log("⏭️  Teacher already exists: guru@sekolah.com");
+    }
 
-  // Create TeacherProfile separately (no nested create = no transaction)
-  let teacherProfile = await prisma.teacherProfile.findUnique({
-    where: { userId: teacherUser.id },
-  });
-
-  if (!teacherProfile) {
-    teacherProfile = await prisma.teacherProfile.create({
-      data: {
-        userId: teacherUser.id,
+    // Create TeacherProfile
+    let teacherProfile = await teacherProfiles.findOne({ userId: teacherUser._id });
+    if (!teacherProfile) {
+      const result = await teacherProfiles.insertOne({
+        userId: teacherUser._id,
         fullName: "Budi Santoso, S.Pd",
-      },
-    });
-    console.log(`✅ Teacher profile created`);
-  } else {
-    console.log(`⏭️  Teacher profile already exists`);
-  }
+      });
+      teacherProfile = { _id: result.insertedId };
+      console.log("✅ Teacher profile created");
+    } else {
+      console.log("⏭️  Teacher profile already exists");
+    }
 
-  // Create Class
-  let kelas = await prisma.class.findFirst({
-    where: { name: "Kelas X IPA 1" },
-  });
-
-  if (!kelas) {
-    kelas = await prisma.class.create({
-      data: {
+    // ─── Create Class ───
+    let kelas = await classes.findOne({ name: "Kelas X IPA 1" });
+    if (!kelas) {
+      const result = await classes.insertOne({
         name: "Kelas X IPA 1",
         description: "Kelas X IPA 1 Tahun Ajaran 2025/2026",
-      },
+      });
+      kelas = { _id: result.insertedId, name: "Kelas X IPA 1" };
+      console.log("✅ Class created: Kelas X IPA 1");
+    } else {
+      console.log("⏭️  Class already exists: Kelas X IPA 1");
+    }
+
+    // Link Teacher to Class
+    const existingTC = await teacherClasses.findOne({
+      teacherId: teacherProfile._id,
+      classId: kelas._id,
     });
-    console.log(`✅ Class created: ${kelas.name}`);
-  } else {
-    console.log(`⏭️  Class already exists: ${kelas.name}`);
-  }
+    if (!existingTC) {
+      await teacherClasses.insertOne({
+        teacherId: teacherProfile._id,
+        classId: kelas._id,
+      });
+      console.log("✅ Teacher linked to class");
+    } else {
+      console.log("⏭️  Teacher already linked to class");
+    }
 
-  // Link Teacher to Class
-  const existingTeacherClass = await prisma.teacherClass.findFirst({
-    where: {
-      teacherId: teacherProfile.id,
-      classId: kelas.id,
-    },
-  });
+    // ─── Create Students ───
+    const studentsData = [
+      { email: "siswa1@sekolah.com", fullName: "Andi Pratama", studentNumber: "2024001" },
+      { email: "siswa2@sekolah.com", fullName: "Bela Safitri", studentNumber: "2024002" },
+      { email: "siswa3@sekolah.com", fullName: "Candra Wijaya", studentNumber: "2024003" },
+      { email: "siswa4@sekolah.com", fullName: "Dewi Rahayu", studentNumber: "2024004" },
+      { email: "siswa5@sekolah.com", fullName: "Erik Gunawan", studentNumber: "2024005" },
+    ];
 
-  if (!existingTeacherClass) {
-    await prisma.teacherClass.create({
-      data: {
-        teacherId: teacherProfile.id,
-        classId: kelas.id,
-      },
-    });
-    console.log(`✅ Teacher linked to class`);
-  } else {
-    console.log(`⏭️  Teacher already linked to class`);
-  }
-
-  // Create 5 Students (each split into User + Profile separately)
-  const students = [
-    { email: "siswa1@sekolah.com", fullName: "Andi Pratama", studentNumber: "2024001" },
-    { email: "siswa2@sekolah.com", fullName: "Bela Safitri", studentNumber: "2024002" },
-    { email: "siswa3@sekolah.com", fullName: "Candra Wijaya", studentNumber: "2024003" },
-    { email: "siswa4@sekolah.com", fullName: "Dewi Rahayu", studentNumber: "2024004" },
-    { email: "siswa5@sekolah.com", fullName: "Erik Gunawan", studentNumber: "2024005" },
-  ];
-
-  for (const s of students) {
-    let studentUser = await prisma.user.findUnique({
-      where: { email: s.email },
-    });
-
-    if (!studentUser) {
-      studentUser = await prisma.user.create({
-        data: {
+    for (const s of studentsData) {
+      let studentUser = await users.findOne({ email: s.email });
+      if (!studentUser) {
+        const result = await users.insertOne({
           email: s.email,
           passwordHash: hashedPassword,
           role: "STUDENT",
-        },
-      });
-      console.log(`✅ Student user created: ${s.email}`);
-    } else {
-      console.log(`⏭️  Student user already exists: ${s.email}`);
-    }
+          createdAt: now,
+          updatedAt: now,
+        });
+        studentUser = { _id: result.insertedId };
+        console.log(`✅ Student created: ${s.fullName} (${s.email})`);
+      } else {
+        console.log(`⏭️  Student already exists: ${s.email}`);
+      }
 
-    // Create StudentProfile separately
-    let studentProfile = await prisma.studentProfile.findUnique({
-      where: { userId: studentUser.id },
-    });
-
-    if (!studentProfile) {
-      studentProfile = await prisma.studentProfile.create({
-        data: {
-          userId: studentUser.id,
+      // Create StudentProfile
+      let studentProfile = await studentProfiles.findOne({ userId: studentUser._id });
+      if (!studentProfile) {
+        const result = await studentProfiles.insertOne({
+          userId: studentUser._id,
           fullName: s.fullName,
           studentNumber: s.studentNumber,
-        },
+        });
+        studentProfile = { _id: result.insertedId };
+      }
+
+      // Enroll to class
+      const existingEnrollment = await enrollments.findOne({
+        studentId: studentProfile._id,
+        classId: kelas._id,
       });
-      console.log(`✅ Student profile created: ${s.fullName}`);
+      if (!existingEnrollment) {
+        await enrollments.insertOne({
+          studentId: studentProfile._id,
+          classId: kelas._id,
+        });
+      }
     }
 
-    // Enroll student to class
-    const existingEnrollment = await prisma.enrollment.findFirst({
-      where: {
-        studentId: studentProfile.id,
-        classId: kelas.id,
-      },
+    // ─── Create Assignment ───
+    let assignment = await assignments.findOne({
+      title: "Tugas Esai Biologi",
+      teacherId: teacherProfile._id,
     });
 
-    if (!existingEnrollment) {
-      await prisma.enrollment.create({
-        data: {
-          studentId: studentProfile.id,
-          classId: kelas.id,
-        },
-      });
-    }
-  }
+    if (!assignment) {
+      const deadline = new Date();
+      deadline.setDate(deadline.getDate() + 7);
 
-  // Create Assignment
-  let assignment = await prisma.assignment.findFirst({
-    where: {
-      title: "Tugas Esai Biologi",
-      teacherId: teacherProfile.id,
-    },
-  });
-
-  if (!assignment) {
-    assignment = await prisma.assignment.create({
-      data: {
+      const result = await assignments.insertOne({
+        teacherId: teacherProfile._id,
+        classId: kelas._id,
         title: "Tugas Esai Biologi",
         description: "Buatlah esai tentang sistem pernapasan manusia.",
         instructions: "Tulis dengan rapi di kertas folio bergaris, maksimal 2 halaman. Jangan lupa tulis nama dan kelas di pojok kanan atas.",
-        deadline: new Date(new Date().setDate(new Date().getDate() + 7)),
+        deadline: deadline,
         maxPages: 2,
         status: "PUBLISHED",
-        teacherId: teacherProfile.id,
-        classId: kelas.id,
-      },
-    });
-    console.log(`✅ Assignment created: ${assignment.title}`);
+        createdAt: now,
+        updatedAt: now,
+      });
+      assignment = { _id: result.insertedId, title: "Tugas Esai Biologi" };
+      console.log("✅ Assignment created: Tugas Esai Biologi");
 
-    // Create Rubric (without nested criteria)
-    const rubric = await prisma.rubric.create({
-      data: {
+      // Create Rubric
+      const rubricResult = await rubrics.insertOne({
+        assignmentId: assignment._id,
         title: "Rubrik Penilaian Esai Biologi",
         totalScore: 100,
-        assignmentId: assignment.id,
-      },
-    });
-
-    // Create criteria one by one (no nested create = no transaction)
-    const criteriaData = [
-      { name: "Pemahaman Konsep", description: "Menjelaskan konsep sistem pernapasan dengan akurat.", maxScore: 40, order: 1 },
-      { name: "Struktur & Alur", description: "Paragraf terstruktur dengan baik dan logis.", maxScore: 30, order: 2 },
-      { name: "Kerapian Tulisan", description: "Tulisan tangan dapat dibaca dengan jelas.", maxScore: 20, order: 3 },
-      { name: "Ejaan & Tata Bahasa", description: "Penggunaan tata bahasa yang baik dan benar.", maxScore: 10, order: 4 },
-    ];
-
-    for (const c of criteriaData) {
-      await prisma.rubricCriterion.create({
-        data: {
-          rubricId: rubric.id,
-          name: c.name,
-          description: c.description,
-          maxScore: c.maxScore,
-          order: c.order,
-        },
       });
-    }
-    console.log(`✅ Rubric + criteria created`);
-  } else {
-    console.log(`⏭️  Assignment already exists: ${assignment.title}`);
-  }
+      console.log("✅ Rubric created");
 
-  console.log("\n🎉 Seeding complete!");
-  console.log("─────────────────────────────────────────");
-  console.log("Login Guru   : guru@sekolah.com / password123");
-  console.log("Login Siswa  : siswa1@sekolah.com / password123");
-  console.log("─────────────────────────────────────────");
+      // Create Criteria
+      const criteriaData = [
+        { name: "Pemahaman Konsep", description: "Menjelaskan konsep sistem pernapasan dengan akurat.", maxScore: 40, order: 1 },
+        { name: "Struktur & Alur", description: "Paragraf terstruktur dengan baik dan logis.", maxScore: 30, order: 2 },
+        { name: "Kerapian Tulisan", description: "Tulisan tangan dapat dibaca dengan jelas.", maxScore: 20, order: 3 },
+        { name: "Ejaan & Tata Bahasa", description: "Penggunaan tata bahasa yang baik dan benar.", maxScore: 10, order: 4 },
+      ];
+
+      for (const c of criteriaData) {
+        await rubricCriteria.insertOne({
+          rubricId: rubricResult.insertedId,
+          ...c,
+        });
+      }
+      console.log("✅ Rubric criteria created");
+    } else {
+      console.log("⏭️  Assignment already exists");
+    }
+
+    // ─── Create Indexes (match Prisma schema) ───
+    await users.createIndex({ email: 1 }, { unique: true });
+    await teacherProfiles.createIndex({ userId: 1 }, { unique: true });
+    await studentProfiles.createIndex({ userId: 1 }, { unique: true });
+    await studentProfiles.createIndex({ studentNumber: 1 }, { unique: true });
+    await enrollments.createIndex({ studentId: 1, classId: 1 }, { unique: true });
+    await teacherClasses.createIndex({ teacherId: 1, classId: 1 }, { unique: true });
+    console.log("✅ Indexes created");
+
+    console.log("\n🎉 Seeding complete!");
+    console.log("─────────────────────────────────────────");
+    console.log("Login Guru   : guru@sekolah.com / password123");
+    console.log("Login Siswa  : siswa1@sekolah.com / password123");
+    console.log("─────────────────────────────────────────");
+
+  } finally {
+    await client.close();
+  }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error("❌ Seeding failed:", e);
+  process.exit(1);
+});
