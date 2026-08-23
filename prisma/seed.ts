@@ -199,13 +199,18 @@ async function main() {
     }
 
     // ─── Create Indexes (match Prisma schema) ───
-    await users.createIndex({ email: 1 }, { unique: true });
-    await teacherProfiles.createIndex({ userId: 1 }, { unique: true });
-    await studentProfiles.createIndex({ userId: 1 }, { unique: true });
-    await studentProfiles.createIndex({ studentNumber: 1 }, { unique: true });
-    await enrollments.createIndex({ studentId: 1, classId: 1 }, { unique: true });
-    await teacherClasses.createIndex({ teacherId: 1, classId: 1 }, { unique: true });
-    console.log("✅ Indexes created");
+    try {
+      console.log("⏳ Creating indexes...");
+      await users.createIndex({ email: 1 }, { unique: true });
+      await teacherProfiles.createIndex({ userId: 1 }, { unique: true });
+      await studentProfiles.createIndex({ userId: 1 }, { unique: true });
+      await studentProfiles.createIndex({ studentNumber: 1 }, { unique: true });
+      await enrollments.createIndex({ studentId: 1, classId: 1 }, { unique: true });
+      await teacherClasses.createIndex({ teacherId: 1, classId: 1 }, { unique: true });
+      console.log("✅ Indexes created");
+    } catch (indexError: any) {
+      console.warn("⚠️  Could not create indexes (often due to low disk space on Railway free tier), but data was seeded successfully. Error:", indexError.message);
+    }
 
     console.log("\n🎉 Seeding complete!");
     console.log("─────────────────────────────────────────");
