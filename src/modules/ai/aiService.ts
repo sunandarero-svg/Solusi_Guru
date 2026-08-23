@@ -69,7 +69,7 @@ export class AIService {
       throw new Error("AI assessment returned no result");
     }
 
-    // 4. Save results to database
+    // 4. Save results to database (no nested create to avoid transaction)
     const assessmentRecord = await prisma.aIAssessment.create({
       data: {
         submissionId: submissionId,
@@ -77,16 +77,21 @@ export class AIService {
         suggestedScore: assessmentResult.totalScore,
         feedback: assessmentResult.generalFeedback,
         status: "SUCCESS",
-        criteria: {
-          create: assessmentResult.rubricScores.map((score: any) => ({
-            rubricCriterionId: score.rubricCriterionId,
-            score: score.score,
-            maxScore: score.maxScore,
-            reason: score.reasoning
-          }))
-        }
       }
     });
+
+    // Create criteria separately
+    for (const score of assessmentResult.rubricScores) {
+      await prisma.assessmentCriterion.create({
+        data: {
+          assessmentId: assessmentRecord.id,
+          rubricCriterionId: (score as any).rubricCriterionId,
+          score: (score as any).score,
+          maxScore: (score as any).maxScore,
+          reason: (score as any).reasoning,
+        }
+      });
+    }
 
     return assessmentRecord;
   }

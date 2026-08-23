@@ -9,10 +9,9 @@ async function main() {
   // Hash password
   const hashedPassword = await bcrypt.hash("password123", 10);
 
-  // Create Teacher
+  // Create Teacher (split into separate calls to avoid transaction)
   let teacherUser = await prisma.user.findUnique({
     where: { email: "guru@sekolah.com" },
-    include: { teacherProfile: true },
   });
 
   if (!teacherUser) {
@@ -21,17 +20,28 @@ async function main() {
         email: "guru@sekolah.com",
         passwordHash: hashedPassword,
         role: "TEACHER",
-        teacherProfile: {
-          create: {
-            fullName: "Budi Santoso, S.Pd",
-          },
-        },
       },
-      include: { teacherProfile: true },
     });
-    console.log(`✅ Teacher created: ${teacherUser.email}`);
+    console.log(`✅ Teacher user created: ${teacherUser.email}`);
   } else {
-    console.log(`⏭️  Teacher already exists: ${teacherUser.email}`);
+    console.log(`⏭️  Teacher user already exists: ${teacherUser.email}`);
+  }
+
+  // Create TeacherProfile separately (no nested create = no transaction)
+  let teacherProfile = await prisma.teacherProfile.findUnique({
+    where: { userId: teacherUser.id },
+  });
+
+  if (!teacherProfile) {
+    teacherProfile = await prisma.teacherProfile.create({
+      data: {
+        userId: teacherUser.id,
+        fullName: "Budi Santoso, S.Pd",
+      },
+    });
+    console.log(`✅ Teacher profile created`);
+  } else {
+    console.log(`⏭️  Teacher profile already exists`);
   }
 
   // Create Class
@@ -52,28 +62,26 @@ async function main() {
   }
 
   // Link Teacher to Class
-  if (teacherUser.teacherProfile) {
-    const existingTeacherClass = await prisma.teacherClass.findFirst({
-      where: {
-        teacherId: teacherUser.teacherProfile.id,
+  const existingTeacherClass = await prisma.teacherClass.findFirst({
+    where: {
+      teacherId: teacherProfile.id,
+      classId: kelas.id,
+    },
+  });
+
+  if (!existingTeacherClass) {
+    await prisma.teacherClass.create({
+      data: {
+        teacherId: teacherProfile.id,
         classId: kelas.id,
       },
     });
-
-    if (!existingTeacherClass) {
-      await prisma.teacherClass.create({
-        data: {
-          teacherId: teacherUser.teacherProfile.id,
-          classId: kelas.id,
-        },
-      });
-      console.log(`✅ Teacher linked to class`);
-    } else {
-      console.log(`⏭️  Teacher already linked to class`);
-    }
+    console.log(`✅ Teacher linked to class`);
+  } else {
+    console.log(`⏭️  Teacher already linked to class`);
   }
 
-  // Create 5 Students
+  // Create 5 Students (each split into User + Profile separately)
   const students = [
     { email: "siswa1@sekolah.com", fullName: "Andi Pratama", studentNumber: "2024001" },
     { email: "siswa2@sekolah.com", fullName: "Bela Safitri", studentNumber: "2024002" },
@@ -85,7 +93,6 @@ async function main() {
   for (const s of students) {
     let studentUser = await prisma.user.findUnique({
       where: { email: s.email },
-      include: { studentProfile: true },
     });
 
     if (!studentUser) {
@@ -94,104 +101,101 @@ async function main() {
           email: s.email,
           passwordHash: hashedPassword,
           role: "STUDENT",
-          studentProfile: {
-            create: {
-              fullName: s.fullName,
-              studentNumber: s.studentNumber,
-            },
-          },
         },
-        include: { studentProfile: true },
       });
-      console.log(`✅ Student created: ${s.fullName} (${s.email})`);
+      console.log(`✅ Student user created: ${s.email}`);
     } else {
-      console.log(`⏭️  Student already exists: ${s.fullName} (${s.email})`);
+      console.log(`⏭️  Student user already exists: ${s.email}`);
+    }
+
+    // Create StudentProfile separately
+    let studentProfile = await prisma.studentProfile.findUnique({
+      where: { userId: studentUser.id },
+    });
+
+    if (!studentProfile) {
+      studentProfile = await prisma.studentProfile.create({
+        data: {
+          userId: studentUser.id,
+          fullName: s.fullName,
+          studentNumber: s.studentNumber,
+        },
+      });
+      console.log(`✅ Student profile created: ${s.fullName}`);
     }
 
     // Enroll student to class
-    if (studentUser.studentProfile) {
-      const existingEnrollment = await prisma.enrollment.findFirst({
-        where: {
-          studentId: studentUser.studentProfile.id,
+    const existingEnrollment = await prisma.enrollment.findFirst({
+      where: {
+        studentId: studentProfile.id,
+        classId: kelas.id,
+      },
+    });
+
+    if (!existingEnrollment) {
+      await prisma.enrollment.create({
+        data: {
+          studentId: studentProfile.id,
           classId: kelas.id,
         },
       });
-
-      if (!existingEnrollment) {
-        await prisma.enrollment.create({
-          data: {
-            studentId: studentUser.studentProfile.id,
-            classId: kelas.id,
-          },
-        });
-      }
     }
   }
 
   // Create Assignment
-  if (teacherUser.teacherProfile) {
-    let assignment = await prisma.assignment.findFirst({
-      where: {
+  let assignment = await prisma.assignment.findFirst({
+    where: {
+      title: "Tugas Esai Biologi",
+      teacherId: teacherProfile.id,
+    },
+  });
+
+  if (!assignment) {
+    assignment = await prisma.assignment.create({
+      data: {
         title: "Tugas Esai Biologi",
-        teacherId: teacherUser.teacherProfile.id,
+        description: "Buatlah esai tentang sistem pernapasan manusia.",
+        instructions: "Tulis dengan rapi di kertas folio bergaris, maksimal 2 halaman. Jangan lupa tulis nama dan kelas di pojok kanan atas.",
+        deadline: new Date(new Date().setDate(new Date().getDate() + 7)),
+        maxPages: 2,
+        status: "PUBLISHED",
+        teacherId: teacherProfile.id,
+        classId: kelas.id,
+      },
+    });
+    console.log(`✅ Assignment created: ${assignment.title}`);
+
+    // Create Rubric (without nested criteria)
+    const rubric = await prisma.rubric.create({
+      data: {
+        title: "Rubrik Penilaian Esai Biologi",
+        totalScore: 100,
+        assignmentId: assignment.id,
       },
     });
 
-    if (!assignment) {
-      assignment = await prisma.assignment.create({
-        data: {
-          title: "Tugas Esai Biologi",
-          description: "Buatlah esai tentang sistem pernapasan manusia.",
-          instructions: "Tulis dengan rapi di kertas folio bergaris, maksimal 2 halaman. Jangan lupa tulis nama dan kelas di pojok kanan atas.",
-          deadline: new Date(new Date().setDate(new Date().getDate() + 7)), // 7 days from now
-          maxPages: 2,
-          status: "PUBLISHED",
-          teacherId: teacherUser.teacherProfile.id,
-          classId: kelas.id,
-        },
-      });
-      console.log(`✅ Assignment created: ${assignment.title}`);
+    // Create criteria one by one (no nested create = no transaction)
+    const criteriaData = [
+      { name: "Pemahaman Konsep", description: "Menjelaskan konsep sistem pernapasan dengan akurat.", maxScore: 40, order: 1 },
+      { name: "Struktur & Alur", description: "Paragraf terstruktur dengan baik dan logis.", maxScore: 30, order: 2 },
+      { name: "Kerapian Tulisan", description: "Tulisan tangan dapat dibaca dengan jelas.", maxScore: 20, order: 3 },
+      { name: "Ejaan & Tata Bahasa", description: "Penggunaan tata bahasa yang baik dan benar.", maxScore: 10, order: 4 },
+    ];
 
-      // Create Rubric for the assignment
-      await prisma.rubric.create({
+    for (const c of criteriaData) {
+      await prisma.rubricCriterion.create({
         data: {
-          title: "Rubrik Penilaian Esai Biologi",
-          totalScore: 100,
-          assignmentId: assignment.id,
-          criteria: {
-            create: [
-              {
-                name: "Pemahaman Konsep",
-                description: "Menjelaskan konsep sistem pernapasan dengan akurat.",
-                maxScore: 40,
-                order: 1,
-              },
-              {
-                name: "Struktur & Alur",
-                description: "Paragraf terstruktur dengan baik dan logis.",
-                maxScore: 30,
-                order: 2,
-              },
-              {
-                name: "Kerapian Tulisan",
-                description: "Tulisan tangan dapat dibaca dengan jelas.",
-                maxScore: 20,
-                order: 3,
-              },
-              {
-                name: "Ejaan & Tata Bahasa",
-                description: "Penggunaan tata bahasa yang baik dan benar.",
-                maxScore: 10,
-                order: 4,
-              },
-            ]
-          }
+          rubricId: rubric.id,
+          name: c.name,
+          description: c.description,
+          maxScore: c.maxScore,
+          order: c.order,
         },
       });
-      console.log(`✅ Rubric created for assignment`);
-    } else {
-      console.log(`⏭️  Assignment already exists: ${assignment.title}`);
     }
+    console.log(`✅ Rubric + criteria created`);
+  } else {
+    console.log(`⏭️  Assignment already exists: ${assignment.title}`);
   }
 
   console.log("\n🎉 Seeding complete!");

@@ -28,32 +28,35 @@ export async function createStudent(data: {
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
+  // Create user first (no nested create to avoid transaction requirement)
   const user = await prisma.user.create({
     data: {
       email: data.email,
       passwordHash: hashedPassword,
       role: "STUDENT",
-      studentProfile: {
-        create: {
-          fullName: data.fullName,
-          studentNumber: data.studentNumber,
-        },
-      },
     },
-    include: { studentProfile: true },
+  });
+
+  // Create student profile separately
+  const studentProfile = await prisma.studentProfile.create({
+    data: {
+      userId: user.id,
+      fullName: data.fullName,
+      studentNumber: data.studentNumber,
+    },
   });
 
   // Enroll to class if classId provided
-  if (data.classId && user.studentProfile) {
+  if (data.classId) {
     await prisma.enrollment.create({
       data: {
-        studentId: user.studentProfile.id,
+        studentId: studentProfile.id,
         classId: data.classId,
       },
     });
   }
 
-  return user;
+  return { ...user, studentProfile };
 }
 
 export async function getStudentCount() {

@@ -41,49 +41,47 @@ export const rubricService = {
       throw new Error(`Total score must be exactly 100. Current total is ${totalScore}`);
     }
 
-    // Upsert Rubric & replace all criteria
-    // Since Prisma nested create/update can be tricky with lists, we can delete existing and recreate
-    
-    return prisma.$transaction(async (tx) => {
-      let rubric = await tx.rubric.findFirst({
-        where: { assignmentId }
+    // Upsert Rubric & replace all criteria (no $transaction for MongoDB standalone)
+    let rubric = await prisma.rubric.findFirst({
+      where: { assignmentId }
+    });
+
+    if (!rubric) {
+      rubric = await prisma.rubric.create({
+        data: {
+          assignmentId,
+          title: data.title,
+          totalScore: 100,
+        }
       });
-
-      if (!rubric) {
-        rubric = await tx.rubric.create({
-          data: {
-            assignmentId,
-            title: data.title,
-            totalScore: 100,
-          }
-        });
-      } else {
-        rubric = await tx.rubric.update({
-          where: { id: rubric.id },
-          data: { title: data.title }
-        });
-      }
-
-      // Delete old criteria
-      await tx.rubricCriterion.deleteMany({
-        where: { rubricId: rubric.id }
+    } else {
+      rubric = await prisma.rubric.update({
+        where: { id: rubric.id },
+        data: { title: data.title }
       });
+    }
 
-      // Create new criteria
-      await tx.rubricCriterion.createMany({
-        data: data.criteria.map((c) => ({
-          rubricId: rubric!.id,
+    // Delete old criteria
+    await prisma.rubricCriterion.deleteMany({
+      where: { rubricId: rubric.id }
+    });
+
+    // Create new criteria one by one
+    for (const c of data.criteria) {
+      await prisma.rubricCriterion.create({
+        data: {
+          rubricId: rubric.id,
           name: c.name,
           description: c.description || "",
           maxScore: c.maxScore,
           order: c.order,
-        }))
+        }
       });
+    }
 
-      return tx.rubric.findUnique({
-        where: { id: rubric.id },
-        include: { criteria: { orderBy: { order: "asc" } } }
-      });
+    return prisma.rubric.findUnique({
+      where: { id: rubric.id },
+      include: { criteria: { orderBy: { order: "asc" } } }
     });
   }
 };
