@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
-import { getAllClasses, createClass, getTeacherProfileByEmail } from "@/modules/auth/classService";
+import { getAllClasses, getTeacherProfileByEmail } from "@/modules/auth/classService";
+import { prisma } from "@/lib/prisma";
 
 // GET: Ambil semua kelas
 export async function GET() {
@@ -33,10 +34,31 @@ export async function POST(req: Request) {
   }
 
   try {
-    const newClass = await createClass({
-      name,
-      description,
-      teacherProfileId: teacherProfile.id,
+    // Check teacher class quota
+    const currentClassCount = await prisma.teacherClass.count({
+      where: { teacherId: teacherProfile.id },
+    });
+
+    if (currentClassCount >= teacherProfile.maxClasses) {
+      return NextResponse.json(
+        { error: `Kuota kelas sudah penuh. Maksimal ${teacherProfile.maxClasses} kelas.` },
+        { status: 400 }
+      );
+    }
+
+    // Split into sequential operations instead of nested create to avoid MongoDB transaction errors on standalone clusters
+    const newClass = await prisma.class.create({
+      data: {
+        name,
+        description,
+      },
+    });
+
+    await prisma.teacherClass.create({
+      data: {
+        classId: newClass.id,
+        teacherId: teacherProfile.id,
+      },
     });
 
     return NextResponse.json(newClass, { status: 201 });
