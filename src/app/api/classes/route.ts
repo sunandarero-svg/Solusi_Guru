@@ -46,19 +46,31 @@ export async function POST(req: Request) {
       );
     }
 
-    // Split into sequential operations instead of nested create to avoid MongoDB transaction errors on standalone clusters
-    const newClass = await prisma.class.create({
-      data: {
+    // Workaround for Prisma + MongoDB Standalone Transaction Issue:
+    // Use createMany instead of create, and generate ObjectIds manually.
+    // createMany bypasses the transaction engine in Prisma for MongoDB.
+    const { ObjectId } = require('bson');
+    const newClassId = new ObjectId().toHexString();
+
+    await prisma.class.createMany({
+      data: [{
+        id: newClassId,
         name,
         description,
-      },
+      }],
     });
 
-    await prisma.teacherClass.create({
-      data: {
-        classId: newClass.id,
+    const newTeacherClassId = new ObjectId().toHexString();
+    await prisma.teacherClass.createMany({
+      data: [{
+        id: newTeacherClassId,
+        classId: newClassId,
         teacherId: teacherProfile.id,
-      },
+      }],
+    });
+
+    const newClass = await prisma.class.findUnique({
+      where: { id: newClassId }
     });
 
     return NextResponse.json(newClass, { status: 201 });
