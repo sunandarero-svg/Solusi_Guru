@@ -26,6 +26,7 @@ export default function LoginPage() {
       setError("Email atau password salah. Silakan coba lagi.");
       setLoading(false);
     } else {
+      sessionStorage.setItem("app_session", "active");
       router.push("/dashboard");
     }
   };
