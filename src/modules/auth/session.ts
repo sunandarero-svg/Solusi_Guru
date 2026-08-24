@@ -22,6 +22,14 @@ export async function requireStudentSession() {
   return session;
 }
 
+export async function requireAdminSession() {
+  const session = await getAuthSession();
+  if (!session || session.user.role !== "ADMIN") {
+    return null;
+  }
+  return session;
+}
+
 export async function requireAuth() {
   const session = await getAuthSession();
   if (!session) {

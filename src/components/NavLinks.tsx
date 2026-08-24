@@ -10,6 +10,11 @@ interface NavLinksProps {
 export default function NavLinks({ role }: NavLinksProps) {
   const pathname = usePathname();
 
+  const adminLinks = [
+    { href: "/dashboard/admin", label: "🛡️ Dashboard Admin" },
+    { href: "/dashboard/admin/teachers", label: "👨‍🏫 Kelola Guru" },
+  ];
+
   const teacherLinks = [
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/dashboard/students", label: "👨‍🎓 Siswa" },
@@ -22,7 +27,12 @@ export default function NavLinks({ role }: NavLinksProps) {
     { href: "/dashboard/my-assignments", label: "📚 Tugas Saya" },
   ];
 
-  const links = role === "TEACHER" ? teacherLinks : studentLinks;
+  const links =
+    role === "ADMIN"
+      ? adminLinks
+      : role === "TEACHER"
+        ? teacherLinks
+        : studentLinks;
 
   return (
     <ul className="space-y-1">
@@ -46,3 +56,4 @@ export default function NavLinks({ role }: NavLinksProps) {
     </ul>
   );
 }
+

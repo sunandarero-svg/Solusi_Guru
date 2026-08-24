@@ -34,8 +34,8 @@ export default async function DashboardLayout({
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-xs text-gray-500">Login sebagai</p>
             <p className="text-sm font-semibold text-gray-700 truncate">{session.user?.email}</p>
-            <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${role === "TEACHER" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
-              {role === "TEACHER" ? "Guru" : "Siswa"}
+            <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${role === "ADMIN" ? "bg-purple-100 text-purple-700" : role === "TEACHER" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
+              {role === "ADMIN" ? "Admin" : role === "TEACHER" ? "Guru" : "Siswa"}
             </span>
           </div>
         </div>

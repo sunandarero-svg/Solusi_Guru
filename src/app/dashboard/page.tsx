@@ -1,11 +1,17 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
   const userEmail = session?.user?.email;
+
+  // Redirect admin to admin dashboard
+  if (role === "ADMIN") {
+    redirect("/dashboard/admin");
+  }
 
   let stats = { assignments: 0, submissions: 0, students: 0 };
 
@@ -66,13 +72,15 @@ export default async function DashboardPage() {
     }
   }
 
+  const roleLabel = role === "ADMIN" ? "Admin" : role === "TEACHER" ? "Guru" : "Siswa";
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-2">
         Selamat Datang 👋
       </h1>
       <p className="text-gray-500 mb-8">
-        Anda masuk sebagai <span className="font-semibold text-blue-600">{role === "TEACHER" ? "Guru" : "Siswa"}</span>
+        Anda masuk sebagai <span className="font-semibold text-blue-600">{roleLabel}</span>
       </p>
 
       {role === "TEACHER" ? (
@@ -110,3 +118,4 @@ export default async function DashboardPage() {
     </div>
   );
 }
+

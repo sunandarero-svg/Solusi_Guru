@@ -32,11 +32,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Profil guru tidak ditemukan" }, { status: 404 });
   }
 
-  const newClass = await createClass({
-    name,
-    description,
-    teacherProfileId: teacherProfile.id,
-  });
+  try {
+    const newClass = await createClass({
+      name,
+      description,
+      teacherProfileId: teacherProfile.id,
+    });
 
-  return NextResponse.json(newClass, { status: 201 });
+    return NextResponse.json(newClass, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Gagal membuat kelas" },
+      { status: 400 }
+    );
+  }
 }

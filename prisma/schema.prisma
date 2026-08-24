@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum Role {
+  ADMIN
   TEACHER
   STUDENT
 }
@@ -46,16 +47,27 @@ model User {
   updatedAt      DateTime        @updatedAt
   teacherProfile TeacherProfile?
   studentProfile StudentProfile?
+  adminProfile   AdminProfile?
 }
 
 model TeacherProfile {
   id          String          @id @default(auto()) @map("_id") @db.ObjectId
   userId      String          @unique @db.ObjectId
   fullName    String
+  maxStudents Int             @default(310)
+  maxClasses  Int             @default(10)
+  deletedAt   DateTime?
   user        User            @relation(fields: [userId], references: [id])
   classes     TeacherClass[]
   assignments Assignment[]
   reviews     TeacherReview[]
+}
+
+model AdminProfile {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  userId   String @unique @db.ObjectId
+  fullName String
+  user     User   @relation(fields: [userId], references: [id])
 }
 
 model StudentProfile {

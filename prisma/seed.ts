@@ -29,6 +29,7 @@ async function main() {
     const users = db.collection("User");
     const teacherProfiles = db.collection("TeacherProfile");
     const studentProfiles = db.collection("StudentProfile");
+    const adminProfiles = db.collection("AdminProfile");
     const classes = db.collection("Class");
     const teacherClasses = db.collection("TeacherClass");
     const enrollments = db.collection("Enrollment");
@@ -62,11 +63,43 @@ async function main() {
       const result = await teacherProfiles.insertOne({
         userId: teacherUser._id,
         fullName: "Budi Santoso, S.Pd",
+        maxStudents: 310,
+        maxClasses: 10,
+        deletedAt: null,
       });
       teacherProfile = { _id: result.insertedId };
       console.log("✅ Teacher profile created");
     } else {
       console.log("⏭️  Teacher profile already exists");
+    }
+
+    // ─── Create Admin ───
+    let adminUser = await users.findOne({ email: "admin@sekolah.com" });
+    if (!adminUser) {
+      const adminHashedPassword = await bcrypt.hash("admin123", 10);
+      const result = await users.insertOne({
+        email: "admin@sekolah.com",
+        passwordHash: adminHashedPassword,
+        role: "ADMIN",
+        createdAt: now,
+        updatedAt: now,
+      });
+      adminUser = { _id: result.insertedId, email: "admin@sekolah.com" };
+      console.log("✅ Admin user created: admin@sekolah.com");
+    } else {
+      console.log("⏭️  Admin already exists: admin@sekolah.com");
+    }
+
+    // Create AdminProfile
+    let adminProfile = await adminProfiles.findOne({ userId: adminUser._id });
+    if (!adminProfile) {
+      await adminProfiles.insertOne({
+        userId: adminUser._id,
+        fullName: "Administrator Sistem",
+      });
+      console.log("✅ Admin profile created");
+    } else {
+      console.log("⏭️  Admin profile already exists");
     }
 
     // ─── Create Class ───
@@ -203,6 +236,7 @@ async function main() {
       console.log("⏳ Creating indexes...");
       await users.createIndex({ email: 1 }, { unique: true });
       await teacherProfiles.createIndex({ userId: 1 }, { unique: true });
+      await adminProfiles.createIndex({ userId: 1 }, { unique: true });
       await studentProfiles.createIndex({ userId: 1 }, { unique: true });
       await studentProfiles.createIndex({ studentNumber: 1 }, { unique: true });
       await enrollments.createIndex({ studentId: 1, classId: 1 }, { unique: true });
@@ -214,6 +248,7 @@ async function main() {
 
     console.log("\n🎉 Seeding complete!");
     console.log("─────────────────────────────────────────");
+    console.log("Login Admin  : admin@sekolah.com / admin123");
     console.log("Login Guru   : guru@sekolah.com / password123");
     console.log("Login Siswa  : siswa1@sekolah.com / password123");
     console.log("─────────────────────────────────────────");
