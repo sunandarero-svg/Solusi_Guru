@@ -32,15 +32,22 @@ export async function createClass(data: {
     }
   }
 
-  return prisma.class.create({
+  // Split into sequential operations instead of nested create to avoid MongoDB transaction errors on standalone clusters
+  const newClass = await prisma.class.create({
     data: {
       name: data.name,
       description: data.description,
-      teachers: {
-        create: { teacherId: data.teacherProfileId },
-      },
     },
   });
+
+  await prisma.teacherClass.create({
+    data: {
+      classId: newClass.id,
+      teacherId: data.teacherProfileId,
+    },
+  });
+
+  return newClass;
 }
 
 export async function getTeacherProfileByEmail(email: string) {

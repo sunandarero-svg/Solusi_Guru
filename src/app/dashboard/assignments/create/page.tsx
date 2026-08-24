@@ -132,11 +132,14 @@ export default function CreateAssignmentPage() {
               <input 
                 type="number" 
                 min="1" max="10"
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm"
-                value={form.maxPages}
-                onChange={e => setForm({...form, maxPages: parseInt(e.target.value) || 5})}
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white"
+                value={form.maxPages === 0 ? "" : form.maxPages}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm({...form, maxPages: val === "" ? 0 : parseInt(val)});
+                }}
               />
-              <p className="text-xs text-gray-400 mt-1">Default: 5 halaman</p>
+              <p className="text-xs text-gray-400 mt-1">Default: 5 halaman (opsional)</p>
             </div>
           </div>
 
