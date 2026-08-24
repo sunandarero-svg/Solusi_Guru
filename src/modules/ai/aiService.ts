@@ -1,4 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import { Submission, OCRResult, AIAssessment, AssessmentCriterion } from "@/models/Submission";
+import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import { AIProvider } from "./AIProvider";
 import { MockAIProvider } from "./MockAIProvider";
 
@@ -13,31 +15,27 @@ export class AIService {
    * Execute AI Assessment on a submission
    */
   async assessSubmission(submissionId: string) {
+    await dbConnect();
+    
     // 1. Fetch submission with assignment and rubrics
-    const submission = await prisma.submission.findUnique({
-      where: { id: submissionId },
-      include: {
-        assignment: {
-          include: {
-            rubrics: {
-              include: {
-                criteria: true
-              }
-            }
-          }
-        }
-      }
-    });
-
+    const submission = await Submission.findById(submissionId).lean();
     if (!submission) {
       throw new Error(`Submission not found for ID ${submissionId}`);
     }
 
-    // 2. Fetch OCR Result
-    const ocrResult = await prisma.oCRResult.findFirst({
-      where: { submissionId }
-    });
+    const assignment = await Assignment.findById(submission.assignmentId).lean();
+    if (!assignment) {
+      throw new Error(`Assignment not found for ID ${submission.assignmentId}`);
+    }
 
+    const rubrics = await Rubric.find({ assignmentId: assignment._id }).lean();
+    const rubricsWithCriteria = await Promise.all(rubrics.map(async (r) => {
+      const criteria = await RubricCriterion.find({ rubricId: r._id }).sort({ order: 1 }).lean();
+      return { ...r, criteria };
+    }));
+
+    // 2. Fetch OCR Result
+    const ocrResult = await OCRResult.findOne({ submissionId }).lean();
     if (!ocrResult) {
       throw new Error(`No OCR result found for submission ID ${submissionId}`);
     }
@@ -51,7 +49,7 @@ export class AIService {
       try {
         assessmentResult = await this.provider.assessSubmission(
           ocrResult.extractedText, 
-          submission.assignment.rubrics
+          rubricsWithCriteria
         );
         break; // Success, exit loop
       } catch (error) {
@@ -69,31 +67,27 @@ export class AIService {
       throw new Error("AI assessment returned no result");
     }
 
-    // 4. Save results to database (no nested create to avoid transaction)
-    const assessmentRecord = await prisma.aIAssessment.create({
-      data: {
-        submissionId: submissionId,
-        provider: this.provider.providerName,
-        suggestedScore: assessmentResult.totalScore,
-        feedback: assessmentResult.generalFeedback,
-        status: "SUCCESS",
-      }
+    // 4. Save results to database
+    const assessmentRecord = await AIAssessment.create({
+      submissionId: submissionId,
+      provider: this.provider.providerName,
+      suggestedScore: assessmentResult.totalScore,
+      feedback: assessmentResult.generalFeedback,
+      status: "SUCCESS",
     });
 
     // Create criteria separately
     for (const score of assessmentResult.rubricScores) {
-      await prisma.assessmentCriterion.create({
-        data: {
-          assessmentId: assessmentRecord.id,
-          rubricCriterionId: (score as any).rubricCriterionId,
-          score: (score as any).score,
-          maxScore: (score as any).maxScore,
-          reason: (score as any).reasoning,
-        }
+      await AssessmentCriterion.create({
+        assessmentId: assessmentRecord._id,
+        rubricCriterionId: (score as any).rubricCriterionId,
+        score: (score as any).score,
+        maxScore: (score as any).maxScore,
+        reason: (score as any).reasoning,
       });
     }
 
-    return assessmentRecord;
+    return assessmentRecord.toObject();
   }
 }
 

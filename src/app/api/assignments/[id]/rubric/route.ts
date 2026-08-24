@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/session";
 import { rubricService } from "@/modules/rubric/rubricService";
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { TeacherProfile } from "@/models/Profile";
 
 export async function GET(
   req: NextRequest,
@@ -28,9 +30,13 @@ export async function PUT(
     if (!session || session.user.role !== "TEACHER") throw new Error("Unauthorized");
 
     const resolvedParams = await params;
-    const teacherProfile = await prisma.teacherProfile.findFirst({
-      where: { user: { email: session.user.email! } }
-    });
+    await dbConnect();
+    const user = await User.findOne({ email: session.user.email! }).lean();
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const teacherProfile = await TeacherProfile.findOne({ userId: user._id }).lean();
 
     if (!teacherProfile) {
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
@@ -43,7 +49,7 @@ export async function PUT(
       return NextResponse.json({ error: "Invalid rubric data" }, { status: 400 });
     }
 
-    const rubric = await rubricService.upsertRubric(resolvedParams.id, teacherProfile.id, {
+    const rubric = await rubricService.upsertRubric(resolvedParams.id, teacherProfile._id.toString(), {
       title,
       criteria,
     });

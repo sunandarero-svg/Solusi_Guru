@@ -1,29 +1,46 @@
-import { prisma } from "@/lib/prisma";
-import { AssignmentStatus } from "@prisma/client";
+import dbConnect from "@/lib/mongoose";
+import { Assignment, AssignmentStatus, Rubric, RubricCriterion } from "@/models/Assignment";
+import { Submission } from "@/models/Submission";
+import { mapId } from "@/lib/mapId";
 
 export const assignmentService = {
   async getAllAssignments(teacherId: string) {
-    return prisma.assignment.findMany({
-      where: { teacherId },
-      include: {
-        class: true,
-        _count: {
-          select: { submissions: true }
-        }
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    await dbConnect();
+    const assignments = await Assignment.find({ teacherId })
+      .populate('classId')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Mongoose doesn't have _count in populate easily, so we aggregate or do a separate count
+    // For simplicity, we map over and count submissions
+    const populated = await Promise.all(assignments.map(async (assign) => {
+      const subCount = await Submission.countDocuments({ assignmentId: assign._id });
+      return {
+        ...assign,
+        class: assign.classId, // remap to match previous prisma structure
+        _count: { submissions: subCount }
+      };
+    }));
+    return mapId(populated);
   },
 
   async getAssignmentById(id: string) {
-    return prisma.assignment.findUnique({
-      where: { id },
-      include: {
-        class: true,
-        rubrics: {
-          include: { criteria: { orderBy: { order: "asc" } } }
-        }
-      }
+    await dbConnect();
+    
+    const assignment = await Assignment.findById(id).populate('classId').lean();
+    if (!assignment) return null;
+
+    const rubrics = await Rubric.find({ assignmentId: assignment._id }).lean();
+    
+    const rubricsWithCriteria = await Promise.all(rubrics.map(async (r) => {
+      const criteria = await RubricCriterion.find({ rubricId: r._id }).sort({ order: 1 }).lean();
+      return { ...r, criteria };
+    }));
+
+    return mapId({
+      ...assignment,
+      class: assignment.classId,
+      rubrics: rubricsWithCriteria
     });
   },
 
@@ -36,12 +53,12 @@ export const assignmentService = {
     deadline?: Date;
     maxPages?: number;
   }) {
-    return prisma.assignment.create({
-      data: {
-        ...data,
-        status: AssignmentStatus.DRAFT,
-      },
+    await dbConnect();
+    const assignment = await Assignment.create({
+      ...data,
+      status: AssignmentStatus.DRAFT,
     });
+    return mapId(assignment.toObject());
   },
 
   async updateAssignment(id: string, teacherId: string, data: {
@@ -52,19 +69,14 @@ export const assignmentService = {
     maxPages?: number;
     status?: AssignmentStatus;
   }) {
-    // Ensure the assignment belongs to the teacher
-    const assignment = await prisma.assignment.findUnique({
-      where: { id },
-      select: { teacherId: true }
-    });
+    await dbConnect();
+    const assignment = await Assignment.findById(id).select('teacherId').lean();
 
-    if (!assignment || assignment.teacherId !== teacherId) {
+    if (!assignment || assignment.teacherId.toString() !== teacherId.toString()) {
       throw new Error("Unauthorized or Assignment not found");
     }
 
-    return prisma.assignment.update({
-      where: { id },
-      data,
-    });
+    const updated = await Assignment.findByIdAndUpdate(id, data, { new: true }).lean();
+    return mapId(updated);
   },
 };

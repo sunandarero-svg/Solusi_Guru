@@ -1,6 +1,11 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { TeacherProfile, StudentProfile } from "@/models/Profile";
+import { Assignment, AssignmentStatus } from "@/models/Assignment";
+import { Submission, SubmissionStatus } from "@/models/Submission";
+import { Enrollment } from "@/models/Class";
 import { redirect } from "next/navigation";
 import { FileText, Inbox, Users, BookOpen, CheckCircle, TrendingUp } from "lucide-react";
 
@@ -16,60 +21,73 @@ export default async function DashboardPage() {
 
   let stats = { assignments: 0, submissions: 0, students: 0 };
 
+  await dbConnect();
+
   if (role === "TEACHER") {
-    const teacherProfile = await prisma.teacherProfile.findFirst({
-      where: { user: { email: userEmail ?? "" } },
-    });
+    // Populate User to match email
+    const teacherProfile = await TeacherProfile.findOne().populate({
+      path: 'userId',
+      match: { email: userEmail ?? "" }
+    }).lean();
 
-    if (teacherProfile) {
-      const [assignmentCount, submissionCount, studentCount] = await Promise.all([
-        prisma.assignment.count({
-          where: { teacherId: teacherProfile.id },
-        }),
-        prisma.submission.count({
-          where: {
-            assignment: { teacherId: teacherProfile.id },
-            status: "NEEDS_TEACHER_REVIEW",
-          },
-        }),
-        prisma.studentProfile.count(),
-      ]);
+    // Since we filtered via populate match, if userId is null, it didn't match.
+    // Better way: Find user first
+    const user = await User.findOne({ email: userEmail ?? "" }).lean();
 
-      stats = {
-        assignments: assignmentCount,
-        submissions: submissionCount,
-        students: studentCount,
-      };
+    if (user) {
+      const profile = await TeacherProfile.findOne({ userId: user._id }).lean();
+      if (profile) {
+        const [assignmentCount, submissionCount, studentCount] = await Promise.all([
+          Assignment.countDocuments({
+            teacherId: profile._id,
+          }),
+          // Find assignments by teacher to filter submissions
+          Assignment.find({ teacherId: profile._id }).select('_id').lean().then(async (assignments) => {
+            const assignmentIds = assignments.map(a => a._id);
+            return Submission.countDocuments({
+              assignmentId: { $in: assignmentIds },
+              status: SubmissionStatus.NEEDS_TEACHER_REVIEW,
+            });
+          }),
+          StudentProfile.countDocuments(),
+        ]);
+
+        stats = {
+          assignments: assignmentCount,
+          submissions: submissionCount,
+          students: studentCount,
+        };
+      }
     }
   }
 
   let studentStats = { activeAssignments: 0, mySubmissions: 0 };
 
   if (role === "STUDENT") {
-    const studentProfile = await prisma.studentProfile.findFirst({
-      where: { user: { email: userEmail ?? "" } },
-      include: { enrollments: true },
-    });
+    const user = await User.findOne({ email: userEmail ?? "" }).lean();
 
-    if (studentProfile) {
-      const classIds = studentProfile.enrollments.map(e => e.classId);
+    if (user) {
+      const studentProfile = await StudentProfile.findOne({ userId: user._id }).lean();
+      
+      if (studentProfile) {
+        const enrollments = await Enrollment.find({ studentId: studentProfile._id }).lean();
+        const classIds = enrollments.map(e => e.classId);
 
-      const [activeAssignmentCount, submissionCount] = await Promise.all([
-        prisma.assignment.count({
-          where: {
-            classId: { in: classIds },
-            status: "PUBLISHED",
-          },
-        }),
-        prisma.submission.count({
-          where: { studentId: studentProfile.id },
-        }),
-      ]);
+        const [activeAssignmentCount, submissionCount] = await Promise.all([
+          Assignment.countDocuments({
+            classId: { $in: classIds },
+            status: AssignmentStatus.PUBLISHED,
+          }),
+          Submission.countDocuments({
+            studentId: studentProfile._id,
+          }),
+        ]);
 
-      studentStats = {
-        activeAssignments: activeAssignmentCount,
-        mySubmissions: submissionCount,
-      };
+        studentStats = {
+          activeAssignments: activeAssignmentCount,
+          mySubmissions: submissionCount,
+        };
+      }
     }
   }
 

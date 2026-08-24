@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import { TeacherReview, Submission, SubmissionStatus, ReviewStatus } from "@/models/Submission";
 
 export const reviewService = {
   // Save or update a teacher review
@@ -9,35 +10,30 @@ export const reviewService = {
     finalFeedback: string,
     publish: boolean = false
   ) {
-    const status = publish ? "PUBLISHED" as const : "DRAFT" as const;
+    await dbConnect();
+    const status = publish ? ReviewStatus.PUBLISHED : ReviewStatus.DRAFT;
     const reviewedAt = publish ? new Date() : null;
 
-    // Use upsert to handle both create and update
-    const review = await prisma.teacherReview.upsert({
-      where: { submissionId },
-      create: {
+    // Use findOneAndUpdate with upsert
+    const review = await TeacherReview.findOneAndUpdate(
+      { submissionId },
+      {
         submissionId,
         teacherId,
         finalScore,
         finalFeedback,
         status,
-        reviewedAt
+        ...(reviewedAt && { reviewedAt })
       },
-      update: {
-        teacherId,
-        finalScore,
-        finalFeedback,
-        status,
-        reviewedAt: publish ? new Date() : undefined
-      }
-    });
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
 
     // Update submission status if published
     if (publish) {
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: { status: "PUBLISHED" }
-      });
+      await Submission.updateOne(
+        { _id: submissionId },
+        { status: SubmissionStatus.PUBLISHED }
+      );
     }
 
     return review;

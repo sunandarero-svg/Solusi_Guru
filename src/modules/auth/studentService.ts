@@ -1,14 +1,17 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import User, { Role } from "@/models/User";
+import { StudentProfile } from "@/models/Profile";
+import { Enrollment } from "@/models/Class";
 import bcrypt from "bcryptjs";
+import { mapId } from "@/lib/mapId";
 
 export async function getAllStudents() {
-  return prisma.studentProfile.findMany({
-    include: {
-      user: { select: { email: true, createdAt: true } },
-      enrollments: { include: { class: true } },
-    },
-    orderBy: { studentNumber: "asc" },
-  });
+  await dbConnect();
+  const students = await StudentProfile.find()
+    .populate('userId', 'email createdAt')
+    .sort({ studentNumber: 1 })
+    .lean();
+  return mapId(students);
 }
 
 export async function createStudent(data: {
@@ -18,47 +21,39 @@ export async function createStudent(data: {
   studentNumber: string;
   classId?: string;
 }) {
+  await dbConnect();
+
   // Check existing user
-  const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
-  });
+  const existingUser = await User.findOne({ email: data.email });
   if (existingUser) {
     throw new Error("Email sudah terdaftar");
   }
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  // Create user first (no nested create to avoid transaction requirement)
-  const user = await prisma.user.create({
-    data: {
-      email: data.email,
-      passwordHash: hashedPassword,
-      role: "STUDENT",
-    },
+  const user = await User.create({
+    email: data.email,
+    passwordHash: hashedPassword,
+    role: Role.STUDENT,
   });
 
-  // Create student profile separately
-  const studentProfile = await prisma.studentProfile.create({
-    data: {
-      userId: user.id,
-      fullName: data.fullName,
-      studentNumber: data.studentNumber,
-    },
+  const studentProfile = await StudentProfile.create({
+    userId: user._id,
+    fullName: data.fullName,
+    studentNumber: data.studentNumber,
   });
 
-  // Enroll to class if classId provided
   if (data.classId) {
-    await prisma.enrollment.create({
-      data: {
-        studentId: studentProfile.id,
-        classId: data.classId,
-      },
+    await Enrollment.create({
+      studentId: studentProfile._id,
+      classId: data.classId,
     });
   }
 
-  return { ...user, studentProfile };
+  return mapId({ ...user.toObject(), studentProfile: studentProfile.toObject() });
 }
 
 export async function getStudentCount() {
-  return prisma.studentProfile.count();
+  await dbConnect();
+  return StudentProfile.countDocuments();
 }

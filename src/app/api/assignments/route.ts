@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import { assignmentService } from "@/modules/assignment/assignmentService";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { TeacherProfile } from "@/models/Profile";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,16 +13,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { prisma } = await import("@/lib/prisma");
-    const teacherProfile = await prisma.teacherProfile.findFirst({
-      where: { user: { email: session.user.email } }
-    });
+    await dbConnect();
+    const user = await User.findOne({ email: session.user.email }).lean();
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    
+    const teacherProfile = await TeacherProfile.findOne({ userId: user._id }).lean();
 
     if (!teacherProfile) {
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
-    const assignments = await assignmentService.getAllAssignments(teacherProfile.id);
+    const assignments = await assignmentService.getAllAssignments(teacherProfile._id.toString());
     return NextResponse.json(assignments);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: error.message === "Unauthorized" ? 401 : 500 });
@@ -34,10 +38,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { prisma } = await import("@/lib/prisma");
-    const teacherProfile = await prisma.teacherProfile.findFirst({
-      where: { user: { email: session.user.email } }
-    });
+    await dbConnect();
+    const user = await User.findOne({ email: session.user.email }).lean();
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    const teacherProfile = await TeacherProfile.findOne({ userId: user._id }).lean();
 
     if (!teacherProfile) {
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     const assignment = await assignmentService.createAssignment({
-      teacherId: teacherProfile.id,
+      teacherId: teacherProfile._id.toString(),
       classId,
       title,
       description,

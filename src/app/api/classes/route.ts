@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import { getAllClasses, getTeacherProfileByEmail } from "@/modules/auth/classService";
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import { Class, TeacherClass } from "@/models/Class";
 
 // GET: Ambil semua kelas
 export async function GET() {
@@ -34,9 +35,10 @@ export async function POST(req: Request) {
   }
 
   try {
+    await dbConnect();
     // Check teacher class quota
-    const currentClassCount = await prisma.teacherClass.count({
-      where: { teacherId: teacherProfile.id },
+    const currentClassCount = await TeacherClass.countDocuments({
+      teacherId: teacherProfile._id,
     });
 
     if (currentClassCount >= teacherProfile.maxClasses) {
@@ -46,34 +48,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // Workaround for Prisma + MongoDB Standalone Transaction Issue:
-    // Use createMany instead of create, and generate ObjectIds manually.
-    // createMany bypasses the transaction engine in Prisma for MongoDB.
-    const { ObjectId } = require('bson');
-    const newClassId = new ObjectId().toHexString();
-
-    await prisma.class.createMany({
-      data: [{
-        id: newClassId,
-        name,
-        description,
-      }],
+    const newClass = await Class.create({
+      name,
+      description,
     });
 
-    const newTeacherClassId = new ObjectId().toHexString();
-    await prisma.teacherClass.createMany({
-      data: [{
-        id: newTeacherClassId,
-        classId: newClassId,
-        teacherId: teacherProfile.id,
-      }],
+    await TeacherClass.create({
+      classId: newClass._id,
+      teacherId: teacherProfile._id,
     });
 
-    const newClass = await prisma.class.findUnique({
-      where: { id: newClassId }
-    });
-
-    return NextResponse.json(newClass, { status: 201 });
+    return NextResponse.json(newClass.toObject(), { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Gagal membuat kelas" },

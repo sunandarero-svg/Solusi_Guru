@@ -48,7 +48,7 @@ export async function POST(
     // Get current max page number if not provided
     let pageNumber = parseInt(pageNumberStr);
     if (isNaN(pageNumber)) {
-      const maxPage = submission.pages.reduce((max, p) => p.pageNumber > max ? p.pageNumber : max, 0);
+      const maxPage = submission.pages.reduce((max: number, p: any) => p.pageNumber > max ? p.pageNumber : max, 0);
       pageNumber = maxPage + 1;
     }
 

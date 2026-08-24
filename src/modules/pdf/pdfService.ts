@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import { Submission, SubmissionPage, SubmissionDocument } from "@/models/Submission";
 import { PDFDocument } from "pdf-lib";
 import { readFile, mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -6,25 +7,25 @@ import crypto from "crypto";
 
 export const pdfService = {
   async generatePDFFromSubmission(submissionId: string) {
+    await dbConnect();
+    
     // 1. Fetch submission and its pages
-    const submission = await prisma.submission.findUnique({
-      where: { id: submissionId },
-      include: {
-        pages: {
-          orderBy: { pageNumber: 'asc' }
-        }
-      }
-    });
+    const submission = await Submission.findById(submissionId).lean();
+    if (!submission) {
+      throw new Error("Submission not found");
+    }
 
-    if (!submission || submission.pages.length === 0) {
-      throw new Error("Submission not found or has no pages.");
+    const pages = await SubmissionPage.find({ submissionId }).sort({ pageNumber: 1 }).lean();
+
+    if (pages.length === 0) {
+      throw new Error("Submission has no pages.");
     }
 
     // 2. Create a new PDF document
     const pdfDoc = await PDFDocument.create();
 
     // 3. Process each page
-    for (const pageRecord of submission.pages) {
+    for (const pageRecord of pages) {
       const publicPath = pageRecord.storageKey; // e.g. /uploads/submissions/xxx.jpg
       const absolutePath = path.join(process.cwd(), "public", publicPath);
 
@@ -50,7 +51,7 @@ export const pdfService = {
           height: dims.height,
         });
       } catch (err) {
-        console.error(`Failed to process page ${pageRecord.id}:`, err);
+        console.error(`Failed to process page ${pageRecord._id}:`, err);
         // Continue even if one page fails, or throw. For now, continue to not block the whole document.
       }
     }
@@ -71,15 +72,13 @@ export const pdfService = {
     const storageKey = `/uploads/documents/${filename}`;
     const fileSize = pdfBytes.length;
 
-    const submissionDocument = await prisma.submissionDocument.create({
-      data: {
-        submissionId: submissionId,
-        storageKey,
-        fileSize,
-        pageCount: submission.pages.length,
-      }
+    const submissionDocument = await SubmissionDocument.create({
+      submissionId: submissionId,
+      storageKey,
+      fileSize,
+      pageCount: pages.length,
     });
 
-    return submissionDocument;
+    return submissionDocument.toObject();
   }
 };

@@ -1,53 +1,46 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import { Submission, SubmissionPage, SubmissionStatus } from "@/models/Submission";
+import { Assignment } from "@/models/Assignment";
+import { mapId } from "@/lib/mapId";
 
 export const submissionService = {
   // Get active submission for a student (DRAFT or SUBMITTED)
   async getSubmissionByAssignmentAndStudent(assignmentId: string, studentId: string) {
-    return prisma.submission.findFirst({
-      where: {
-        assignmentId,
-        studentId
-      },
-      include: {
-        pages: {
-          orderBy: {
-            pageNumber: 'asc'
-          }
-        }
-      }
-    });
+    await dbConnect();
+    const submission = await Submission.findOne({ assignmentId, studentId }).lean();
+    if (!submission) return null;
+
+    const pages = await SubmissionPage.find({ submissionId: submission._id }).sort({ pageNumber: 1 }).lean();
+    return mapId({ ...submission, pages });
   },
 
   async getSubmissionById(submissionId: string) {
-    return prisma.submission.findUnique({
-      where: { id: submissionId },
-      include: {
-        pages: {
-          orderBy: { pageNumber: 'asc' }
-        },
-        assignment: true
-      }
-    });
+    await dbConnect();
+    const submission = await Submission.findById(submissionId).lean();
+    if (!submission) return null;
+
+    const pages = await SubmissionPage.find({ submissionId: submission._id }).sort({ pageNumber: 1 }).lean();
+    const assignment = await Assignment.findById(submission.assignmentId).lean();
+    
+    return mapId({ ...submission, pages, assignment });
   },
 
   // Create a new draft submission
   async createDraftSubmission(assignmentId: string, studentId: string) {
+    await dbConnect();
     // Check if one already exists
     const existing = await this.getSubmissionByAssignmentAndStudent(assignmentId, studentId);
     if (existing) {
       return existing;
     }
 
-    return prisma.submission.create({
-      data: {
-        assignmentId,
-        studentId,
-        status: "DRAFT"
-      },
-      include: {
-        pages: true
-      }
+    const submission = await Submission.create({
+      assignmentId,
+      studentId,
+      status: SubmissionStatus.DRAFT
     });
+    
+    return mapId({ ...submission.toObject(), pages: [] });
   },
 
   // Add an uploaded page to a submission
@@ -58,50 +51,52 @@ export const submissionService = {
     fileSize: number;
     pageNumber: number;
   }) {
-    return prisma.submissionPage.create({
-      data: {
-        submissionId,
-        ...data
-      }
-    });
+    await dbConnect();
+    return SubmissionPage.create({
+      submissionId,
+      ...data
+    }).then(doc => mapId(doc.toObject()));
   },
 
   // Update page numbers (for reordering)
   async reorderPages(submissionId: string, pageIdsInOrder: string[]) {
-    // Perform updates in a transaction
+    await dbConnect();
+    // Perform updates without transaction because standalone MongoDB doesn't support them
     const operations = pageIdsInOrder.map((id, index) => 
-      prisma.submissionPage.update({
-        where: { id },
-        data: { pageNumber: index + 1 }
-      })
+      SubmissionPage.updateOne(
+        { _id: id },
+        { $set: { pageNumber: index + 1 } }
+      )
     );
 
-    return prisma.$transaction(operations);
+    return Promise.all(operations);
   },
 
   // Remove a page
   async removePage(pageId: string) {
-    return prisma.submissionPage.delete({
-      where: { id: pageId }
-    });
+    await dbConnect();
+    return SubmissionPage.deleteOne({ _id: pageId });
   },
 
   // Submit the assignment
-  async submitAssignment(submissionId: string, status: any = "SUBMITTED") {
-    return prisma.submission.update({
-      where: { id: submissionId },
-      data: {
-        status: status,
-        submittedAt: new Date()
-      }
-    });
+  async submitAssignment(submissionId: string, status: any = SubmissionStatus.SUBMITTED) {
+    await dbConnect();
+    const sub = await Submission.findByIdAndUpdate(
+      submissionId,
+      { status, submittedAt: new Date() },
+      { new: true }
+    ).lean();
+    return mapId(sub);
   },
 
   // Update submission status
   async updateStatus(submissionId: string, status: any) {
-    return prisma.submission.update({
-      where: { id: submissionId },
-      data: { status }
-    });
+    await dbConnect();
+    const sub = await Submission.findByIdAndUpdate(
+      submissionId,
+      { status },
+      { new: true }
+    ).lean();
+    return mapId(sub);
   }
 };

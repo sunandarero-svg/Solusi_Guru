@@ -1,32 +1,56 @@
 import { getServerSession } from "next-auth/next";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { StudentProfile } from "@/models/Profile";
+import { Enrollment, Class } from "@/models/Class";
+import { Assignment, AssignmentStatus } from "@/models/Assignment";
+import { Submission } from "@/models/Submission";
 
 export default async function MyAssignmentsPage() {
   const session = await getServerSession(authOptions);
   const userEmail = session?.user?.email;
 
-  const studentProfile = await prisma.studentProfile.findFirst({
-    where: { user: { email: userEmail ?? "" } },
-    include: { enrollments: true },
-  });
+  await dbConnect();
+  
+  const user = await User.findOne({ email: userEmail ?? "" }).lean();
+  let assignments: any[] = [];
 
-  const classIds = studentProfile?.enrollments.map(e => e.classId) ?? [];
+  if (user) {
+    const studentProfile = await StudentProfile.findOne({ userId: user._id }).lean();
 
-  const assignments = await prisma.assignment.findMany({
-    where: {
-      classId: { in: classIds },
-      status: "PUBLISHED",
-    },
-    include: {
-      class: true,
-      submissions: {
-        where: { studentId: studentProfile?.id ?? "" },
-      },
-    },
-    orderBy: { deadline: "asc" },
-  });
+    if (studentProfile) {
+      const enrollments = await Enrollment.find({ studentId: studentProfile._id }).lean();
+      const classIds = enrollments.map(e => e.classId);
+
+      const foundAssignments = await Assignment.find({
+        classId: { $in: classIds },
+        status: AssignmentStatus.PUBLISHED,
+      }).sort({ deadline: 1 }).lean();
+
+      // We need to fetch the class details and the student's submission for each assignment
+      const classDetails = await Class.find({ _id: { $in: classIds } }).lean();
+      
+      const assignmentIds = foundAssignments.map(a => a._id);
+      const submissions = await Submission.find({
+        assignmentId: { $in: assignmentIds },
+        studentId: studentProfile._id,
+      }).lean();
+
+      assignments = foundAssignments.map(assignment => {
+        const classObj = classDetails.find(c => c._id.toString() === assignment.classId.toString());
+        const studentSubmission = submissions.find(s => s.assignmentId.toString() === assignment._id.toString());
+        
+        return {
+          ...assignment,
+          id: assignment._id.toString(), // For React keys
+          class: classObj,
+          submissions: studentSubmission ? [studentSubmission] : [],
+        };
+      });
+    }
+  }
 
   return (
     <div>
@@ -52,7 +76,7 @@ export default async function MyAssignmentsPage() {
 
             return (
               <Link 
-                href={`/dashboard/my-assignments/${assignment.id}`} 
+                href={`/dashboard/my-assignments/${assignment._id}`} 
                 key={assignment.id}
                 className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:border-blue-200 transition group block"
               >
@@ -79,7 +103,7 @@ export default async function MyAssignmentsPage() {
 
                 <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
                   <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded">
-                    {assignment.class.name}
+                    {assignment.class?.name || "Kelas"}
                   </span>
                   <div className="flex items-center space-x-2">
                     {assignment.deadline && (

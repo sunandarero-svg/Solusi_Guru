@@ -1,15 +1,18 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
+import { mapId } from "@/lib/mapId";
 
 export const rubricService = {
   async getRubricByAssignmentId(assignmentId: string) {
-    return prisma.rubric.findFirst({
-      where: { assignmentId },
-      include: {
-        criteria: {
-          orderBy: { order: "asc" }
-        }
-      }
-    });
+    await dbConnect();
+    const rubric = await Rubric.findOne({ assignmentId }).lean();
+    if (!rubric) return null;
+
+    const criteria = await RubricCriterion.find({ rubricId: rubric._id })
+      .sort({ order: 1 })
+      .lean();
+
+    return mapId({ ...rubric, criteria });
   },
 
   async upsertRubric(
@@ -20,13 +23,12 @@ export const rubricService = {
       criteria: { id?: string; name: string; description?: string; maxScore: number; order: number }[]
     }
   ) {
+    await dbConnect();
+    
     // Validate assignment ownership
-    const assignment = await prisma.assignment.findUnique({
-      where: { id: assignmentId },
-      select: { teacherId: true, status: true }
-    });
+    const assignment = await Assignment.findById(assignmentId).select('teacherId status').lean();
 
-    if (!assignment || assignment.teacherId !== teacherId) {
+    if (!assignment || assignment.teacherId.toString() !== teacherId.toString()) {
       throw new Error("Unauthorized or Assignment not found");
     }
     
@@ -41,47 +43,34 @@ export const rubricService = {
       throw new Error(`Total score must be exactly 100. Current total is ${totalScore}`);
     }
 
-    // Upsert Rubric & replace all criteria (no $transaction for MongoDB standalone)
-    let rubric = await prisma.rubric.findFirst({
-      where: { assignmentId }
-    });
+    // Upsert Rubric & replace all criteria
+    let rubric = await Rubric.findOne({ assignmentId });
 
     if (!rubric) {
-      rubric = await prisma.rubric.create({
-        data: {
-          assignmentId,
-          title: data.title,
-          totalScore: 100,
-        }
+      rubric = await Rubric.create({
+        assignmentId,
+        title: data.title,
+        totalScore: 100,
       });
     } else {
-      rubric = await prisma.rubric.update({
-        where: { id: rubric.id },
-        data: { title: data.title }
-      });
+      rubric.title = data.title;
+      await rubric.save();
     }
 
     // Delete old criteria
-    await prisma.rubricCriterion.deleteMany({
-      where: { rubricId: rubric.id }
-    });
+    await RubricCriterion.deleteMany({ rubricId: rubric._id });
 
-    // Create new criteria one by one
-    for (const c of data.criteria) {
-      await prisma.rubricCriterion.create({
-        data: {
-          rubricId: rubric.id,
-          name: c.name,
-          description: c.description || "",
-          maxScore: c.maxScore,
-          order: c.order,
-        }
-      });
-    }
+    // Create new criteria
+    const criteriaDocs = data.criteria.map(c => ({
+      rubricId: rubric._id,
+      name: c.name,
+      description: c.description || "",
+      maxScore: c.maxScore,
+      order: c.order,
+    }));
+    await RubricCriterion.insertMany(criteriaDocs);
 
-    return prisma.rubric.findUnique({
-      where: { id: rubric.id },
-      include: { criteria: { orderBy: { order: "asc" } } }
-    });
+    const criteria = await RubricCriterion.find({ rubricId: rubric._id }).sort({ order: 1 }).lean();
+    return mapId({ ...rubric.toObject(), criteria });
   }
 };

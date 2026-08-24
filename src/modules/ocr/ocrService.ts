@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import { SubmissionDocument, OCRResult } from "@/models/Submission";
 import { OCRProvider } from "./OCRProvider";
 import { MockOCRProvider } from "./MockOCRProvider";
 
@@ -13,18 +14,16 @@ export class OCRService {
    * Execute OCR on a submission's PDF document
    */
   async processSubmission(submissionId: string) {
+    await dbConnect();
+
     // 1. Get the submission document
-    const document = await prisma.submissionDocument.findUnique({
-      where: { submissionId }
-    });
+    const document = await SubmissionDocument.findOne({ submissionId }).lean();
 
     if (!document) {
       throw new Error(`Submission document not found for submission ID ${submissionId}`);
     }
 
     // 2. Execute OCR Provider
-    // The storageKey might be relative like "/uploads/documents/xxx.pdf"
-    // Retry logic (max 2 retries)
     let result;
     let attempt = 0;
     const maxRetries = 2;
@@ -32,14 +31,13 @@ export class OCRService {
     while (attempt <= maxRetries) {
       try {
         result = await this.provider.processDocument(document.storageKey);
-        break; // Success, exit loop
+        break;
       } catch (error) {
         attempt++;
         console.warn(`[OCR] Attempt ${attempt} failed:`, error);
         if (attempt > maxRetries) {
           throw new Error(`OCR processing failed after ${maxRetries} retries: ${error}`);
         }
-        // Wait before retrying (exponential backoff: 1s, 2s, ...)
         await new Promise(res => setTimeout(res, attempt * 1000));
       }
     }
@@ -49,17 +47,15 @@ export class OCRService {
     }
 
     // 3. Save result to database
-    const ocrRecord = await prisma.oCRResult.create({
-      data: {
-        submissionId: submissionId,
-        provider: this.provider.providerName,
-        extractedText: result.text,
-        confidence: result.confidence,
-        status: result.status,
-      }
+    const ocrRecord = await OCRResult.create({
+      submissionId: submissionId,
+      provider: this.provider.providerName,
+      extractedText: result.text,
+      confidence: result.confidence,
+      status: result.status,
     });
 
-    return ocrRecord;
+    return ocrRecord.toObject();
   }
 }
 

@@ -1,36 +1,56 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import User, { Role } from "@/models/User";
+import { TeacherProfile, StudentProfile } from "@/models/Profile";
+import { Class, TeacherClass, Enrollment } from "@/models/Class";
+import { Assignment } from "@/models/Assignment";
 import bcrypt from "bcryptjs";
+import { mapId } from "@/lib/mapId";
 
 /**
  * Get all teachers (excluding soft-deleted)
  */
 export async function getAllTeachers() {
-  return prisma.teacherProfile.findMany({
-    where: { deletedAt: null },
-    include: {
-      user: { select: { email: true, createdAt: true } },
-      classes: { include: { class: true } },
+  await dbConnect();
+  
+  const teachers = await TeacherProfile.find({ deletedAt: null })
+    .populate('userId', 'email createdAt')
+    .sort({ fullName: 1 })
+    .lean();
+
+  const mapped = await Promise.all(teachers.map(async (teacher) => {
+    // Manually count classes and assignments since Mongoose populate _count isn't direct
+    const classLinks = await TeacherClass.find({ teacherId: teacher._id }).lean();
+    const classesCount = classLinks.length;
+    const assignmentsCount = await Assignment.countDocuments({ teacherId: teacher._id });
+    
+    // We can also fetch the actual classes if needed
+    const classIds = classLinks.map(c => c.classId);
+    const classes = await Class.find({ _id: { $in: classIds } }).lean();
+
+    return {
+      ...teacher,
+      user: teacher.userId,
+      classes: classLinks.map((cl, i) => ({ ...cl, class: classes.find(c => c._id.toString() === cl.classId.toString()) })),
       _count: {
-        select: {
-          classes: true,
-          assignments: true,
-        },
-      },
-    },
-    orderBy: { fullName: "asc" },
-  });
+        classes: classesCount,
+        assignments: assignmentsCount,
+      }
+    };
+  }));
+  return mapId(mapped);
 }
 
 /**
  * Get teacher by ID (excluding soft-deleted)
  */
 export async function getTeacherById(teacherProfileId: string) {
-  return prisma.teacherProfile.findFirst({
-    where: { id: teacherProfileId, deletedAt: null },
-    include: {
-      user: { select: { email: true } },
-    },
-  });
+  await dbConnect();
+  const teacher = await TeacherProfile.findOne({ _id: teacherProfileId, deletedAt: null })
+    .populate('userId', 'email')
+    .lean();
+  
+  if (!teacher) return null;
+  return mapId({ ...teacher, user: teacher.userId });
 }
 
 /**
@@ -43,47 +63,38 @@ export async function createTeacher(data: {
   maxStudents?: number;
   maxClasses?: number;
 }) {
-  // Check existing user
-  const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
-  });
+  await dbConnect();
+  
+  const existingUser = await User.findOne({ email: data.email });
   if (existingUser) {
     throw new Error("Email sudah terdaftar");
   }
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  // Create user first (no nested create to avoid transaction requirement on standalone MongoDB)
-  const user = await prisma.user.create({
-    data: {
-      email: data.email,
-      passwordHash: hashedPassword,
-      role: "TEACHER",
-    },
+  const user = await User.create({
+    email: data.email,
+    passwordHash: hashedPassword,
+    role: Role.TEACHER,
   });
 
-  // Create teacher profile separately
-  const teacherProfile = await prisma.teacherProfile.create({
-    data: {
-      userId: user.id,
-      fullName: data.fullName,
-      maxStudents: data.maxStudents ?? 310,
-      maxClasses: data.maxClasses ?? 10,
-    },
+  const teacherProfile = await TeacherProfile.create({
+    userId: user._id,
+    fullName: data.fullName,
+    maxStudents: data.maxStudents ?? 310,
+    maxClasses: data.maxClasses ?? 10,
   });
 
-  return { ...user, teacherProfile };
+  return mapId({ ...user.toObject(), teacherProfile: teacherProfile.toObject() });
 }
 
 /**
  * Soft-delete a teacher (set deletedAt timestamp)
  */
 export async function deleteTeacher(teacherProfileId: string) {
-  const teacher = await prisma.teacherProfile.findUnique({
-    where: { id: teacherProfileId },
-    include: { user: true },
-  });
-
+  await dbConnect();
+  
+  const teacher = await TeacherProfile.findById(teacherProfileId);
   if (!teacher) {
     throw new Error("Guru tidak ditemukan");
   }
@@ -92,11 +103,8 @@ export async function deleteTeacher(teacherProfileId: string) {
     throw new Error("Guru sudah dihapus sebelumnya");
   }
 
-  // Soft-delete: set deletedAt timestamp
-  await prisma.teacherProfile.update({
-    where: { id: teacherProfileId },
-    data: { deletedAt: new Date() },
-  });
+  teacher.deletedAt = new Date();
+  await teacher.save();
 
   return { success: true, message: "Guru berhasil dihapus (soft-delete)" };
 }
@@ -108,33 +116,30 @@ export async function updateTeacherQuota(
   teacherProfileId: string,
   data: { maxStudents?: number; maxClasses?: number }
 ) {
-  const teacher = await prisma.teacherProfile.findFirst({
-    where: { id: teacherProfileId, deletedAt: null },
-  });
+  await dbConnect();
+  const teacher = await TeacherProfile.findOne({ _id: teacherProfileId, deletedAt: null });
 
   if (!teacher) {
     throw new Error("Guru tidak ditemukan");
   }
 
-  return prisma.teacherProfile.update({
-    where: { id: teacherProfileId },
-    data: {
-      maxStudents: data.maxStudents ?? teacher.maxStudents,
-      maxClasses: data.maxClasses ?? teacher.maxClasses,
-    },
-  });
+  if (data.maxStudents !== undefined) teacher.maxStudents = data.maxStudents;
+  if (data.maxClasses !== undefined) teacher.maxClasses = data.maxClasses;
+  await teacher.save();
+  return mapId(teacher.toObject());
 }
 
 /**
  * Get admin dashboard statistics
  */
 export async function getAdminStats() {
+  await dbConnect();
   const [teacherCount, studentCount, classCount, assignmentCount] =
     await Promise.all([
-      prisma.teacherProfile.count({ where: { deletedAt: null } }),
-      prisma.studentProfile.count(),
-      prisma.class.count(),
-      prisma.assignment.count(),
+      TeacherProfile.countDocuments({ deletedAt: null }),
+      StudentProfile.countDocuments(),
+      Class.countDocuments(),
+      Assignment.countDocuments(),
     ]);
 
   return {
@@ -149,18 +154,13 @@ export async function getAdminStats() {
  * Count students assigned to a teacher (through classes)
  */
 export async function getTeacherStudentCount(teacherProfileId: string) {
-  const enrollments = await prisma.enrollment.findMany({
-    where: {
-      class: {
-        teachers: {
-          some: { teacherId: teacherProfileId },
-        },
-      },
-    },
-    select: { studentId: true },
-  });
+  await dbConnect();
+  
+  const teacherClasses = await TeacherClass.find({ teacherId: teacherProfileId }).lean();
+  const classIds = teacherClasses.map(tc => tc.classId);
 
-  // Count unique students
-  const uniqueStudentIds = new Set(enrollments.map((e) => e.studentId));
+  const enrollments = await Enrollment.find({ classId: { $in: classIds } }).lean();
+
+  const uniqueStudentIds = new Set(enrollments.map((e) => e.studentId.toString()));
   return uniqueStudentIds.size;
 }

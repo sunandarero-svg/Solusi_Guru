@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import { getAllStudents, createStudent, getStudentCount } from "@/modules/auth/studentService";
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { TeacherProfile } from "@/models/Profile";
 
 // GET: Ambil semua siswa
 export async function GET() {
@@ -28,18 +30,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Field tidak boleh kosong" }, { status: 400 });
   }
 
+  await dbConnect();
   // Check teacher student quota
-  const teacherProfile = await prisma.teacherProfile.findFirst({
-    where: { user: { email: session.user.email! } },
-  });
-
-  if (teacherProfile) {
-    const currentStudentCount = await getStudentCount();
-    if (currentStudentCount >= teacherProfile.maxStudents) {
-      return NextResponse.json(
-        { error: `Kuota siswa sudah penuh. Maksimal ${teacherProfile.maxStudents} siswa. Hubungi admin untuk menambah kuota.` },
-        { status: 400 }
-      );
+  const teacherUser = await User.findOne({ email: session.user.email! }).lean();
+  
+  if (teacherUser) {
+    const teacherProfile = await TeacherProfile.findOne({ userId: teacherUser._id }).lean();
+    if (teacherProfile) {
+      const currentStudentCount = await getStudentCount();
+      if (currentStudentCount >= teacherProfile.maxStudents) {
+        return NextResponse.json(
+          { error: `Kuota siswa sudah penuh. Maksimal ${teacherProfile.maxStudents} siswa. Hubungi admin untuk menambah kuota.` },
+          { status: 400 }
+        );
+      }
     }
   }
 
@@ -53,4 +57,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

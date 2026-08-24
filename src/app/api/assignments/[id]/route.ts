@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/session";
 import { assignmentService } from "@/modules/assignment/assignmentService";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { TeacherProfile } from "@/models/Profile";
 
 // GET can be accessed by teacher or student
 export async function GET(
@@ -40,18 +43,19 @@ export async function PUT(
     const body = await req.json();
     const { title, description, instructions, deadline, maxPages, status } = body;
 
-    // We assume teacherId is stored in a teacherProfile record. We need to fetch it.
-    // For simplicity, we can just use prisma directly here or fetch teacher profile.
-    const { prisma } = await import("@/lib/prisma");
-    const teacherProfile = await prisma.teacherProfile.findFirst({
-      where: { user: { email: session.user.email! } }
-    });
+    await dbConnect();
+    const user = await User.findOne({ email: session.user.email! }).lean();
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const teacherProfile = await TeacherProfile.findOne({ userId: user._id }).lean();
 
     if (!teacherProfile) {
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
-    const updated = await assignmentService.updateAssignment(resolvedParams.id, teacherProfile.id, {
+    const updated = await assignmentService.updateAssignment(resolvedParams.id, teacherProfile._id.toString(), {
       title,
       description,
       instructions,

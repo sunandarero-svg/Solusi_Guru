@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma } from "./prisma"
+import dbConnect from "./mongoose"
+import User from "@/models/User"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
@@ -15,9 +16,9 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
-        });
+        await dbConnect();
+        
+        const user = await User.findOne({ email: credentials.email });
 
         if (!user) return null;
 

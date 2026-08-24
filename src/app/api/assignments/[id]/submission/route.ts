@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStudentSession } from "@/modules/auth/session";
 import { submissionService } from "@/modules/submission/submissionService";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { StudentProfile } from "@/models/Profile";
 
 export async function GET(
   req: NextRequest,
@@ -12,10 +15,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { prisma } = await import("@/lib/prisma");
-    const studentProfile = await prisma.studentProfile.findFirst({
-      where: { user: { email: session.user.email } }
-    });
+    await dbConnect();
+    const user = await User.findOne({ email: session.user.email }).lean();
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    const studentProfile = await StudentProfile.findOne({ userId: user._id }).lean();
 
     if (!studentProfile) return NextResponse.json({ error: "Student not found" }, { status: 404 });
 
@@ -24,7 +28,7 @@ export async function GET(
     // Check if student has submission
     const submission = await submissionService.getSubmissionByAssignmentAndStudent(
       resolvedParams.id, 
-      studentProfile.id
+      studentProfile._id.toString()
     );
 
     return NextResponse.json(submission || null);

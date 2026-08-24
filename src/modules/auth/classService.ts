@@ -1,18 +1,23 @@
-import { prisma } from "@/lib/prisma";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/User";
+import { Class, TeacherClass } from "@/models/Class";
+import { TeacherProfile } from "@/models/Profile";
+import { mapId } from "@/lib/mapId";
 
 export async function getAllClasses() {
-  return prisma.class.findMany({
-    include: {
-      enrollments: { include: { student: true } },
-      teachers: { include: { teacher: true } },
-    },
-    orderBy: { name: "asc" },
-  });
+  await dbConnect();
+  const classes = await Class.find()
+    .sort({ name: 1 })
+    .lean();
+  return mapId(classes);
 }
 
 export async function getTeacherProfileByEmail(email: string) {
-  return prisma.teacherProfile.findFirst({
-    where: { user: { email } },
-  });
-}
+  await dbConnect();
+  
+  const user = await User.findOne({ email }).lean();
+  if (!user) return null;
 
+  const profile = await TeacherProfile.findOne({ userId: user._id }).lean();
+  return mapId(profile);
+}
