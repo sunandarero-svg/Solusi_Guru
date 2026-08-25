@@ -8,6 +8,7 @@ import { Submission, SubmissionStatus } from "@/models/Submission";
 import { Enrollment } from "@/models/Class";
 import { redirect } from "next/navigation";
 import { FileText, Inbox, Users, BookOpen, CheckCircle, TrendingUp } from "lucide-react";
+import TeacherProgressDashboard from "@/components/TeacherProgressDashboard";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -111,6 +112,7 @@ export default async function DashboardPage() {
       </div>
 
       {role === "TEACHER" ? (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="glass rounded-3xl p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full mix-blend-multiply filter blur-2xl opacity-50 translate-x-1/3 -translate-y-1/3 group-hover:scale-110 transition-transform duration-500"></div>
@@ -162,6 +164,9 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
+        
+        <TeacherProgressDashboard />
+      </>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="glass rounded-3xl p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 border-l-4 border-l-blue-500">
