@@ -82,7 +82,7 @@ export async function POST(
 
     const review = await reviewService.saveReview(
       resolvedParams.id,
-      teacherProfile.id,
+      teacherProfile._id.toString(),
       finalScore,
       finalFeedback || "",
       publish === true

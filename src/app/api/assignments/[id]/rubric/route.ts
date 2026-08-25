@@ -49,7 +49,7 @@ export async function PUT(
       return NextResponse.json({ error: "Invalid rubric data" }, { status: 400 });
     }
 
-    const rubric = await rubricService.upsertRubric(resolvedParams.id, teacherProfile.id, {
+    const rubric = await rubricService.upsertRubric(resolvedParams.id, teacherProfile._id.toString(), {
       title,
       criteria,
     });
