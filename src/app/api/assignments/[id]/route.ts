@@ -55,7 +55,7 @@ export async function PUT(
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
-    const updated = await assignmentService.updateAssignment(resolvedParams.id, teacherProfile._id.toString(), {
+    const updated = await assignmentService.updateAssignment(resolvedParams.id, teacherProfile.id, {
       title,
       description,
       instructions,

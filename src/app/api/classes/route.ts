@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     await dbConnect();
     // Check teacher class quota
     const currentClassCount = await TeacherClass.countDocuments({
-      teacherId: teacherProfile._id,
+      teacherId: teacherProfile.id,
     });
 
     if (currentClassCount >= teacherProfile.maxClasses) {
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     await TeacherClass.create({
       classId: newClass._id,
-      teacherId: teacherProfile._id,
+      teacherId: teacherProfile.id,
     });
 
     return NextResponse.json(newClass.toObject(), { status: 201 });

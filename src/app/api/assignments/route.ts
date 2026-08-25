@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
-    const assignments = await assignmentService.getAllAssignments(teacherProfile._id.toString());
+    const assignments = await assignmentService.getAllAssignments(teacherProfile.id);
     return NextResponse.json(assignments);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: error.message === "Unauthorized" ? 401 : 500 });
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     const assignment = await assignmentService.createAssignment({
-      teacherId: teacherProfile._id.toString(),
+      teacherId: teacherProfile.id,
       classId,
       title,
       description,
