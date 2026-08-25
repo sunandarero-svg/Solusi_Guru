@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface ClassData {
   id: string;
@@ -104,8 +105,11 @@ export default function ClassesPage() {
           </div>
         ) : (
           classes.map(c => (
-            <div key={c.id} className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-md transition">
-              <h2 className="text-lg font-bold text-gray-800">{c.name}</h2>
+            <Link href={`/dashboard/classes/${c.id}`} key={c.id} className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition duration-300 block cursor-pointer group">
+              <div className="flex justify-between items-start">
+                <h2 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{c.name}</h2>
+                <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">➔</span>
+              </div>
               {c.description && <p className="text-sm text-gray-400 mt-1">{c.description}</p>}
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-sm text-gray-500">
@@ -115,7 +119,7 @@ export default function ClassesPage() {
                   {c.teachers.length > 0 ? c.teachers[0].teacher.fullName : "Tanpa Guru"}
                 </span>
               </div>
-            </div>
+            </Link>
           ))
         )}
       </div>

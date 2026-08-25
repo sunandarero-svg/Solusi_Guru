@@ -61,8 +61,9 @@ export async function GET(req: Request) {
       const studentsData = [];
 
       for (const student of studentProfiles) {
-        const sUser = studentUsers.find(u => u._id.toString() === student.userId.toString());
-        if (!sUser) continue;
+        // Find user if exists, otherwise fallback to profile fullName
+        const sUser = studentUsers.find(u => u._id.toString() === student.userId?.toString());
+        const studentName = sUser?.fullName || student.fullName;
 
         // Get student submissions
         const studentSubs = submissions.filter(s => s.studentId.toString() === student._id.toString());
@@ -119,12 +120,47 @@ export async function GET(req: Request) {
 
         studentsData.push({
           id: student._id.toString(),
-          fullName: sUser.fullName,
+          fullName: studentName,
           studentNumber: student.studentNumber,
           averageScore,
           status,
           latestFeedback
         });
+      }
+
+      // Submission Tracker Logic
+      let kumpul = 0;
+      let belumKumpul = 0;
+      const missingDetails: any[] = [];
+      const activeAssignments = assignments.filter(a => a.status === 'PUBLISHED');
+
+      for (const student of studentProfiles) {
+        const sUser = studentUsers.find(u => u._id.toString() === student.userId?.toString());
+        const studentName = sUser?.fullName || student.fullName;
+        
+        let hasMissing = false;
+        const missingAssignments: string[] = [];
+        
+        for (const a of activeAssignments) {
+          const hasSub = submissions.some(
+            s => s.assignmentId.toString() === a._id.toString() && s.studentId.toString() === student._id.toString()
+          );
+          if (!hasSub) {
+            hasMissing = true;
+            missingAssignments.push(a.title);
+          }
+        }
+        
+        if (hasMissing && activeAssignments.length > 0) {
+          belumKumpul++;
+          missingDetails.push({
+            id: student._id.toString(),
+            name: studentName,
+            missing: missingAssignments
+          });
+        } else if (activeAssignments.length > 0) {
+          kumpul++;
+        }
       }
 
       progressData.push({
@@ -136,6 +172,12 @@ export async function GET(req: Request) {
           mulaiPaham,
           belumPaham,
           total: sudahPaham + mulaiPaham + belumPaham
+        },
+        tracker: {
+          kumpul,
+          belumKumpul,
+          missingDetails,
+          activeAssignmentsCount: activeAssignments.length
         },
         students: studentsData
       });

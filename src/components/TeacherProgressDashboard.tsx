@@ -22,6 +22,12 @@ interface ClassProgress {
     belumPaham: number;
     total: number;
   };
+  tracker: {
+    kumpul: number;
+    belumKumpul: number;
+    missingDetails: { id: string; name: string; missing: string[] }[];
+    activeAssignmentsCount: number;
+  };
   students: StudentProgress[];
 }
 
@@ -29,6 +35,7 @@ export default function TeacherProgressDashboard() {
   const [data, setData] = useState<ClassProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<ClassProgress | null>(null);
+  const [selectedTracker, setSelectedTracker] = useState<ClassProgress | null>(null);
 
   useEffect(() => {
     fetch("/api/dashboard/teacher/progress")
@@ -116,7 +123,41 @@ export default function TeacherProgressDashboard() {
                 </>
               ) : (
                 <div className="text-center text-slate-400 py-4 text-sm">
-                  Belum ada data siswa di kelas ini.
+                  Belum ada data evaluasi AI di kelas ini.
+                </div>
+              )}
+
+              {/* Status Pengumpulan Tugas Section */}
+              {cls.tracker && cls.tracker.activeAssignmentsCount > 0 ? (
+                <div className="mt-6 pt-4 border-t border-slate-100">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-sm font-bold text-slate-700">Status Pengumpulan Tugas Aktif</h4>
+                    <button 
+                      onClick={() => setSelectedTracker(cls)}
+                      className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors"
+                    >
+                      Lihat Siswa Bolong
+                    </button>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-emerald-50 rounded-xl p-3 border border-emerald-100 text-center">
+                      <div className="text-xl font-black text-emerald-600">{cls.tracker.kumpul}</div>
+                      <div className="text-[10px] uppercase font-bold text-emerald-700 mt-1">Lengkap</div>
+                    </div>
+                    <div className="flex-1 bg-rose-50 rounded-xl p-3 border border-rose-100 text-center relative overflow-hidden group">
+                      <div className="text-xl font-black text-rose-600">{cls.tracker.belumKumpul}</div>
+                      <div className="text-[10px] uppercase font-bold text-rose-700 mt-1">Belum Kumpul</div>
+                      {cls.tracker.belumKumpul > 0 && (
+                        <div className="absolute top-0 right-0 w-8 h-8 bg-rose-500 rounded-bl-full flex items-center justify-center opacity-20">
+                          <AlertCircle size={14} className="text-white ml-2 mb-2" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-6 pt-4 border-t border-slate-100 text-center text-slate-400 text-xs">
+                  Tidak ada tugas aktif di kelas ini.
                 </div>
               )}
             </div>
@@ -194,6 +235,65 @@ export default function TeacherProgressDashboard() {
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
               <button 
                 onClick={() => setSelectedClass(null)}
+                className="px-6 py-2 bg-slate-800 text-white font-semibold rounded-xl hover:bg-slate-900 transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tracker Missing Modal */}
+      {selectedTracker && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-rose-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                  <AlertCircle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Daftar Siswa Belum Kumpul</h3>
+                  <p className="text-sm text-slate-500">Kelas: {selectedTracker.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedTracker(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {selectedTracker.tracker.missingDetails.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 flex flex-col items-center">
+                  <CheckCircle size={48} className="text-emerald-400 mb-4" />
+                  <p className="font-medium text-lg">Hebat! Semua siswa sudah mengumpulkan tugas.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedTracker.tracker.missingDetails.map((student) => (
+                    <div key={student.id} className="p-4 rounded-2xl border border-slate-200 hover:border-rose-200 transition-colors bg-white">
+                      <h4 className="font-bold text-slate-800 mb-2">{student.name}</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {student.missing.map((taskName, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-100">
+                            <AlertCircle size={12} />
+                            {taskName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+              <button 
+                onClick={() => setSelectedTracker(null)}
                 className="px-6 py-2 bg-slate-800 text-white font-semibold rounded-xl hover:bg-slate-900 transition-colors"
               >
                 Tutup
