@@ -104,7 +104,7 @@ export default function EditAssignmentPage({ params }: { params: Promise<{ id: s
             <input 
               required
               type="text" 
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm"
+              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
               placeholder="Contoh: Esai Sejarah Kemerdekaan"
               value={form.title}
               onChange={e => setForm({...form, title: e.target.value})}
@@ -128,7 +128,7 @@ export default function EditAssignmentPage({ params }: { params: Promise<{ id: s
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Singkat</label>
             <textarea 
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm h-20"
+              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm h-20 text-gray-900 bg-white"
               placeholder="Deskripsi singkat mengenai tujuan tugas ini..."
               value={form.description}
               onChange={e => setForm({...form, description: e.target.value})}
@@ -138,7 +138,7 @@ export default function EditAssignmentPage({ params }: { params: Promise<{ id: s
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Instruksi Detail</label>
             <textarea 
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm h-32"
+              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm h-32 text-gray-900 bg-white"
               placeholder="Instruksi pengerjaan untuk siswa..."
               value={form.instructions}
               onChange={e => setForm({...form, instructions: e.target.value})}
@@ -150,7 +150,7 @@ export default function EditAssignmentPage({ params }: { params: Promise<{ id: s
               <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
               <input 
                 type="date" 
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
                 value={form.deadline}
                 onChange={e => setForm({...form, deadline: e.target.value})}
               />
@@ -160,7 +160,7 @@ export default function EditAssignmentPage({ params }: { params: Promise<{ id: s
               <input 
                 type="number" 
                 min="1" max="10"
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
                 value={form.maxPages}
                 onChange={e => setForm({...form, maxPages: parseInt(e.target.value) || 5})}
               />
