@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
-import { Class } from "@/models/Class";
+import { Class, Enrollment } from "@/models/Class";
 import { StudentProfile } from "@/models/Profile";
 
 export async function POST(
@@ -45,20 +45,19 @@ export async function POST(
       }
 
       // Check if student is already in this class
-      const isEnrolled = classData.enrollments.some(
-        (e: any) => e.student.toString() === studentProfile._id.toString()
-      );
+      const existingEnrollment = await Enrollment.findOne({
+        classId: classData._id,
+        studentId: studentProfile._id
+      });
 
-      if (!isEnrolled) {
-        classData.enrollments.push({
-          student: studentProfile._id,
-          enrolledAt: new Date()
+      if (!existingEnrollment) {
+        await Enrollment.create({
+          classId: classData._id,
+          studentId: studentProfile._id
         });
         addedCount++;
       }
     }
-
-    await classData.save();
 
     return NextResponse.json({ 
       success: true, 
