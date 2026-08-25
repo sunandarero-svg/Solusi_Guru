@@ -1,7 +1,7 @@
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
-import { Class, TeacherClass } from "@/models/Class";
-import { TeacherProfile } from "@/models/Profile";
+import { Class, TeacherClass, Enrollment } from "@/models/Class";
+import { TeacherProfile, StudentProfile } from "@/models/Profile";
 import { mapId } from "@/lib/mapId";
 
 export async function getAllClasses() {
@@ -9,7 +9,28 @@ export async function getAllClasses() {
   const classes = await Class.find()
     .sort({ name: 1 })
     .lean();
-  return mapId(classes);
+
+  // Mongoose models need to be registered for populate to work
+  StudentProfile.init();
+  TeacherProfile.init();
+
+  const populatedClasses = await Promise.all(classes.map(async (c) => {
+    const enrollments = await Enrollment.find({ classId: c._id })
+      .populate('studentId', 'fullName')
+      .lean();
+    
+    const teachers = await TeacherClass.find({ classId: c._id })
+      .populate('teacherId', 'fullName')
+      .lean();
+
+    return {
+      ...c,
+      enrollments: enrollments.map(e => ({ student: e.studentId })),
+      teachers: teachers.map(t => ({ teacher: t.teacherId }))
+    };
+  }));
+
+  return mapId(populatedClasses);
 }
 
 export async function getTeacherProfileByEmail(email: string) {
