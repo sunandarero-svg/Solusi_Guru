@@ -7,11 +7,27 @@ import { mapId } from "@/lib/mapId";
 
 export async function getAllStudents() {
   await dbConnect();
+  
+  import('@/models/Class').then(m => m.Class.init());
+
   const students = await StudentProfile.find()
     .populate('userId', 'email createdAt')
     .sort({ studentNumber: 1 })
     .lean();
-  return mapId(students);
+    
+  const populated = await Promise.all(students.map(async (s) => {
+    const enrollments = await Enrollment.find({ studentId: s._id })
+      .populate('classId', 'name')
+      .lean();
+      
+    return {
+      ...s,
+      user: s.userId,
+      enrollments: enrollments.map(e => ({ class: e.classId }))
+    };
+  }));
+  
+  return mapId(populated);
 }
 
 export async function createStudent(data: {

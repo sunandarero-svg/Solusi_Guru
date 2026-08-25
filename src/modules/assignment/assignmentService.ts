@@ -1,11 +1,14 @@
 import dbConnect from "@/lib/mongoose";
 import { Assignment, AssignmentStatus, Rubric, RubricCriterion } from "@/models/Assignment";
 import { Submission } from "@/models/Submission";
+import { Class } from "@/models/Class";
 import { mapId } from "@/lib/mapId";
 
 export const assignmentService = {
   async getAllAssignments(teacherId: string) {
     await dbConnect();
+    Class.init();
+    
     const assignments = await Assignment.find({ teacherId })
       .populate('classId')
       .sort({ createdAt: -1 })
@@ -26,6 +29,7 @@ export const assignmentService = {
 
   async getAssignmentById(id: string) {
     await dbConnect();
+    Class.init();
     
     const assignment = await Assignment.findById(id).populate('classId').lean();
     if (!assignment) return null;
