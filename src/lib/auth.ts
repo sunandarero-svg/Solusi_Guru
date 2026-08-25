@@ -14,22 +14,45 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        console.log("[auth][authorize] called with email:", credentials?.email);
 
-        await dbConnect();
-        
-        const user = await User.findOne({ email: credentials.email });
+        if (!credentials?.email || !credentials?.password) {
+          console.log("[auth][authorize] missing email or password in credentials");
+          return null;
+        }
 
-        if (!user) return null;
+        try {
+          console.log("[auth][authorize] connecting to database...");
+          await dbConnect();
+          console.log("[auth][authorize] database connection successful");
 
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!isValid) return null;
+          const user = await User.findOne({ email: credentials.email });
 
-        return {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        };
+          if (!user) {
+            console.log("[auth][authorize] no user found for email:", credentials.email);
+            return null;
+          }
+
+          console.log("[auth][authorize] user found:", user.email);
+
+          const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+
+          if (!isValid) {
+            console.log("[auth][authorize] password comparison failed for email:", credentials.email);
+            return null;
+          }
+
+          console.log("[auth][authorize] password comparison succeeded for email:", credentials.email);
+
+          return {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+          };
+        } catch (error) {
+          console.log("[auth][authorize] error during authorization:", error instanceof Error ? error.message : error);
+          return null;
+        }
       }
     })
   ],
