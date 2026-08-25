@@ -3,6 +3,7 @@
 import { useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
+import { PDFDocument } from "pdf-lib";
 
 interface PageImage {
   id: string; // temp client id
@@ -95,9 +96,46 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
     if (!confirm(`Kirim ${images.length} halaman ini? Anda tidak bisa menambah atau menghapus halaman setelah dikumpulkan.`)) return;
 
     setIsUploading(true);
+    setUploadProgress(10);
     
     try {
+      // Create a new PDF document
+      const pdfDoc = await PDFDocument.create();
+      
+      for (let i = 0; i < images.length; i++) {
+        setUploadProgress(10 + Math.round((i / images.length) * 40));
+        const img = images[i];
+        
+        // Convert dataUrl to Uint8Array
+        const base64Data = img.dataUrl.split(',')[1];
+        const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+        
+        let pdfImage;
+        if (img.dataUrl.startsWith('data:image/jpeg') || img.dataUrl.startsWith('data:image/jpg')) {
+          pdfImage = await pdfDoc.embedJpg(imageBytes);
+        } else if (img.dataUrl.startsWith('data:image/png')) {
+          pdfImage = await pdfDoc.embedPng(imageBytes);
+        } else {
+          // Default to JPG if unknown
+          pdfImage = await pdfDoc.embedJpg(imageBytes);
+        }
+
+        const page = pdfDoc.addPage([pdfImage.width, pdfImage.height]);
+        page.drawImage(pdfImage, {
+          x: 0,
+          y: 0,
+          width: pdfImage.width,
+          height: pdfImage.height,
+        });
+      }
+
+      setUploadProgress(60);
+      const pdfBytes = await pdfDoc.save();
+      const pdfBlob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+      const pdfFile = new File([pdfBlob], `submission_${resolvedParams.id}.pdf`, { type: 'application/pdf' });
+
       // 1. Init submission
+      setUploadProgress(70);
       const initRes = await fetch(`/api/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -106,28 +144,23 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       if (!initRes.ok) throw new Error("Gagal inisialisasi tugas");
       const submission = await initRes.json();
 
-      // 2. Upload each page
-      for (let i = 0; i < images.length; i++) {
-        setUploadProgress(Math.round(((i) / images.length) * 100));
-        
-        const img = images[i];
-        if (!img.file) continue;
+      // 2. Upload the single PDF file as pageNumber = 1 (to satisfy existing DB schema, or adjust server side)
+      // Actually, if we upload one PDF, we just append it.
+      setUploadProgress(85);
+      const formData = new FormData();
+      formData.append("file", pdfFile);
+      formData.append("pageNumber", "1"); // Use 1 for the whole PDF
 
-        const formData = new FormData();
-        formData.append("file", img.file);
-        formData.append("pageNumber", (i + 1).toString());
-
-        const uploadRes = await fetch(`/api/submissions/${submission.id}/pages`, {
-          method: "POST",
-          body: formData
-        });
-        
-        if (!uploadRes.ok) {
-          throw new Error(`Gagal mengunggah halaman ${i + 1}`);
-        }
+      const uploadRes = await fetch(`/api/submissions/${submission.id}/pages`, {
+        method: "POST",
+        body: formData
+      });
+      
+      if (!uploadRes.ok) {
+        throw new Error(`Gagal mengunggah file PDF.`);
       }
 
-      setUploadProgress(100);
+      setUploadProgress(95);
 
       // 3. Finalize submission
       const submitRes = await fetch(`/api/submissions/${submission.id}`, {
@@ -137,6 +170,8 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       });
 
       if (!submitRes.ok) throw new Error("Gagal finalisasi");
+
+      setUploadProgress(100);
 
       // Redirect back to assignment detail
       router.push(`/dashboard/my-assignments/${resolvedParams.id}?success=1`);

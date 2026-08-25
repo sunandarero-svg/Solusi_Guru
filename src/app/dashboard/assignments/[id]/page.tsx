@@ -23,6 +23,8 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
   const router = useRouter();
 
   const fetchAssignment = () => {
@@ -61,6 +63,46 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
     setPublishing(false);
   };
 
+  const handleDownloadAll = async () => {
+    setIsDownloading(true);
+    try {
+      const res = await fetch(`/api/assignments/${resolvedParams.id}/download`, { method: "POST" });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        alert(data.error || "Gagal menyiapkan file unduhan");
+        return;
+      }
+
+      // Navigate to the ZIP URL to trigger download
+      window.location.href = data.url;
+    } catch (err: any) {
+      alert("Terjadi kesalahan sistem saat mencoba mengunduh.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleCleanup = async () => {
+    if (!confirm("PERINGATAN: Aksi ini akan menghapus semua file PDF asli dari server untuk menghemat kapasitas. Nilai dan review AI akan tetap tersimpan. Lanjutkan?")) return;
+    
+    setIsCleaning(true);
+    try {
+      const res = await fetch(`/api/assignments/${resolvedParams.id}/cleanup`, { method: "DELETE" });
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert(data.message || "File berhasil dibersihkan dari server.");
+      } else {
+        alert(data.error || "Gagal membersihkan file server");
+      }
+    } catch (err: any) {
+      alert("Terjadi kesalahan sistem saat mencoba menghapus file.");
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat detail tugas...</div>;
   if (!assignment) return <div className="p-8 text-center text-red-500">Tugas tidak ditemukan.</div>;
 
@@ -88,7 +130,24 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
             <p className="text-sm text-gray-500">Kelas: <span className="font-semibold text-gray-700">{assignment.class.name}</span></p>
           </div>
 
-          {!isPublished && (
+          {isPublished ? (
+            <div className="flex space-x-3">
+              <button 
+                onClick={handleDownloadAll}
+                disabled={isDownloading}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 shadow-sm"
+              >
+                {isDownloading ? "Menyiapkan ZIP..." : "📥 Unduh Semua PDF"}
+              </button>
+              <button 
+                onClick={handleCleanup}
+                disabled={isCleaning}
+                className="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition disabled:opacity-50 shadow-sm"
+              >
+                {isCleaning ? "Menghapus..." : "🗑️ Hapus File Server"}
+              </button>
+            </div>
+          ) : (
             <div className="flex space-x-3">
               <Link
                 href={`/dashboard/assignments/${assignment.id}/edit`}
