@@ -1,4 +1,4 @@
-import { NextResponse } from "next/response";
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import User, { Role } from "@/models/User";
 import { AdminProfile, TeacherProfile, StudentProfile } from "@/models/Profile";
