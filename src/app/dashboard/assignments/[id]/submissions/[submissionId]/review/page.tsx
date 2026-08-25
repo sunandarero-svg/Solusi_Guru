@@ -177,7 +177,7 @@ export default function TeacherReviewPage({
                       value={finalScore}
                       onChange={(e) => setFinalScore(parseInt(e.target.value) || 0)}
                       disabled={isPublished}
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl font-bold text-xl text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-100"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl font-bold text-xl text-gray-900 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-100"
                     />
                   </div>
                   <div className="flex-1">
@@ -196,7 +196,7 @@ export default function TeacherReviewPage({
                   onChange={(e) => setFinalFeedback(e.target.value)}
                   disabled={isPublished}
                   rows={4}
-                  className="w-full p-4 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-50"
+                  className="w-full p-4 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-50"
                   placeholder="Tambahkan umpan balik tambahan atau edit saran dari AI di sini..."
                 />
               </div>

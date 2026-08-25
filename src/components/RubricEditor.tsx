@@ -105,7 +105,7 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
           value={title}
           disabled={isPublished}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-2 text-sm disabled:bg-gray-50"
+          className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-900 bg-white disabled:bg-gray-50"
         />
       </div>
 
@@ -120,7 +120,7 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
                   value={c.name}
                   disabled={isPublished}
                   onChange={e => updateCriterion(idx, "name", e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 text-sm disabled:bg-gray-100"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-900 bg-white disabled:bg-gray-100"
                 />
               </div>
               <div className="md:col-span-6">
@@ -129,7 +129,7 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
                   value={c.description}
                   disabled={isPublished}
                   onChange={e => updateCriterion(idx, "description", e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 text-sm disabled:bg-gray-100"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-900 bg-white disabled:bg-gray-100"
                 />
               </div>
               <div className="md:col-span-2">
@@ -140,7 +140,7 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
                     value={c.maxScore}
                     disabled={isPublished}
                     onChange={e => updateCriterion(idx, "maxScore", parseInt(e.target.value) || 0)}
-                    className="w-full border border-gray-300 rounded-lg p-2 pr-8 text-sm font-bold text-blue-600 disabled:bg-gray-100 disabled:text-gray-500"
+                    className="w-full border border-gray-300 rounded-lg p-2 pr-8 text-sm font-bold text-blue-600 bg-white disabled:bg-gray-100 disabled:text-gray-500"
                   />
                   <span className="absolute right-3 top-2 text-sm text-gray-400">Poin</span>
                 </div>
