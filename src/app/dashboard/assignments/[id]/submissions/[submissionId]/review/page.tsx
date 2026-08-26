@@ -132,6 +132,20 @@ export default function TeacherReviewPage({
             </button>
           </div>
 
+          {submission.document?.storageKey && viewMode === "PDF" && (
+            <div className="absolute top-4 right-4 z-10">
+              <a 
+                href={submission.document.storageKey} 
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-gray-700 px-3 py-1.5 rounded-lg shadow-sm border border-gray-200 text-xs font-semibold hover:bg-gray-50 flex items-center space-x-1 transition"
+              >
+                <span>📥 Unduh PDF</span>
+              </a>
+            </div>
+          )}
+
           <div className="flex-1 overflow-auto p-4 pt-16">
             {viewMode === "PDF" ? (
               submission.document?.storageKey ? (
