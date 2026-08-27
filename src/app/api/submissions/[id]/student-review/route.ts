@@ -43,13 +43,13 @@ export async function GET(
       SubmissionDocument.findOne({ submissionId: submission._id }).lean()
     ]);
 
-    let aiAssessmentCriteria = [];
+    let aiAssessmentCriteria: any[] = [];
     if (aiAssessment) {
       aiAssessmentCriteria = await AssessmentCriterion.find({ assessmentId: aiAssessment._id }).lean();
       (aiAssessment as any).criteria = aiAssessmentCriteria;
     }
 
-    let rubricCriteria = [];
+    let rubricCriteria: any[] = [];
     if (rubrics && rubrics.length > 0) {
       const rubricIds = rubrics.map(r => (r as any)._id);
       rubricCriteria = await RubricCriterion.find({ rubricId: { $in: rubricIds } }).lean();
