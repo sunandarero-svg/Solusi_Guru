@@ -16,6 +16,8 @@ export default function StudentReviewPage({
   
   const [viewMode, setViewMode] = useState<"PDF" | "OCR">("PDF");
 
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
+
   useEffect(() => {
     fetch(`/api/submissions/${resolvedParams.submissionId}/student-review`)
       .then(res => {
@@ -25,7 +27,7 @@ export default function StudentReviewPage({
         return res.json();
       })
       .then(data => {
-        if (data.id) {
+        if (data.id || data._id) {
           setSubmission(data);
         }
         setLoading(false);
@@ -35,6 +37,25 @@ export default function StudentReviewPage({
         setLoading(false);
       });
   }, [resolvedParams.submissionId]);
+
+  const handleProcessAI = async () => {
+    if (!confirm("Pastikan hasil PDF sudah jelas terbaca. Lanjutkan proses pengecekan AI?")) return;
+    setIsProcessingAI(true);
+    try {
+      const res = await fetch(`/api/submissions/${submission._id || submission.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "PROCESS_AI" })
+      });
+      if (!res.ok) throw new Error("Gagal memulai proses AI");
+      
+      // Reload page to reflect PROCESSING status
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
+      setIsProcessingAI(false);
+    }
+  };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat data submission...</div>;
   if (!submission) return <div className="p-8 text-center text-red-500">Data tidak ditemukan atau Anda tidak memiliki akses.</div>;
@@ -174,11 +195,41 @@ export default function StudentReviewPage({
                 })}
               </div>
             </div>
+          ) : submission.status === "SUBMITTED" ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-gray-50 rounded-2xl border border-gray-200">
+              <div className="text-5xl mb-4">📄</div>
+              <h3 className="font-bold text-gray-800 text-lg">Cek PDF Anda</h3>
+              <p className="text-sm text-gray-600 mt-2 mb-6">
+                Silakan cek dokumen PDF Anda di sebelah kiri. Jika kualitas scan sudah jelas dan dapat dibaca, Anda dapat melanjutkan ke proses AI.
+              </p>
+              <button 
+                onClick={handleProcessAI}
+                disabled={isProcessingAI}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition shadow-md disabled:opacity-50"
+              >
+                {isProcessingAI ? "Memulai Proses..." : "Proses dengan AI Sekarang"}
+              </button>
+            </div>
+          ) : submission.status === "FAILED" ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-red-50 rounded-2xl border border-red-200">
+              <div className="text-5xl mb-4">⚠️</div>
+              <h3 className="font-bold text-red-800 text-lg">Proses Gagal</h3>
+              <p className="text-sm text-red-600 mt-2 mb-6">
+                Terjadi kesalahan teknis saat memproses tugas Anda. Anda dapat mencoba memproses ulang dokumen yang sama.
+              </p>
+              <button 
+                onClick={handleProcessAI}
+                disabled={isProcessingAI}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full transition shadow-md disabled:opacity-50"
+              >
+                {isProcessingAI ? "Memulai Proses..." : "Coba Proses Ulang"}
+              </button>
+            </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center p-12">
-              <div className="text-5xl mb-4">⚙️</div>
-              <p className="font-medium text-gray-500">Tugas Anda sedang diproses oleh sistem...</p>
-              <p className="text-sm mt-2">Silakan kembali lagi nanti untuk melihat hasil analisis otomatis.</p>
+              <div className="text-5xl mb-4 animate-spin-slow">⚙️</div>
+              <p className="font-medium text-gray-500">Tugas Anda sedang diproses oleh AI...</p>
+              <p className="text-sm mt-2">Silakan tunggu atau kembali lagi nanti untuk melihat hasil analisis otomatis.</p>
             </div>
           )}
 

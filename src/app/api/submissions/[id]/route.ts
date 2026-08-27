@@ -39,11 +39,16 @@ export async function PATCH(
       // 1. Mark as SUBMITTED first so user knows it went through
       await submissionService.submitAssignment(resolvedParams.id, "SUBMITTED");
       
+      // We no longer trigger AI automatically here so the student can review their PDF first.
+      return NextResponse.json({ status: "SUBMITTED", message: "Submission is uploaded and ready for student review." });
+    } else if (body.action === "PROCESS_AI") {
+      // 1. Change status to PROCESSING
+      await submissionService.updateStatus(resolvedParams.id, "PROCESSING");
+      
       // 2. Trigger asynchronous background processing (fire-and-forget)
-      // This will handle PDF, OCR, and AI without blocking the HTTP response
       processingWorker.processSubmissionPipeline(resolvedParams.id);
 
-      return NextResponse.json({ status: "PROCESSING_QUEUED", message: "Submission is being processed." });
+      return NextResponse.json({ status: "PROCESSING_QUEUED", message: "Submission is being processed by AI." });
     } else if (body.action === "REORDER_PAGES") {
       const { pageIdsInOrder } = body;
       if (!Array.isArray(pageIdsInOrder)) {
