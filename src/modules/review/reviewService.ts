@@ -25,7 +25,7 @@ export const reviewService = {
         status,
         ...(reviewedAt && { reviewedAt })
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
     ).lean();
 
     // Update submission status if published

@@ -87,7 +87,14 @@ export const pdfService = {
 
     // 6. Record metadata in SubmissionDocument table
     const storageKey = `/uploads/documents/${filename}`;
-    const fileSize = isAlreadyPdf ? (await import('fs/promises')).stat(filePath).then(s => s.size) : pdfBytes!.length;
+    let fileSize;
+    if (isAlreadyPdf) {
+      const fs = await import('fs/promises');
+      const stats = await fs.stat(filePath);
+      fileSize = stats.size;
+    } else {
+      fileSize = pdfBytes!.length;
+    }
 
     const submissionDocument = await SubmissionDocument.create({
       submissionId: submissionId,
