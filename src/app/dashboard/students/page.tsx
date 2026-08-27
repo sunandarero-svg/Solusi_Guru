@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Trash2 } from "lucide-react";
 
 interface Student {
   id: string;
@@ -39,6 +40,25 @@ export default function StudentsPage() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  const handleDeleteStudent = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus data siswa ini? Seluruh data riwayat tugas dan nilainya akan dihapus permanen.")) return;
+
+    try {
+      const res = await fetch(`/api/students/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        fetchData();
+        setMessage({ type: "success", text: "Siswa berhasil dihapus." });
+      } else {
+        const data = await res.json();
+        setMessage({ type: "error", text: data.error || "Gagal menghapus siswa." });
+      }
+    } catch (err) {
+      setMessage({ type: "error", text: "Terjadi kesalahan sistem saat menghapus." });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,6 +159,7 @@ export default function StudentsPage() {
                 <th className="text-left px-6 py-3 text-gray-500 font-medium">Nama Lengkap</th>
                 <th className="text-left px-6 py-3 text-gray-500 font-medium">Email</th>
                 <th className="text-left px-6 py-3 text-gray-500 font-medium">Kelas</th>
+                <th className="text-right px-6 py-3 text-gray-500 font-medium">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -153,6 +174,15 @@ export default function StudentsPage() {
                         <span key={e.class.id} className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs mr-1">{e.class.name}</span>
                       ))
                       : <span className="text-gray-400 text-xs">Belum terdaftar</span>}
+                  </td>
+                  <td className="px-6 py-3 text-right">
+                    <button 
+                      onClick={() => handleDeleteStudent(s.id)}
+                      className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition"
+                      title="Hapus Siswa"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
