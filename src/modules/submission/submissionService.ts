@@ -98,5 +98,42 @@ export const submissionService = {
       { returnDocument: 'after' }
     ).lean();
     return mapId(sub);
+  },
+
+  // Delete submission and all its associated data
+  async deleteSubmission(submissionId: string) {
+    await dbConnect();
+    
+    // Import other models if they are not all imported at the top,
+    // but the best way is to import them at the top. Let's assume we can do it via mongoose.models or we'll add imports at the top.
+    const mongoose = (await import('mongoose')).default;
+    const { 
+      SubmissionDocument, 
+      SubmissionPage, 
+      OCRResult, 
+      AIAssessment, 
+      AssessmentCriterion, 
+      TeacherReview 
+    } = mongoose.models;
+
+    // We can just use the models directly if we require them.
+    // Let's delete related records
+    if (SubmissionPage) await SubmissionPage.deleteMany({ submissionId });
+    if (SubmissionDocument) await SubmissionDocument.deleteMany({ submissionId });
+    if (OCRResult) await OCRResult.deleteMany({ submissionId });
+    
+    if (AIAssessment) {
+      const assessments = await AIAssessment.find({ submissionId }).lean();
+      for (const ass of assessments) {
+        if (AssessmentCriterion) await AssessmentCriterion.deleteMany({ assessmentId: ass._id });
+      }
+      await AIAssessment.deleteMany({ submissionId });
+    }
+    
+    if (TeacherReview) await TeacherReview.deleteMany({ submissionId });
+    
+    // Finally delete the submission
+    await Submission.findByIdAndDelete(submissionId);
+    return true;
   }
 };

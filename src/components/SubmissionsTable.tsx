@@ -23,8 +23,10 @@ interface Submission {
 export default function SubmissionsTable({ assignmentId }: { assignmentId: string }) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchSubmissions = () => {
+    setLoading(true);
     fetch(`/api/assignments/${assignmentId}/submissions`)
       .then(res => res.json())
       .then(data => {
@@ -37,7 +39,35 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
         console.error(err);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchSubmissions();
   }, [assignmentId]);
+
+  const handleDelete = async (submissionId: string, studentName: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus tugas dari ${studentName}?\n\nSemua data terkait tugas ini (file, nilai AI, review) akan dihapus secara permanen.`)) {
+      return;
+    }
+    
+    setDeletingId(submissionId);
+    try {
+      const res = await fetch(`/api/submissions/${submissionId}`, {
+        method: "DELETE"
+      });
+      
+      if (!res.ok) {
+        throw new Error("Gagal menghapus tugas");
+      }
+      
+      // Refresh list
+      fetchSubmissions();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) return <div className="text-sm text-gray-500">Memuat daftar pengumpulan...</div>;
 
@@ -89,13 +119,21 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                       <span className="font-bold text-green-600">{sub.teacherReview.finalScore}</span>
                     ) : "-"}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right flex items-center justify-end space-x-4">
                     <Link 
                       href={`/dashboard/assignments/${assignmentId}/submissions/${sub.id}/review`}
                       className="text-blue-600 hover:text-blue-800 font-medium text-sm"
                     >
                       {["APPROVED", "PUBLISHED"].includes(sub.status) ? "Lihat Hasil" : "Mulai Review ➔"}
                     </Link>
+                    <button
+                      onClick={() => handleDelete(sub.id, sub.student.fullName)}
+                      disabled={deletingId === sub.id}
+                      className="text-red-500 hover:text-red-700 font-medium text-sm disabled:opacity-50"
+                      title="Hapus Tugas"
+                    >
+                      {deletingId === sub.id ? "⏳" : "🗑️ Hapus"}
+                    </button>
                   </td>
                 </tr>
               ))

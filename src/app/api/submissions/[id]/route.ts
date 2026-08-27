@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireStudentSession } from "@/modules/auth/session";
+import { requireStudentSession, requireTeacherSession } from "@/modules/auth/session";
 import { submissionService } from "@/modules/submission/submissionService";
 import { pdfService } from "@/modules/pdf/pdfService";
 import { ocrService } from "@/modules/ocr/ocrService";
@@ -65,6 +65,25 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Submission PATCH error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireTeacherSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const resolvedParams = await props.params;
+    
+    await submissionService.deleteSubmission(resolvedParams.id);
+
+    return NextResponse.json({ success: true, message: "Submission deleted" });
+  } catch (error) {
+    console.error("Submission DELETE error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
