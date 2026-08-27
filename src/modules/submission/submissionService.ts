@@ -84,7 +84,7 @@ export const submissionService = {
     const sub = await Submission.findByIdAndUpdate(
       submissionId,
       { status, submittedAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
     return mapId(sub);
   },
@@ -95,7 +95,7 @@ export const submissionService = {
     const sub = await Submission.findByIdAndUpdate(
       submissionId,
       { status },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
     return mapId(sub);
   }

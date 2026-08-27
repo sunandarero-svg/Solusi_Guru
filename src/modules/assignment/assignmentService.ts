@@ -80,7 +80,7 @@ export const assignmentService = {
       throw new Error("Unauthorized or Assignment not found");
     }
 
-    const updated = await Assignment.findByIdAndUpdate(id, data, { new: true }).lean();
+    const updated = await Assignment.findByIdAndUpdate(id, data, { returnDocument: 'after' }).lean();
     return mapId(updated);
   },
 
