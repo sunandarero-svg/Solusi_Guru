@@ -76,3 +76,28 @@ export async function PATCH(
 ) {
   return PUT(req, { params });
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireAuth();
+    if (!session || session.user.role !== "TEACHER") throw new Error("Unauthorized");
+
+    const resolvedParams = await params;
+    
+    await dbConnect();
+    const user = await User.findOne({ email: session.user.email! }).lean();
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    const teacherProfile = await TeacherProfile.findOne({ userId: user._id }).lean();
+    if (!teacherProfile) return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
+
+    await assignmentService.deleteAssignment(resolvedParams.id, teacherProfile._id.toString());
+
+    return NextResponse.json({ success: true, message: "Assignment deleted successfully" });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: error.message === "Unauthorized" ? 401 : 500 });
+  }
+}

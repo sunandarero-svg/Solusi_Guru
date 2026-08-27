@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 
 interface Assignment {
   id: string;
@@ -18,14 +19,35 @@ export default function AssignmentsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
+  const fetchAssignments = () => {
     fetch("/api/assignments")
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setAssignments(data);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchAssignments();
   }, []);
+
+  const handleDeleteAssignment = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus tugas ini? Semua data terkait (termasuk tugas yang dikumpulkan siswa) akan ikut terhapus.")) return;
+
+    try {
+      const res = await fetch(`/api/assignments/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        fetchAssignments();
+      } else {
+        alert("Gagal menghapus tugas.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan sistem.");
+    }
+  };
 
   return (
     <div>
@@ -85,9 +107,18 @@ export default function AssignmentsPage() {
                   </td>
                   <td className="px-6 py-4 text-gray-600 font-medium">{a._count.submissions}</td>
                   <td className="px-6 py-4 text-right">
-                    <Link href={`/dashboard/assignments/${a.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                      Detail →
-                    </Link>
+                    <div className="flex items-center justify-end space-x-2">
+                      <Link href={`/dashboard/assignments/${a.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-2">
+                        Detail →
+                      </Link>
+                      <button 
+                        onClick={() => handleDeleteAssignment(a.id)}
+                        className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition"
+                        title="Hapus Tugas"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

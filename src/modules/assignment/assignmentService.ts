@@ -83,4 +83,26 @@ export const assignmentService = {
     const updated = await Assignment.findByIdAndUpdate(id, data, { new: true }).lean();
     return mapId(updated);
   },
+
+  async deleteAssignment(id: string, teacherId: string) {
+    await dbConnect();
+    const assignment = await Assignment.findById(id).select('teacherId').lean();
+
+    if (!assignment || assignment.teacherId.toString() !== teacherId.toString()) {
+      throw new Error("Unauthorized or Assignment not found");
+    }
+
+    // Delete rubrics and criteria associated with it
+    const rubrics = await Rubric.find({ assignmentId: id }).lean();
+    for (const rubric of rubrics) {
+      await RubricCriterion.deleteMany({ rubricId: rubric._id });
+    }
+    await Rubric.deleteMany({ assignmentId: id });
+
+    // Also delete submissions to clean up
+    await Submission.deleteMany({ assignmentId: id });
+
+    await Assignment.findByIdAndDelete(id);
+    return true;
+  }
 };

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { Users, Upload, UserPlus, X, Download, ChevronLeft } from "lucide-react";
+import { Users, Upload, UserPlus, X, Download, ChevronLeft, Trash2 } from "lucide-react";
 import Papa from "papaparse";
 
 interface Student {
@@ -83,6 +83,23 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
       setMessage({ type: "error", text: "Terjadi kesalahan server" });
     }
     setSubmitting(false);
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus siswa ini dari kelas?")) return;
+    
+    try {
+      const res = await fetch(`/api/classes/${resolvedParams.id}/students/${studentId}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        fetchClassDetails();
+      } else {
+        alert("Gagal menghapus siswa");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan sistem");
+    }
   };
 
   const handleCsvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -207,6 +224,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
                   <th className="p-4 font-medium">No</th>
                   <th className="p-4 font-medium">Nomor Induk (NIS)</th>
                   <th className="p-4 font-medium">Nama Lengkap</th>
+                  <th className="p-4 font-medium text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -215,6 +233,15 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
                     <td className="p-4 text-gray-500">{index + 1}</td>
                     <td className="p-4 font-medium text-gray-700">{e.student.studentNumber}</td>
                     <td className="p-4 font-semibold text-gray-800">{e.student.fullName}</td>
+                    <td className="p-4 text-right">
+                      <button 
+                        onClick={() => handleDeleteStudent(e.student._id)}
+                        className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition"
+                        title="Hapus Siswa"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
