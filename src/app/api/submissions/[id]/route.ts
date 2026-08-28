@@ -39,6 +39,9 @@ export async function PATCH(
       // 1. Mark as SUBMITTED first so user knows it went through
       await submissionService.submitAssignment(resolvedParams.id, "SUBMITTED");
       
+      // 2. Generate PDF immediately so the student can review their document
+      await pdfService.generatePDFFromSubmission(resolvedParams.id);
+      
       // We no longer trigger AI automatically here so the student can review their PDF first.
       return NextResponse.json({ status: "SUBMITTED", message: "Submission is uploaded and ready for student review." });
     } else if (body.action === "PROCESS_AI") {

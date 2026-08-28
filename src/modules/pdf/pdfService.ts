@@ -9,6 +9,12 @@ export const pdfService = {
   async generatePDFFromSubmission(submissionId: string) {
     await dbConnect();
     
+    // Check if it already exists
+    const existingDoc = await SubmissionDocument.findOne({ submissionId }).lean();
+    if (existingDoc) {
+      return existingDoc;
+    }
+
     // 1. Fetch submission and its pages
     const submission = await Submission.findById(submissionId).lean();
     if (!submission) {
