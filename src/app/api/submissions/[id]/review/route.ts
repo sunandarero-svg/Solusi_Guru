@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import { reviewService } from "@/modules/review/reviewService";
 import dbConnect from "@/lib/mongoose";
-import { Submission, OCRResult, AIAssessment, TeacherReview, SubmissionDocument } from "@/models/Submission";
+import { Submission, AIAssessment, TeacherReview, AssessmentCriterion } from "@/models/Submission";
 import { Assignment, Rubric } from "@/models/Assignment";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
@@ -27,22 +27,23 @@ export async function GET(
 
     // Fetch related docs manually since MongoDB doesn't do deep joins automatically the same way Prisma did.
     // However, our API needs matching format.
-    const [ocrResults, aiAssessment, teacherReview, assignment, rubrics, document] = await Promise.all([
-      OCRResult.find({ submissionId: submission._id }).sort({ processedAt: -1 }).limit(1).lean(),
-      AIAssessment.findOne({ submissionId: submission._id }).populate('criteria').lean(),
+    const [aiAssessment, teacherReview, assignment, rubrics] = await Promise.all([
+      AIAssessment.findOne({ submissionId: submission._id }).lean(),
       TeacherReview.findOne({ submissionId: submission._id }).lean(),
       Assignment.findById(submission.assignmentId).lean(),
-      Rubric.find({ assignmentId: submission.assignmentId }).populate('criteria').lean(),
-      SubmissionDocument.findOne({ submissionId: submission._id }).lean()
+      Rubric.find({ assignmentId: submission.assignmentId }).populate('criteria').lean()
     ]);
+
+    let aiCriteria = [];
+    if (aiAssessment) {
+      aiCriteria = await AssessmentCriterion.find({ assessmentId: aiAssessment._id }).lean();
+    }
 
     const formattedSubmission = {
       ...submission,
-      student: submission.studentId, // If you populated studentId, it holds the User object. But normally student is mapped to studentProfile. Let's keep it simple.
-      ocrResults,
-      aiAssessment,
+      student: submission.studentId,
+      aiAssessment: aiAssessment ? { ...aiAssessment, criteria: aiCriteria } : null,
       teacherReview,
-      document,
       assignment: {
         ...assignment,
         rubrics

@@ -41,7 +41,15 @@ export async function POST(
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
         
-        const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Tugas Anda HANYA mengecek apakah tulisan tangan di foto ini dapat dibaca, tidak terpotong, dan pencahayaannya baik. DILARANG KERAS menebak kata yang buram. Jika ada bagian yang ambigu, kembalikan 'feasible': false beserta alasan spesifik (maksimal 2 kalimat). Jika tulisan cukup jelas, kembalikan 'feasible': true. Output harus murni JSON dengan format {"feasible": boolean, "reason": "string"}.`;
+        const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Tugas Anda:
+1. Mengecek apakah tulisan tangan di foto ini dapat dibaca jelas, tidak terpotong, dan pencahayaannya baik.
+2. Memberikan skor keterbacaan (readabilityScore) dari 0-100.
+3. DILARANG KERAS menebak kata yang buram.
+4. Jika ada tulisan yang typo/salah tulis, buram, atau bagian yang terpotong, set 'feasible' ke false dan berikan rekomendasi spesifik (misal: "Tulisan di paragraf 2 terdapat typo, mohon tulis ulang dan foto kembali").
+5. Jika readabilityScore di bawah 90, WAJIB set 'feasible' ke false.
+6. Jika tulisan sangat jelas dan tidak ada typo, set 'feasible' ke true.
+
+Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": number, "reason": "string"}.`;
         
         const image = {
           inlineData: {
@@ -55,8 +63,8 @@ export async function POST(
         const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleanText);
 
-        if (parsed.feasible === false) {
-          return NextResponse.json({ error: `Ditolak AI: ${parsed.reason}` }, { status: 400 });
+        if (parsed.feasible === false || parsed.readabilityScore < 90) {
+          return NextResponse.json({ error: `Skor Keterbacaan: ${parsed.readabilityScore}%. Ditolak AI: ${parsed.reason}` }, { status: 400 });
         }
       } catch (aiError) {
         console.error("AI Feasibility check error:", aiError);
