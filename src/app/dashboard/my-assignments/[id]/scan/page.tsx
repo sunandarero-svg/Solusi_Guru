@@ -20,6 +20,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [aiError, setAiError] = useState<{ score: number, reason: string } | null>(null);
 
   // Handle file capture
   const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +132,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         
         if (!uploadRes.ok) {
           const errData = await uploadRes.json().catch(() => ({}));
-          throw new Error(errData.error || `Gagal mengunggah halaman ${i + 1}.`);
+          throw new Error(JSON.stringify(errData));
         }
       }
 
@@ -151,8 +152,17 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       // Redirect back to assignment detail
       router.push(`/dashboard/my-assignments/${resolvedParams.id}?success=1`);
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan saat mengunggah.");
       setIsUploading(false);
+      try {
+        const parsedErr = JSON.parse(err.message);
+        if (parsedErr.error === "AI_REJECTION") {
+          setAiError({ score: parsedErr.score, reason: parsedErr.reason });
+          return;
+        }
+        alert(parsedErr.error || "Terjadi kesalahan saat mengunggah.");
+      } catch(e) {
+        alert(err.message || "Terjadi kesalahan saat mengunggah.");
+      }
     }
   };
 
@@ -266,6 +276,35 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
           onRotate={(newUrl) => handleRotate(previewImage.id, newUrl)}
           onDelete={() => handleDelete(previewImage.id)}
         />
+      )}
+
+      {/* AI Rejection Modal (Futuristic Modern Design) */}
+      {aiError && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-gray-900 border border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)] rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500"></div>
+            
+            <div className="flex flex-col items-center text-center">
+              <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-gray-800 border-[3px] border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] mb-4">
+                <span className="text-3xl font-black text-white">{aiError.score}%</span>
+                <span className="absolute -bottom-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Score</span>
+              </div>
+              
+              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Kualitas Terlalu Rendah</h2>
+              
+              <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-4 rounded-xl mb-6 text-left w-full leading-relaxed">
+                {aiError.reason}
+              </div>
+              
+              <button 
+                onClick={() => setAiError(null)}
+                className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95"
+              >
+                Tulis & Foto Ulang
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

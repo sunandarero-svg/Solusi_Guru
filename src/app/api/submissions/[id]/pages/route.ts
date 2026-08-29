@@ -46,7 +46,7 @@ export async function POST(
 2. Memberikan skor keterbacaan (readabilityScore) dari 0-100.
 3. DILARANG KERAS menebak kata yang buram.
 4. Jika ada tulisan yang typo/salah tulis, buram, atau bagian yang terpotong, set 'feasible' ke false dan berikan rekomendasi spesifik (misal: "Tulisan di paragraf 2 terdapat typo, mohon tulis ulang dan foto kembali").
-5. Jika readabilityScore di bawah 90, WAJIB set 'feasible' ke false.
+5. Jika readabilityScore di bawah 85, WAJIB set 'feasible' ke false.
 6. Jika tulisan sangat jelas dan tidak ada typo, set 'feasible' ke true.
 
 Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": number, "reason": "string"}.`;
@@ -63,8 +63,12 @@ Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": 
         const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleanText);
 
-        if (parsed.feasible === false || parsed.readabilityScore < 90) {
-          return NextResponse.json({ error: `Skor Keterbacaan: ${parsed.readabilityScore}%. Ditolak AI: ${parsed.reason}` }, { status: 400 });
+        if (parsed.feasible === false || parsed.readabilityScore < 85) {
+          return NextResponse.json({ 
+            error: "AI_REJECTION",
+            score: parsed.readabilityScore,
+            reason: parsed.reason 
+          }, { status: 400 });
         }
       } catch (aiError) {
         console.error("AI Feasibility check error:", aiError);
