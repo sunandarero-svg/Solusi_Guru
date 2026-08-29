@@ -34,7 +34,7 @@ export async function GET(
       Rubric.find({ assignmentId: submission.assignmentId }).populate('criteria').lean()
     ]);
 
-    let aiCriteria = [];
+    let aiCriteria: any[] = [];
     if (aiAssessment) {
       aiCriteria = await AssessmentCriterion.find({ assessmentId: aiAssessment._id }).lean();
     }
