@@ -79,12 +79,16 @@ export async function GET(
 
     const resolvedParams = await props.params;
     await dbConnect();
+    
+    // Ensure model is registered
+    StudentProfile.init();
 
     const enrollments = await Enrollment.find({ classId: resolvedParams.id })
       .populate('studentId')
       .exec();
 
-    const students = enrollments.map(e => e.studentId);
+    // Filter out nulls in case of dangling references
+    const students = enrollments.map(e => e.studentId).filter(Boolean);
 
     return NextResponse.json({ students });
   } catch (error: any) {

@@ -40,30 +40,55 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     if (selectedClass && date) {
       setIsLoading(true);
       Promise.all([
-        fetch(`/api/classes/${selectedClass}/students`).then(res => res.json()),
-        fetch(`/api/teacher/attendance?classId=${selectedClass}&date=${date}`).then(res => res.json())
+        fetch(`/api/classes/${selectedClass}/students`).then(res => res.ok ? res.json() : { students: [] }),
+        fetch(`/api/teacher/attendance?classId=${selectedClass}&date=${date}`).then(res => res.ok ? res.json() : { records: [] })
       ])
       .then(([studentsData, attendanceData]) => {
-        setStudents(studentsData.students || []);
+        if (!isMounted) return;
+        
+        // Handle potentially malformed data safely
+        const fetchedStudents = Array.isArray(studentsData?.students) ? studentsData.students : 
+                                (Array.isArray(studentsData) ? studentsData : []);
+                                
+        // Filter out any null or invalid students to prevent React render crash
+        const validStudents = fetchedStudents.filter((s: any) => s && typeof s === 'object' && s._id);
+        
+        setStudents(validStudents);
+        
         const newAttendance: Record<string, 'HADIR' | 'SAKIT' | 'IZIN' | 'ALPA'> = {};
-        if (attendanceData.records && attendanceData.records.length > 0) {
-          attendanceData.records.forEach((record: AttendanceRecord) => {
-            newAttendance[record.studentId] = record.status;
+        const records = attendanceData?.records || [];
+        
+        if (Array.isArray(records) && records.length > 0) {
+          records.forEach((record: any) => {
+            if (record?.studentId) {
+              newAttendance[record.studentId] = record.status || 'HADIR';
+            }
           });
         } else {
           // Default to HADIR
-          (studentsData.students || []).forEach((student: Student) => {
-            newAttendance[student._id] = 'HADIR';
+          validStudents.forEach((student: any) => {
+            if (student?._id) {
+              newAttendance[student._id] = 'HADIR';
+            }
           });
         }
         setAttendance(newAttendance);
       })
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
+      .catch(err => {
+        console.error("Error fetching data:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    } else {
+      if (isMounted) setStudents([]);
     }
+    
+    return () => { isMounted = false; };
   }, [selectedClass, date]);
 
   const handleStatusChange = (studentId: string, status: 'HADIR' | 'SAKIT' | 'IZIN' | 'ALPA') => {
