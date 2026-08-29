@@ -66,12 +66,11 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
 
           <div className="flex space-x-3 w-full md:w-auto">
             {submission && submission.status !== "DRAFT" ? (
-              <Link 
-                href={`/dashboard/my-assignments/${resolvedParams.id}/submissions/${submission.id}/review`}
-                className="w-full md:w-auto bg-green-100 text-green-700 hover:bg-green-200 px-6 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center space-x-2 transition"
+              <div 
+                className="w-full md:w-auto bg-green-100 text-green-700 px-6 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center space-x-2 transition"
               >
-                <span>✅ Lihat Hasil / Review Tugas</span>
-              </Link>
+                <span>✅ Tugas Berhasil Dikumpul</span>
+              </div>
             ) : (
               <Link 
                 href={isOverdue ? '#' : `/dashboard/my-assignments/${resolvedParams.id}/scan`}

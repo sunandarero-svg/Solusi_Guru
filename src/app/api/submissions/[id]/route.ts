@@ -34,11 +34,13 @@ export async function PATCH(
     const body = await req.json();
     
     if (body.action === "SUBMIT") {
-      // 1. Mark as SUBMITTED first so user knows it went through
-      await submissionService.submitAssignment(resolvedParams.id, "SUBMITTED");
+      // 1. Submit and change status to PROCESSING directly so AI processes it
+      await submissionService.submitAssignment(resolvedParams.id, "PROCESSING");
       
-      // We no longer trigger PDF generation since we use multimodal image directly
-      return NextResponse.json({ status: "SUBMITTED", message: "Submission is uploaded and ready for student review." });
+      // 2. Trigger asynchronous background processing (fire-and-forget)
+      processingWorker.processSubmissionPipeline(resolvedParams.id);
+
+      return NextResponse.json({ status: "PROCESSING", message: "Submission is being processed by AI." });
     } else if (body.action === "PROCESS_AI") {
       // 1. Change status to PROCESSING
       await submissionService.updateStatus(resolvedParams.id, "PROCESSING");
