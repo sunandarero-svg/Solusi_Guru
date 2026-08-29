@@ -39,7 +39,7 @@ export async function POST(
       try {
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
         
         const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Tugas Anda HANYA mengecek apakah tulisan tangan di foto ini dapat dibaca, tidak terpotong, dan pencahayaannya baik. DILARANG KERAS menebak kata yang buram. Jika ada bagian yang ambigu, kembalikan 'feasible': false beserta alasan spesifik (maksimal 2 kalimat). Jika tulisan cukup jelas, kembalikan 'feasible': true. Output harus murni JSON dengan format {"feasible": boolean, "reason": "string"}.`;
         

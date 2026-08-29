@@ -15,7 +15,7 @@ export class GeminiProvider implements AIProvider {
   }
 
   async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
-    const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = this.genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
 
     // 1. Prepare images
     const imageParts = [];
