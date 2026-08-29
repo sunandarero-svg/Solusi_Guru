@@ -45,14 +45,14 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl shadow-lg mb-4 text-white">
             <GraduationCap size={40} strokeWidth={1.5} />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">AI Assessment</h1>
-          <p className="text-slate-500 mt-2 text-sm font-medium">Sistem Penilaian Tugas Berbasis AI</p>
+          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">AI Sessajaki</h1>
+          <p className="text-slate-500 mt-2 text-sm font-medium">AI tidak akan pernah menggantikan guru</p>
         </div>
 
         {/* Card */}
         <div className="glass rounded-3xl p-8 relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500"></div>
-          
+
           <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">Selamat Datang 👋</h2>
 
           {error && (
