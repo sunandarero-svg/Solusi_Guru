@@ -68,3 +68,27 @@ export async function POST(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireTeacherSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const resolvedParams = await props.params;
+    await dbConnect();
+
+    const enrollments = await Enrollment.find({ classId: resolvedParams.id })
+      .populate('studentId')
+      .exec();
+
+    const students = enrollments.map(e => e.studentId);
+
+    return NextResponse.json({ students });
+  } catch (error: any) {
+    console.error("GET Class students error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
