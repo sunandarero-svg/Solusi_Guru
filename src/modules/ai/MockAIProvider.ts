@@ -3,7 +3,7 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 export class MockAIProvider implements AIProvider {
   readonly providerName = "MockAI";
 
-  async assessSubmission(ocrText: string, rubrics: any[]): Promise<AIAssessmentResult> {
+  async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
     // Simulate API processing delay (3 seconds)
     await new Promise((resolve) => setTimeout(resolve, 3000));
 

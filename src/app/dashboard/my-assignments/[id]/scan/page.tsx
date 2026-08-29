@@ -130,7 +130,8 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         });
         
         if (!uploadRes.ok) {
-          throw new Error(`Gagal mengunggah halaman ${i + 1}.`);
+          const errData = await uploadRes.json().catch(() => ({}));
+          throw new Error(errData.error || `Gagal mengunggah halaman ${i + 1}.`);
         }
       }
 

@@ -1,6 +1,4 @@
 import { submissionService } from "@/modules/submission/submissionService";
-import { pdfService } from "@/modules/pdf/pdfService";
-import { ocrService } from "@/modules/ocr/ocrService";
 import { aiService } from "@/modules/ai/aiService";
 
 /**
@@ -13,16 +11,10 @@ export const processingWorker = {
       // 1. Mark as processing
       await submissionService.updateStatus(submissionId, "PROCESSING");
       
-      // 2. Generate PDF
-      await pdfService.generatePDFFromSubmission(submissionId);
-      
-      // 3. Process OCR
-      await ocrService.processSubmission(submissionId);
-      
-      // 4. Process AI Assessment
+      // 2. Process AI Assessment directly with Multimodal (Gemini)
       await aiService.assessSubmission(submissionId);
       
-      // 5. Mark as ready for teacher
+      // 3. Mark as ready for teacher
       await submissionService.updateStatus(submissionId, "NEEDS_TEACHER_REVIEW");
       
       console.log(`[Worker] Successfully processed submission: ${submissionId}`);

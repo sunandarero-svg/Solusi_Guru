@@ -15,9 +15,9 @@ export interface AIProvider {
   readonly providerName: string;
 
   /**
-   * Assesses a student's submission based on extracted text and rubrics.
-   * @param ocrText The text extracted from the student's submission
+   * Assesses a student's submission based on uploaded images and rubrics.
+   * @param pages The images (SubmissionPages) uploaded by the student
    * @param rubrics The rubrics defined for the assignment
    */
-  assessSubmission(ocrText: string, rubrics: any[]): Promise<AIAssessmentResult>;
+  assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult>;
 }

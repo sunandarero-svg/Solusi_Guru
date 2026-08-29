@@ -2,7 +2,7 @@ import dbConnect from "@/lib/mongoose";
 import { Submission, OCRResult, AIAssessment, AssessmentCriterion } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import { AIProvider } from "./AIProvider";
-import { MockAIProvider } from "./MockAIProvider";
+import { GeminiProvider } from "./GeminiProvider";
 
 export class AIService {
   private provider: AIProvider;
@@ -34,10 +34,10 @@ export class AIService {
       return { ...r, criteria };
     }));
 
-    // 2. Fetch OCR Result
-    const ocrResult = await OCRResult.findOne({ submissionId }).lean();
-    if (!ocrResult) {
-      throw new Error(`No OCR result found for submission ID ${submissionId}`);
+    // 2. Fetch Submission Pages (Images) instead of OCR Result
+    const pages = await import('@/models/Submission').then(m => m.SubmissionPage.find({ submissionId }).sort({ pageNumber: 1 }).lean());
+    if (!pages || pages.length === 0) {
+      throw new Error(`No pages found for submission ID ${submissionId}`);
     }
 
     // 3. Request Assessment from AI Provider with Retry Logic (max 2 retries)
@@ -48,7 +48,7 @@ export class AIService {
     while (attempt <= maxRetries) {
       try {
         assessmentResult = await this.provider.assessSubmission(
-          ocrResult.extractedText, 
+          pages as any, // Passed to provider which should handle array of pages/images
           rubricsWithCriteria
         );
         break; // Success, exit loop
@@ -91,5 +91,5 @@ export class AIService {
   }
 }
 
-// Instantiate with MockAIProvider by default for the MVP
-export const aiService = new AIService(new MockAIProvider());
+// Instantiate with GeminiProvider
+export const aiService = new AIService(new GeminiProvider());
