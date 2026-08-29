@@ -290,10 +290,12 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
                 <span className="absolute -bottom-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Score</span>
               </div>
               
-              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Kualitas Terlalu Rendah</h2>
+              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Hampir Sempurna! Yuk, Perbaiki Sedikit Lagi 🚀</h2>
               
               <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-4 rounded-xl mb-6 text-left w-full leading-relaxed">
+                <p className="font-semibold mb-1 text-white">Pesan dari AI:</p>
                 {aiError.reason}
+                <p className="mt-3 text-orange-300 italic text-xs">Jangan menyerah! Tulisan yang rapi dan jelas akan sangat membantu bapak/ibu guru dalam memberikan nilai terbaik buat kamu. Ayo coba foto ulang!</p>
               </div>
               
               <button 
