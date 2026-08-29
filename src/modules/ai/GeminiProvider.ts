@@ -9,7 +9,7 @@ export class GeminiProvider implements AIProvider {
   private getRandomKey(): string {
     const keysStr = process.env.GEMINI_API_KEYS;
     if (keysStr) {
-      const keys = keysStr.split(',').map(k => k.trim()).filter(Boolean);
+      const keys = keysStr.split(',').map(k => k.replace(/['"]/g, '').trim()).filter(Boolean);
       if (keys.length > 0) {
         return keys[Math.floor(Math.random() * keys.length)];
       }
@@ -17,7 +17,7 @@ export class GeminiProvider implements AIProvider {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured.");
     }
-    return process.env.GEMINI_API_KEY;
+    return process.env.GEMINI_API_KEY.replace(/['"]/g, '').trim();
   }
 
   async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {

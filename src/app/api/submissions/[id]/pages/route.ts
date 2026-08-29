@@ -36,10 +36,10 @@ export async function POST(
 
     // AI Feasibility Check using Gemini 3.6 Flash
     const keysStr = process.env.GEMINI_API_KEYS;
-    let apiKey = process.env.GEMINI_API_KEY;
+    let apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.replace(/['"]/g, '').trim() : undefined;
     
     if (keysStr) {
-      const keys = keysStr.split(',').map(k => k.trim()).filter(Boolean);
+      const keys = keysStr.split(',').map(k => k.replace(/['"]/g, '').trim()).filter(Boolean);
       if (keys.length > 0) {
         apiKey = keys[Math.floor(Math.random() * keys.length)];
       }
