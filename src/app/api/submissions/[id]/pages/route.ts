@@ -34,11 +34,21 @@ export async function POST(
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // AI Feasibility Check using Gemini 1.5 Flash
-    if (process.env.GEMINI_API_KEY) {
+    // AI Feasibility Check using Gemini 3.6 Flash
+    const keysStr = process.env.GEMINI_API_KEYS;
+    let apiKey = process.env.GEMINI_API_KEY;
+    
+    if (keysStr) {
+      const keys = keysStr.split(',').map(k => k.trim()).filter(Boolean);
+      if (keys.length > 0) {
+        apiKey = keys[Math.floor(Math.random() * keys.length)];
+      }
+    }
+
+    if (apiKey) {
       try {
         const { GoogleGenerativeAI } = require("@google/generative-ai");
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
         
         const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Tugas Anda:

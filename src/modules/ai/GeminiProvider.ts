@@ -4,18 +4,25 @@ import { readFile } from "fs/promises";
 import path from "path";
 
 export class GeminiProvider implements AIProvider {
-  readonly providerName = "Gemini-2.5-Flash";
-  private genAI: GoogleGenerativeAI;
+  readonly providerName = "Gemini-3.6-Flash";
 
-  constructor() {
+  private getRandomKey(): string {
+    const keysStr = process.env.GEMINI_API_KEYS;
+    if (keysStr) {
+      const keys = keysStr.split(',').map(k => k.trim()).filter(Boolean);
+      if (keys.length > 0) {
+        return keys[Math.floor(Math.random() * keys.length)];
+      }
+    }
     if (!process.env.GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured.");
     }
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    return process.env.GEMINI_API_KEY;
   }
 
   async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
-    const model = this.genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+    const genAI = new GoogleGenerativeAI(this.getRandomKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
 
     // 1. Prepare images
     const imageParts = [];
