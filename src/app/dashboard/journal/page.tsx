@@ -96,7 +96,7 @@ export default function JournalPage() {
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-900"
                 required
               >
                 <option value="">-- Pilih Kelas --</option>
@@ -111,7 +111,7 @@ export default function JournalPage() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-900"
                 required
               />
             </div>
@@ -147,7 +147,7 @@ export default function JournalPage() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Contoh: Aljabar Linier, Tata Bahasa..."
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               required
             />
           </div>
@@ -159,7 +159,7 @@ export default function JournalPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Jelaskan secara singkat kegiatan belajar mengajar hari ini..."
               rows={4}
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               required
             />
           </div>
