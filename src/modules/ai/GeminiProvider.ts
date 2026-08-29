@@ -4,7 +4,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 
 export class GeminiProvider implements AIProvider {
-  readonly providerName = "Gemini-1.5-Flash";
+  readonly providerName = "Gemini-2.5-Flash";
   private genAI: GoogleGenerativeAI;
 
   constructor() {
@@ -15,7 +15,7 @@ export class GeminiProvider implements AIProvider {
   }
 
   async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
-    const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // 1. Prepare images
     const imageParts = [];
