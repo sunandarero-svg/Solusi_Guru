@@ -3,7 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export enum Role {
   ADMIN = 'ADMIN',
   TEACHER = 'TEACHER',
-  STUDENT = 'STUDENT'
+  STUDENT = 'STUDENT',
+  PRINCIPAL = 'PRINCIPAL'
 }
 
 export interface IUser extends Document {

@@ -20,6 +20,8 @@ export default function NavLinks({ role }: NavLinksProps) {
     { href: "/dashboard/students", label: "👨‍🎓 Siswa" },
     { href: "/dashboard/classes", label: "🏫 Kelas" },
     { href: "/dashboard/assignments", label: "📋 Tugas" },
+    { href: "/dashboard/attendance", label: "📝 Absensi" },
+    { href: "/dashboard/journal", label: "📔 Jurnal Guru" },
   ];
 
   const studentLinks = [
@@ -27,12 +29,18 @@ export default function NavLinks({ role }: NavLinksProps) {
     { href: "/dashboard/my-assignments", label: "📚 Tugas Saya" },
   ];
 
+  const principalLinks = [
+    { href: "/dashboard/principal", label: "📊 Dashboard Utama" },
+  ];
+
   const links =
     role === "ADMIN"
       ? adminLinks
       : role === "TEACHER"
         ? teacherLinks
-        : studentLinks;
+        : role === "PRINCIPAL"
+          ? principalLinks
+          : studentLinks;
 
   return (
     <ul className="space-y-1">
