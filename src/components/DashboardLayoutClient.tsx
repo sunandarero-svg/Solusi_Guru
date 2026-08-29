@@ -28,6 +28,13 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/dashboard/classes", label: "Manajemen Kelas", icon: BookOpen },
         { href: "/dashboard/assignments", label: "Tugas", icon: FileText },
+        { href: "/dashboard/attendance", label: "Absensi", icon: CheckSquare },
+        { href: "/dashboard/journal", label: "Jurnal Guru", icon: FileText },
+      ];
+    }
+    if (role === "PRINCIPAL") {
+      return [
+        { href: "/dashboard/principal", label: "Dashboard Utama", icon: LayoutDashboard },
       ];
     }
     return [
@@ -37,8 +44,8 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
   };
 
   const links = getLinks();
-  const roleLabel = role === "ADMIN" ? "Admin" : role === "TEACHER" ? "Guru" : "Siswa";
-  const roleColor = role === "ADMIN" ? "bg-purple-100 text-purple-700" : role === "TEACHER" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700";
+  const roleLabel = role === "ADMIN" ? "Admin" : role === "TEACHER" ? "Guru" : role === "PRINCIPAL" ? "Kepala Sekolah" : "Siswa";
+  const roleColor = role === "ADMIN" ? "bg-purple-100 text-purple-700" : role === "TEACHER" ? "bg-blue-100 text-blue-700" : role === "PRINCIPAL" ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700";
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-hidden">
