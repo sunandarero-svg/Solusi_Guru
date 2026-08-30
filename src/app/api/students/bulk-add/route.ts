@@ -3,7 +3,7 @@ import { requireTeacherSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
 import User, { Role } from "@/models/User";
 import { StudentProfile } from "@/models/Profile";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
