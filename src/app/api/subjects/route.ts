@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import { Subject } from "@/models/Subject";
-import { requireSession } from "@/modules/auth/session";
+import { getAuthSession } from "@/modules/auth/session";
 
 export async function GET() {
   try {
-    const session = await requireSession();
+    const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await dbConnect();
