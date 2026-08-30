@@ -29,9 +29,15 @@ export async function GET(
       AIAssessment.findOne({ submissionId: submission._id }).lean(),
       TeacherReview.findOne({ submissionId: submission._id }).lean(),
       Assignment.findById(submission.assignmentId).lean(),
-      Rubric.find({ assignmentId: submission.assignmentId }).populate('criteria').lean(),
+      Rubric.find({ assignmentId: submission.assignmentId }).lean(),
       SubmissionPage.find({ submissionId: submission._id }).sort({ pageNumber: 1 }).lean()
     ]);
+
+    const { RubricCriterion } = require("@/models/Assignment");
+    const rubricsWithCriteria = await Promise.all(rubrics.map(async (r: any) => {
+      const criteria = await RubricCriterion.find({ rubricId: r._id }).sort({ order: 1 }).lean();
+      return { ...r, criteria };
+    }));
 
     let aiCriteria: any[] = [];
     if (aiAssessment) {
@@ -46,7 +52,7 @@ export async function GET(
       pages: pages || [],
       assignment: {
         ...assignment,
-        rubrics
+        rubrics: rubricsWithCriteria
       }
     };
 
