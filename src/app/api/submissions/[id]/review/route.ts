@@ -6,6 +6,7 @@ import { Submission, AIAssessment, TeacherReview, AssessmentCriterion, Submissio
 import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
+import { mapId } from "@/lib/mapId";
 
 export async function GET(
   req: NextRequest,
@@ -55,7 +56,7 @@ export async function GET(
       }
     };
 
-    return NextResponse.json(formattedSubmission);
+    return NextResponse.json(mapId(formattedSubmission));
   } catch (error) {
     console.error("Get review detail error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

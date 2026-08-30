@@ -124,7 +124,7 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                       href={`/dashboard/assignments/${assignmentId}/submissions/${sub.id}/review`}
                       className="text-blue-600 hover:text-blue-800 font-medium text-sm"
                     >
-                      {["APPROVED", "PUBLISHED"].includes(sub.status) ? "Lihat Hasil" : "Mulai Review ➔"}
+                      {["APPROVED", "PUBLISHED"].includes(sub.status) ? "Lihat Hasil" : "Edit ✏️"}
                     </Link>
                     <button
                       onClick={() => handleDelete(sub.id, sub.student.fullName)}
