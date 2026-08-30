@@ -20,7 +20,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [aiError, setAiError] = useState<{ score: number, reason: string } | null>(null);
+  const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
 
   // Handle file capture
   const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +110,8 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       const submission = await initRes.json();
 
       // 2. Upload each image as a page
+      let finalAiScore: number | null = null;
+      let finalAiReason: string | null = null;
       for (let i = 0; i < images.length; i++) {
         setUploadProgress(10 + Math.round((i / images.length) * 80));
         const img = images[i];
@@ -134,6 +136,13 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
           const errData = await uploadRes.json().catch(() => ({}));
           throw new Error(JSON.stringify(errData));
         }
+
+        const data = await uploadRes.json();
+        // If this is the last page, we can show the AI Result
+        if (i === images.length - 1 && data.aiResult) {
+          finalAiScore = data.aiResult.readabilityScore;
+          finalAiReason = data.aiResult.reason;
+        }
       }
 
       setUploadProgress(95);
@@ -148,15 +157,20 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       if (!submitRes.ok) throw new Error("Gagal finalisasi");
 
       setUploadProgress(100);
+      setIsUploading(false);
 
-      // Redirect back to assignment detail
-      router.push(`/dashboard/my-assignments/${resolvedParams.id}?success=1`);
+      if (finalAiScore !== null && finalAiReason !== null) {
+        setAiResultModal({ type: 'success', score: finalAiScore, reason: finalAiReason });
+      } else {
+        // Redirect back to assignment detail if no AI result
+        router.push(`/dashboard/my-assignments/${resolvedParams.id}?success=1`);
+      }
     } catch (err: any) {
       setIsUploading(false);
       try {
         const parsedErr = JSON.parse(err.message);
         if (parsedErr.error === "AI_REJECTION") {
-          setAiError({ score: parsedErr.score, reason: parsedErr.reason });
+          setAiResultModal({ type: 'error', score: parsedErr.score, reason: parsedErr.reason });
           return;
         }
         alert(parsedErr.error || "Terjadi kesalahan saat mengunggah.");
@@ -278,31 +292,45 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         />
       )}
 
-      {/* AI Rejection Modal (Futuristic Modern Design) */}
-      {aiError && (
+      {/* AI Result Modal (Futuristic Modern Design) */}
+      {aiResultModal && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-gray-900 border border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)] rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500"></div>
+          <div className={`bg-gray-900 border ${aiResultModal.type === 'error' ? 'border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'border-green-500/50 shadow-[0_0_40px_rgba(34,197,94,0.3)]'} rounded-2xl w-full max-w-md p-6 relative overflow-hidden`}>
+            <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${aiResultModal.type === 'error' ? 'from-red-500 via-orange-500 to-red-500' : 'from-green-400 via-emerald-500 to-green-500'}`}></div>
             
             <div className="flex flex-col items-center text-center">
-              <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-gray-800 border-[3px] border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] mb-4">
-                <span className="text-3xl font-black text-white">{aiError.score}%</span>
-                <span className="absolute -bottom-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Score</span>
+              <div className={`relative flex items-center justify-center w-24 h-24 rounded-full bg-gray-800 border-[3px] ${aiResultModal.type === 'error' ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.5)]'} mb-4`}>
+                <span className="text-3xl font-black text-white">{aiResultModal.score}%</span>
+                <span className={`absolute -bottom-2 ${aiResultModal.type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider`}>Score</span>
               </div>
               
-              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Hampir Sempurna! Yuk, Perbaiki Sedikit Lagi 🚀</h2>
+              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
+                {aiResultModal.type === 'error' ? 'Hampir Sempurna! Yuk, Perbaiki Sedikit Lagi 🚀' : 'Luar Biasa! Tugas Siap Diperiksa 🌟'}
+              </h2>
               
-              <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-sm p-4 rounded-xl mb-6 text-left w-full leading-relaxed">
+              <div className={`${aiResultModal.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-200' : 'bg-green-500/10 border-green-500/20 text-green-200'} border text-sm p-4 rounded-xl mb-6 text-left w-full leading-relaxed`}>
                 <p className="font-semibold mb-1 text-white">Pesan dari AI:</p>
-                {aiError.reason}
-                <p className="mt-3 text-orange-300 italic text-xs">Jangan menyerah! Tulisan yang rapi dan jelas akan sangat membantu bapak/ibu guru dalam memberikan nilai terbaik buat kamu. Ayo coba foto ulang!</p>
+                {aiResultModal.reason}
+                {aiResultModal.type === 'error' && (
+                  <p className="mt-3 text-orange-300 italic text-xs">Jangan menyerah! Tulisan yang rapi dan jelas akan sangat membantu bapak/ibu guru dalam memberikan nilai terbaik buat kamu. Ayo coba foto ulang!</p>
+                )}
+                {aiResultModal.type === 'success' && (
+                  <p className="mt-3 text-emerald-300 italic text-xs">Tugas Anda sangat jelas dan rapi. Guru akan dengan mudah memeriksanya!</p>
+                )}
               </div>
               
               <button 
-                onClick={() => setAiError(null)}
-                className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95"
+                onClick={() => {
+                  if (aiResultModal.type === 'error') {
+                    setAiResultModal(null);
+                    setImages([]);
+                  } else {
+                    router.push(`/dashboard/my-assignments/${resolvedParams.id}?success=1`);
+                  }
+                }}
+                className={`w-full ${aiResultModal.type === 'error' ? 'bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400' : 'bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400'} text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:-translate-y-1`}
               >
-                Tulis & Foto Ulang
+                {aiResultModal.type === 'error' ? 'Tulis Ulang & Foto Kembali' : 'Lihat Hasil AI'}
               </button>
             </div>
           </div>

@@ -3,7 +3,7 @@ import { requireTeacherSession } from "@/modules/auth/session";
 import { reviewService } from "@/modules/review/reviewService";
 import dbConnect from "@/lib/mongoose";
 import { Submission, AIAssessment, TeacherReview, AssessmentCriterion, SubmissionPage } from "@/models/Submission";
-import { Assignment, Rubric } from "@/models/Assignment";
+import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
 
@@ -33,7 +33,6 @@ export async function GET(
       SubmissionPage.find({ submissionId: submission._id }).sort({ pageNumber: 1 }).lean()
     ]);
 
-    const { RubricCriterion } = require("@/models/Assignment");
     const rubricsWithCriteria = await Promise.all(rubrics.map(async (r: any) => {
       const criteria = await RubricCriterion.find({ rubricId: r._id }).sort({ order: 1 }).lean();
       return { ...r, criteria };

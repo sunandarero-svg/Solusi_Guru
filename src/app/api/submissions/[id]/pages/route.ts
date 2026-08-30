@@ -45,6 +45,8 @@ export async function POST(
       }
     }
 
+    let aiResult: any = null;
+
     if (apiKey) {
       try {
         const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -72,6 +74,7 @@ Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": 
         const text = result.response.text();
         const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleanText);
+        aiResult = parsed;
 
         if (parsed.feasible === false || parsed.readabilityScore < 85) {
           return NextResponse.json({ 
@@ -116,7 +119,10 @@ Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": 
       pageNumber
     });
 
-    return NextResponse.json(savedPage);
+    return NextResponse.json({
+      ...savedPage,
+      aiResult
+    });
   } catch (error: any) {
     console.error("Upload page error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
