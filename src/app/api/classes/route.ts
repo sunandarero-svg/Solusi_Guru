@@ -23,10 +23,10 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { name, description } = body;
+  const { name, description, subjectId } = body;
 
-  if (!name) {
-    return NextResponse.json({ error: "Nama kelas tidak boleh kosong" }, { status: 400 });
+  if (!name || !subjectId) {
+    return NextResponse.json({ error: "Nama kelas dan mata pelajaran tidak boleh kosong" }, { status: 400 });
   }
 
   const teacherProfile = await getTeacherProfileByEmail(session.user.email!);
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
     await TeacherClass.create({
       classId: newClass._id,
       teacherId: teacherProfile.id,
+      subjectId: subjectId,
     });
 
     return NextResponse.json(newClass.toObject(), { status: 201 });

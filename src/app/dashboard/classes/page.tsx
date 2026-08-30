@@ -13,16 +13,21 @@ interface ClassData {
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassData[]>([]);
+  const [subjects, setSubjects] = useState<{id: string, name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "", subjectId: "" });
   const [message, setMessage] = useState({ type: "", text: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchClasses = async () => {
     setLoading(true);
-    const res = await fetch("/api/classes");
-    if (res.ok) setClasses(await res.json());
+    const [resClasses, resSubjects] = await Promise.all([
+      fetch("/api/classes"),
+      fetch("/api/subjects")
+    ]);
+    if (resClasses.ok) setClasses(await resClasses.json());
+    if (resSubjects.ok) setSubjects(await resSubjects.json());
     setLoading(false);
   };
 
@@ -40,7 +45,7 @@ export default function ClassesPage() {
     if (res.ok) {
       setMessage({ type: "success", text: "Kelas berhasil dibuat!" });
       setShowForm(false);
-      setForm({ name: "", description: "" });
+      setForm({ name: "", description: "", subjectId: "" });
       fetchClasses();
     } else {
       setMessage({ type: "error", text: data.error || "Gagal membuat kelas." });
@@ -78,6 +83,16 @@ export default function ClassesPage() {
               <input required className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-800"
                 placeholder="contoh: Kelas XI IPA 2" value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Mata Pelajaran Utama Anda di Kelas Ini *</label>
+              <select required className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-800 bg-white"
+                value={form.subjectId} onChange={e => setForm({ ...form, subjectId: e.target.value })}>
+                <option value="">-- Pilih Mata Pelajaran --</option>
+                {subjects.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Deskripsi (Opsional)</label>
