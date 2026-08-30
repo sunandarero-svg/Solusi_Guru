@@ -118,7 +118,7 @@ export default function JournalPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status Kehadiran Anda</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status Kehadiran Guru</label>
             <div className="flex gap-4">
               {['HADIR', 'SAKIT', 'IZIN', 'ALPA'].map(status => (
                 <label key={status} className="flex items-center gap-2 cursor-pointer">

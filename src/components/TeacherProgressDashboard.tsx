@@ -34,6 +34,7 @@ interface ClassProgress {
 export default function TeacherProgressDashboard() {
   const [data, setData] = useState<ClassProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [selectedClass, setSelectedClass] = useState<ClassProgress | null>(null);
   const [selectedTracker, setSelectedTracker] = useState<ClassProgress | null>(null);
 
@@ -70,12 +71,26 @@ export default function TeacherProgressDashboard() {
 
   return (
     <div className="mt-8">
-      <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-        <Users className="text-blue-500" /> Progress Kemajuan Siswa Per Kelas
-      </h2>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <Users className="text-blue-500" /> Progress Kemajuan Siswa Per Kelas
+        </h2>
+        <select
+          value={selectedClassId}
+          onChange={(e) => setSelectedClassId(e.target.value)}
+          className="px-4 py-2 border border-slate-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 font-medium"
+        >
+          <option value="all">Semua Kelas</option>
+          {data.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {data.map(cls => {
+        {data
+          .filter(cls => selectedClassId === "all" || cls.id === selectedClassId)
+          .map(cls => {
           const { sudahPaham, mulaiPaham, belumPaham, total } = cls.progress;
           
           // Calculate percentages for progress bar

@@ -21,15 +21,19 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       return [
         { href: "/dashboard/admin", label: "Dashboard Admin", icon: ShieldCheck },
         { href: "/dashboard/admin/teachers", label: "Kelola Guru", icon: Users },
+        { href: "/dashboard/admin/subjects", label: "Mata Pelajaran", icon: BookOpen },
+        { href: "/dashboard/admin/teaching", label: "Tautkan Guru", icon: LayoutDashboard },
       ];
     }
     if (role === "TEACHER") {
       return [
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/dashboard/classes", label: "Manajemen Kelas", icon: BookOpen },
+        { href: "/dashboard/students", label: "Akun Siswa", icon: Users },
         { href: "/dashboard/assignments", label: "Tugas", icon: FileText },
         { href: "/dashboard/attendance", label: "Absensi", icon: CheckSquare },
         { href: "/dashboard/journal", label: "Jurnal Guru", icon: FileText },
+        { href: "/dashboard/settings", label: "Profil Guru", icon: ShieldCheck },
       ];
     }
     if (role === "PRINCIPAL") {
@@ -39,6 +43,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
     }
     return [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/subjects", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/dashboard/my-assignments", label: "Tugas Saya", icon: CheckSquare },
     ];
   };

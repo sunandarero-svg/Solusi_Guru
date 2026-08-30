@@ -7,6 +7,7 @@ export interface ITeacherProfile extends Document {
   maxClasses: number;
   deletedAt?: Date | null;
   driveFolderId?: string;
+  avatarUrl?: string;
 }
 
 const TeacherProfileSchema: Schema = new Schema({
@@ -15,7 +16,8 @@ const TeacherProfileSchema: Schema = new Schema({
   maxStudents: { type: Number, default: 310 },
   maxClasses: { type: Number, default: 10 },
   deletedAt: { type: Date, default: null },
-  driveFolderId: { type: String }
+  driveFolderId: { type: String },
+  avatarUrl: { type: String }
 });
 
 export const TeacherProfile = mongoose.models.TeacherProfile || mongoose.model<ITeacherProfile>('TeacherProfile', TeacherProfileSchema);

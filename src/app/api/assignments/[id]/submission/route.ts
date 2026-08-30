@@ -32,10 +32,10 @@ export async function GET(
     );
 
     if (submission) {
-      // Import AIAssessment here or at top
-      const { AIAssessment } = require("@/models/Submission");
+      const { AIAssessment, TeacherReview } = require("@/models/Submission");
       const aiAssessment = await AIAssessment.findOne({ submissionId: submission.id }).lean();
-      return NextResponse.json({ ...submission, aiAssessment });
+      const teacherReview = await TeacherReview.findOne({ submissionId: submission.id }).lean();
+      return NextResponse.json({ ...submission, aiAssessment, teacherReview });
     }
 
     return NextResponse.json(null);

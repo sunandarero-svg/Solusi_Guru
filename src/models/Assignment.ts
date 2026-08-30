@@ -10,6 +10,7 @@ export enum AssignmentStatus {
 export interface IAssignment extends Document {
   teacherId: mongoose.Types.ObjectId;
   classId: mongoose.Types.ObjectId;
+  subjectId: mongoose.Types.ObjectId;
   title: string;
   description?: string;
   instructions?: string;
@@ -23,6 +24,7 @@ export interface IAssignment extends Document {
 const AssignmentSchema: Schema = new Schema({
   teacherId: { type: Schema.Types.ObjectId, ref: 'TeacherProfile', required: true },
   classId: { type: Schema.Types.ObjectId, ref: 'Class', required: true },
+  subjectId: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
   title: { type: String, required: true },
   description: { type: String },
   instructions: { type: String },

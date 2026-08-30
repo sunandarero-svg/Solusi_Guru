@@ -51,6 +51,7 @@ export const assignmentService = {
   async createAssignment(data: {
     teacherId: string;
     classId: string;
+    subjectId: string;
     title: string;
     description?: string;
     instructions?: string;

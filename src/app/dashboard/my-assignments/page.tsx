@@ -8,7 +8,11 @@ import { Enrollment, Class } from "@/models/Class";
 import { Assignment, AssignmentStatus } from "@/models/Assignment";
 import { Submission } from "@/models/Submission";
 
-export default async function MyAssignmentsPage() {
+import { Subject } from "@/models/Subject";
+
+export default async function MyAssignmentsPage({ searchParams }: { searchParams: Promise<{ subjectId?: string }> }) {
+  const resolvedSearchParams = await searchParams;
+  const subjectIdParam = resolvedSearchParams.subjectId;
   const session = await getServerSession(authOptions);
   const userEmail = session?.user?.email;
 
@@ -24,10 +28,16 @@ export default async function MyAssignmentsPage() {
       const enrollments = await Enrollment.find({ studentId: studentProfile._id }).lean();
       const classIds = enrollments.map(e => e.classId);
 
-      const foundAssignments = await Assignment.find({
+      const query: any = {
         classId: { $in: classIds },
         status: AssignmentStatus.PUBLISHED,
-      }).sort({ deadline: 1 }).lean();
+      };
+
+      if (subjectIdParam) {
+        query.subjectId = subjectIdParam;
+      }
+
+      const foundAssignments = await Assignment.find(query).populate('subjectId').sort({ deadline: 1 }).lean();
 
       // We need to fetch the class details and the student's submission for each assignment
       const classDetails = await Class.find({ _id: { $in: classIds } }).lean();
@@ -102,9 +112,14 @@ export default async function MyAssignmentsPage() {
                 )}
 
                 <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
-                  <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded">
-                    {assignment.class?.name || "Kelas"}
-                  </span>
+                  <div className="flex gap-2">
+                    <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded font-semibold">
+                      {assignment.subjectId?.name || "Umum"}
+                    </span>
+                    <span className="bg-slate-50 text-slate-600 px-2 py-1 rounded">
+                      {assignment.class?.name || "Kelas"}
+                    </span>
+                  </div>
                   <div className="flex items-center space-x-2">
                     {assignment.deadline && (
                       <span>

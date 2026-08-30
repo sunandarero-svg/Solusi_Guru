@@ -132,11 +132,36 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
         </div>
       </div>
 
+      {submission && submission.teacherReview && submission.status === "PUBLISHED" && (
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl shadow border border-emerald-100 overflow-hidden mb-6">
+          <div className="p-6 border-b border-emerald-100 flex items-center gap-3">
+            <span className="text-2xl">🎓</span>
+            <div>
+              <h2 className="text-lg font-bold text-emerald-900">Nilai Akhir dari Guru</h2>
+              <p className="text-sm text-emerald-700">Tugas Anda telah diperiksa dan disetujui oleh guru.</p>
+            </div>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+            <div className="md:col-span-1 flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-emerald-100">
+              <span className="text-5xl font-black text-emerald-600">{submission.teacherReview.finalScore}</span>
+              <span className="text-xs font-bold text-gray-500 uppercase mt-2">Nilai Akhir</span>
+            </div>
+            <div className="md:col-span-3 bg-white p-5 rounded-xl shadow-sm border border-emerald-100">
+              <h3 className="text-sm font-bold text-gray-700 mb-2">Ulasan Guru:</h3>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{submission.teacherReview.feedback || "Tugas diterima dengan baik."}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {submission && submission.aiAssessment && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow border border-blue-100 overflow-hidden mb-6">
-          <div className="p-6 border-b border-blue-100">
-            <h2 className="text-lg font-bold text-blue-900">Hasil Penilaian Cerdas (AI)</h2>
-            <p className="text-sm text-blue-700">Berikut adalah hasil evaluasi otomatis dari AI untuk tugas yang Anda unggah.</p>
+          <div className="p-6 border-b border-blue-100 flex items-center gap-3">
+            <span className="text-2xl">🤖</span>
+            <div>
+              <h2 className="text-lg font-bold text-blue-900">Hasil Penilaian Cerdas (AI)</h2>
+              <p className="text-sm text-blue-700">Berikut adalah evaluasi otomatis berdasarkan rubrik penilaian.</p>
+            </div>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
             <div className="md:col-span-1 flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-blue-100">
@@ -145,43 +170,8 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
             </div>
             <div className="md:col-span-3 bg-white p-5 rounded-xl shadow-sm border border-blue-100">
               <h3 className="text-sm font-bold text-gray-700 mb-2">Umpan Balik AI:</h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{submission.aiAssessment.feedback || "Tidak ada umpan balik tambahan."}</p>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{submission.aiAssessment.feedback || "Tidak ada umpan balik."}</p>
             </div>
-          </div>
-        </div>
-      )}
-
-      {assignment.rubrics && assignment.rubrics.length > 0 && assignment.rubrics[0].criteria.length > 0 && (
-        <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-gray-800">Rubrik Penilaian</h2>
-            <p className="text-sm text-gray-500">Tugas Anda akan dinilai berdasarkan kriteria berikut:</p>
-          </div>
-          <div className="p-0">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Kriteria</th>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Deskripsi</th>
-                  <th className="text-right px-6 py-3 text-gray-500 font-medium">Poin Maks</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {assignment.rubrics[0].criteria.map((c, i) => (
-                  <tr key={i} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 font-medium text-gray-800 align-top">{c.name}</td>
-                    <td className="px-6 py-4 text-gray-600 align-top">{c.description}</td>
-                    <td className="px-6 py-4 text-right font-bold text-blue-600 align-top">{c.maxScore}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-50 border-t border-gray-200">
-                <tr>
-                  <td colSpan={2} className="px-6 py-4 text-right font-bold text-gray-700">Total Poin Maksimal:</td>
-                  <td className="px-6 py-4 text-right font-bold text-green-600 text-lg">100</td>
-                </tr>
-              </tfoot>
-            </table>
           </div>
         </div>
       )}

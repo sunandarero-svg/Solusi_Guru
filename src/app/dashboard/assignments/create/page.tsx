@@ -7,6 +7,13 @@ import Link from "next/link";
 interface Class {
   id: string;
   name: string;
+  subjects: Subject[];
+}
+
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
 }
 
 export default function CreateAssignmentPage() {
@@ -14,22 +21,43 @@ export default function CreateAssignmentPage() {
   const [form, setForm] = useState({
     title: "",
     classId: "",
+    subjectId: "",
     description: "",
     instructions: "",
     deadline: "",
     maxPages: 5
   });
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/classes")
+    fetch("/api/teacher/classes")
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setClasses(data);
       });
   }, []);
+
+  const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedClassId = e.target.value;
+    const selectedClass = classes.find(c => c.id === selectedClassId);
+    
+    if (selectedClass) {
+      setAvailableSubjects(selectedClass.subjects);
+      
+      // Auto select if only 1 subject
+      if (selectedClass.subjects.length === 1) {
+        setForm({...form, classId: selectedClassId, subjectId: selectedClass.subjects[0].id});
+      } else {
+        setForm({...form, classId: selectedClassId, subjectId: ""});
+      }
+    } else {
+      setAvailableSubjects([]);
+      setForm({...form, classId: selectedClassId, subjectId: ""});
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,19 +110,37 @@ export default function CreateAssignmentPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kelas *</label>
-            <select 
-              required
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
-              value={form.classId}
-              onChange={e => setForm({...form, classId: e.target.value})}
-            >
-              <option value="">-- Pilih Kelas --</option>
-              {classes.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kelas *</label>
+              <select 
+                required
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
+                value={form.classId}
+                onChange={handleClassChange}
+              >
+                <option value="">-- Pilih Kelas --</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran *</label>
+              <select 
+                required
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
+                value={form.subjectId}
+                onChange={e => setForm({...form, subjectId: e.target.value})}
+                disabled={!form.classId || availableSubjects.length === 0}
+              >
+                <option value="">-- Pilih Mata Pelajaran --</option>
+                {availableSubjects.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>

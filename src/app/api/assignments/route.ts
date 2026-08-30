@@ -49,15 +49,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, classId, description, instructions, deadline, maxPages } = body;
+    const { title, classId, subjectId, description, instructions, deadline, maxPages } = body;
 
-    if (!title || !classId) {
-      return NextResponse.json({ error: "Title and Class are required" }, { status: 400 });
+    if (!title || !classId || !subjectId) {
+      return NextResponse.json({ error: "Title, Class, and Subject are required" }, { status: 400 });
     }
 
     const assignment = await assignmentService.createAssignment({
       teacherId: teacherProfile._id.toString(),
       classId,
+      subjectId,
       title,
       description,
       instructions,

@@ -28,12 +28,14 @@ export const Enrollment = mongoose.models.Enrollment || mongoose.model<IEnrollme
 export interface ITeacherClass extends Document {
   teacherId: mongoose.Types.ObjectId;
   classId: mongoose.Types.ObjectId;
+  subjectId: mongoose.Types.ObjectId;
 }
 
 const TeacherClassSchema: Schema = new Schema({
   teacherId: { type: Schema.Types.ObjectId, ref: 'TeacherProfile', required: true },
-  classId: { type: Schema.Types.ObjectId, ref: 'Class', required: true }
+  classId: { type: Schema.Types.ObjectId, ref: 'Class', required: true },
+  subjectId: { type: Schema.Types.ObjectId, ref: 'Subject', required: true }
 });
-TeacherClassSchema.index({ teacherId: 1, classId: 1 }, { unique: true });
+TeacherClassSchema.index({ teacherId: 1, classId: 1, subjectId: 1 }, { unique: true });
 
 export const TeacherClass = mongoose.models.TeacherClass || mongoose.model<ITeacherClass>('TeacherClass', TeacherClassSchema);
