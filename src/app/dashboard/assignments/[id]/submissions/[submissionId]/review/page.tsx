@@ -19,7 +19,7 @@ export default function TeacherReviewPage({
   const [finalFeedback, setFinalFeedback] = useState<string>("");
   const [saving, setSaving] = useState(false);
   
-  const [viewMode, setViewMode] = useState<"PDF" | "OCR">("PDF");
+  const [viewMode, setViewMode] = useState<"IMAGE" | "AI">("IMAGE");
 
   useEffect(() => {
     fetch(`/api/submissions/${resolvedParams.submissionId}/review`)
@@ -117,52 +117,43 @@ export default function TeacherReviewPage({
       <div className="flex flex-1 overflow-hidden">
         {/* Left Pane: Document Viewer */}
         <div className="w-1/2 border-r border-gray-200 bg-gray-100 flex flex-col relative">
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-md p-1 flex space-x-1 z-10">
-            <button 
-              onClick={() => setViewMode("PDF")}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "PDF" ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              PDF Asli
-            </button>
-            <button 
-              onClick={() => setViewMode("OCR")}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "OCR" ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              Teks Ekstraksi
-            </button>
+          <div className="bg-white px-4 py-3 border-b border-gray-200 flex justify-between items-center shadow-sm z-10">
+            <h3 className="font-bold text-gray-700">Foto Tugas Siswa</h3>
+            <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-1 rounded-md">
+              {submission.pages?.length || 0} Halaman
+            </span>
           </div>
 
-          {submission.document?.storageKey && viewMode === "PDF" && (
-            <div className="absolute top-4 right-4 z-10">
-              <a 
-                href={submission.document.storageKey} 
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-white text-gray-700 px-3 py-1.5 rounded-lg shadow-sm border border-gray-200 text-xs font-semibold hover:bg-gray-50 flex items-center space-x-1 transition"
-              >
-                <span>📥 Unduh PDF</span>
-              </a>
-            </div>
-          )}
-
-          <div className="flex-1 overflow-auto p-4 pt-16">
-            {viewMode === "PDF" ? (
-              submission.document?.storageKey ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <iframe 
-                  src={submission.document.storageKey} 
-                  className="w-full h-full rounded-xl border border-gray-300 shadow-sm bg-white"
-                  title="PDF Viewer"
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-500">
-                  PDF tidak tersedia
+          <div className="flex-1 overflow-auto p-4 space-y-6">
+            {submission.pages && submission.pages.length > 0 ? (
+              submission.pages.map((page: any, index: number) => (
+                <div key={page._id || index} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden relative group">
+                  <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-3 py-1 rounded-lg z-10 shadow">
+                    Hal {page.pageNumber || index + 1}
+                  </div>
+                  <img 
+                    src={page.storageKey} 
+                    alt={`Halaman ${page.pageNumber || index + 1}`} 
+                    className="w-full h-auto object-contain cursor-zoom-in"
+                    onClick={() => window.open(page.storageKey, '_blank')}
+                  />
+                  <div className="p-2 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <a 
+                      href={page.storageKey} 
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Unduh Gambar
+                    </a>
+                  </div>
                 </div>
-              )
+              ))
             ) : (
-              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-300 min-h-full whitespace-pre-wrap font-mono text-sm text-gray-800">
-                {ocrText}
+              <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                <span className="text-4xl mb-4">📷</span>
+                <p>Tidak ada foto tugas yang diunggah.</p>
               </div>
             )}
           </div>

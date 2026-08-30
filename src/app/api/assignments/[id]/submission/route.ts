@@ -31,7 +31,14 @@ export async function GET(
       studentProfile._id.toString()
     );
 
-    return NextResponse.json(submission || null);
+    if (submission) {
+      // Import AIAssessment here or at top
+      const { AIAssessment } = require("@/models/Submission");
+      const aiAssessment = await AIAssessment.findOne({ submissionId: submission.id }).lean();
+      return NextResponse.json({ ...submission, aiAssessment });
+    }
+
+    return NextResponse.json(null);
   } catch (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

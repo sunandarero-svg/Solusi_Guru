@@ -52,12 +52,12 @@ export async function POST(
         const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
         
         const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Tugas Anda:
-1. Mengecek apakah tulisan tangan di foto ini dapat dibaca jelas, tidak terpotong, dan pencahayaannya baik.
-2. Memberikan skor keterbacaan (readabilityScore) dari 0-100.
-3. DILARANG KERAS menebak kata yang buram.
-4. Jika ada tulisan yang typo/salah tulis, buram, atau bagian yang terpotong, set 'feasible' ke false dan berikan rekomendasi spesifik (misal: "Tulisan di paragraf 2 terdapat typo, mohon tulis ulang dan foto kembali").
-5. Jika readabilityScore di bawah 85, WAJIB set 'feasible' ke false.
-6. Jika tulisan sangat jelas dan tidak ada typo, set 'feasible' ke true.
+1. Pastikan Anda membaca SELURUH teks yang ada di foto dari awal hingga akhir.
+2. Mengecek apakah tulisan tangan di foto ini dapat dibaca jelas, tidak terpotong, dan pencahayaannya baik.
+3. Memberikan skor keterbacaan (readabilityScore) dari 0-100.
+4. DILARANG KERAS menebak kata yang buram. Hitung berapa banyak kesalahan (typo, salah tulis, kata buram, kata terpotong).
+5. ATURAN KETAT: Jika terdapat >= 5 kesalahan, Anda WAJIB memberikan skor di bawah 85 (misal 84 atau lebih rendah) dan set 'feasible' ke false. Berikan rekomendasi spesifik (misal: "Tulisan di paragraf 2 terdapat typo, mohon tulis ulang dan foto kembali").
+6. Jika terdapat < 5 kesalahan (misal 0-4 kesalahan), berikan skor 85 atau lebih tinggi dan set 'feasible' ke true. Tugas ini layak diperiksa.
 
 Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": number, "reason": "string"}.`;
         

@@ -67,9 +67,12 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
           <div className="flex space-x-3 w-full md:w-auto">
             {submission && submission.status !== "DRAFT" ? (
               <div 
-                className="w-full md:w-auto bg-green-100 text-green-700 px-6 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center space-x-2 transition"
+                className="w-full md:w-auto bg-green-100 text-green-700 px-6 py-2 rounded-lg text-sm font-bold shadow-sm flex flex-col items-center justify-center transition"
               >
                 <span>✅ Tugas Berhasil Dikumpul</span>
+                {submission.aiAssessment && (
+                  <span className="text-xs font-medium mt-1">Nilai AI: {submission.aiAssessment.suggestedScore}/100</span>
+                )}
               </div>
             ) : (
               <Link 
@@ -128,6 +131,25 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
           </div>
         </div>
       </div>
+
+      {submission && submission.aiAssessment && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow border border-blue-100 overflow-hidden mb-6">
+          <div className="p-6 border-b border-blue-100">
+            <h2 className="text-lg font-bold text-blue-900">Hasil Penilaian Cerdas (AI)</h2>
+            <p className="text-sm text-blue-700">Berikut adalah hasil evaluasi otomatis dari AI untuk tugas yang Anda unggah.</p>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+            <div className="md:col-span-1 flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-blue-100">
+              <span className="text-5xl font-black text-blue-600">{submission.aiAssessment.suggestedScore}</span>
+              <span className="text-xs font-bold text-gray-500 uppercase mt-2">Skor AI</span>
+            </div>
+            <div className="md:col-span-3 bg-white p-5 rounded-xl shadow-sm border border-blue-100">
+              <h3 className="text-sm font-bold text-gray-700 mb-2">Umpan Balik AI:</h3>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{submission.aiAssessment.feedback || "Tidak ada umpan balik tambahan."}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {assignment.rubrics && assignment.rubrics.length > 0 && assignment.rubrics[0].criteria.length > 0 && (
         <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
