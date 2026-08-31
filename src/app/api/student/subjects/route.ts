@@ -39,7 +39,6 @@ export async function GET(req: NextRequest) {
         subject: {
           id: tc.subjectId._id,
           name: tc.subjectId.name,
-          code: tc.subjectId.code,
         },
         teacher: {
           id: tc.teacherId._id,

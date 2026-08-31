@@ -13,7 +13,6 @@ interface Class {
 interface Subject {
   id: string;
   name: string;
-  code: string;
 }
 
 export default function CreateAssignmentPage() {
@@ -137,7 +136,7 @@ export default function CreateAssignmentPage() {
               >
                 <option value="">-- Pilih Mata Pelajaran --</option>
                 {availableSubjects.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>

@@ -3,7 +3,8 @@ import { requireTeacherSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
-import { TeacherClass } from "@/models/Class";
+import { TeacherClass, Class } from "@/models/Class";
+import { Subject } from "@/models/Subject";
 import { mapId } from "@/lib/mapId";
 
 export async function GET() {
@@ -42,7 +43,6 @@ export async function GET() {
         classesMap.get(classId).subjects.push({
           id: tc.subjectId._id.toString(),
           name: tc.subjectId.name,
-          code: tc.subjectId.code,
         });
       }
     });

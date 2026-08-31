@@ -9,7 +9,6 @@ interface SubjectData {
   subject: {
     id: string;
     name: string;
-    code: string;
   };
   teacher: {
     id: string;
@@ -64,7 +63,6 @@ export default function StudentSubjectsPage() {
                 <BookOpen size={24} />
               </div>
               <h2 className="text-xl font-bold text-slate-800 mb-1">{item.subject.name}</h2>
-              <p className="text-sm text-slate-500 font-mono mb-4">{item.subject.code || "UMUM"}</p>
               
               <div className="space-y-2 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2 text-sm text-slate-600">
