@@ -14,6 +14,10 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  if (session.user.role === "STUDENT" && session.user.mustChangePassword) {
+    redirect("/force-change-password");
+  }
+
   const role = session.user.role;
   const userEmail = session.user.email || "";
 

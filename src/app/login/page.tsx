@@ -64,17 +64,17 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <label className="block text-sm font-semibold text-slate-600">Email Address</label>
+              <label className="block text-sm font-semibold text-slate-600">Email atau Username (NIS)</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                   <Mail size={18} />
                 </div>
                 <input
                   id="email"
-                  type="email"
+                  type="text"
                   required
-                  autoComplete="email"
-                  placeholder="nama@sekolah.com"
+                  autoComplete="username"
+                  placeholder="contoh: 1001 atau email@sekolah.com"
                   className="w-full bg-white/50 border border-slate-200/60 rounded-xl pl-11 pr-4 py-3.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all duration-200 shadow-sm"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

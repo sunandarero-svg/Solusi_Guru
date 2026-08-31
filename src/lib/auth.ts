@@ -18,17 +18,28 @@ export const authOptions: NextAuthOptions = {
 
         await dbConnect();
         
-        const user = await User.findOne({ email: credentials.email });
+        let identifier = credentials.email;
+        if (!identifier.includes('@')) {
+          identifier = `${identifier}@siswa.com`;
+        }
+
+        const user = await User.findOne({ email: identifier });
 
         if (!user) return null;
 
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) return null;
 
+        let mustChangePassword = false;
+        if (user.role === 'STUDENT') {
+          mustChangePassword = await bcrypt.compare("siswa123", user.passwordHash);
+        }
+
         return {
           id: user.id,
           email: user.email,
           role: user.role,
+          mustChangePassword
         };
       }
     })
@@ -53,6 +64,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
+        token.mustChangePassword = (user as any).mustChangePassword;
       }
       return token;
     },
@@ -60,6 +72,7 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.role = token.role;
         session.user.id = token.sub!;
+        (session.user as any).mustChangePassword = token.mustChangePassword;
       }
       return session;
     }
