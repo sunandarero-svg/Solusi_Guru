@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, UserPlus, Upload, Download, Trash2, Key, Check, AlertTriangle, X } from "lucide-react";
+import { Users, UserPlus, Upload, Download, Trash2, Key, Check, AlertTriangle, X, Search } from "lucide-react";
 import Papa from "papaparse";
 
 interface Student {
@@ -15,6 +15,7 @@ export default function StudentsManagementPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -189,6 +190,11 @@ export default function StudentsManagementPage() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
   };
 
+  const filteredStudents = students.filter(student => 
+    student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    student.studentNumber.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="mt-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -207,8 +213,20 @@ export default function StudentsManagementPage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h2 className="text-lg font-bold text-slate-800">Daftar Siswa Terdaftar</h2>
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <h2 className="text-lg font-bold text-slate-800">Daftar Siswa Terdaftar</h2>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                type="text"
+                placeholder="Cari nama atau NIS..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-64 transition-all"
+              />
+            </div>
+          </div>
           
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
@@ -240,8 +258,11 @@ export default function StudentsManagementPage() {
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
                     type="checkbox"
-                    checked={students.length > 0 && selectedIds.length === students.length}
-                    onChange={toggleSelectAll}
+                    checked={filteredStudents.length > 0 && selectedIds.length === filteredStudents.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedIds(filteredStudents.map(s => s.id));
+                      else setSelectedIds([]);
+                    }}
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
@@ -253,10 +274,12 @@ export default function StudentsManagementPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-500">Memuat data siswa...</td></tr>
-              ) : students.length === 0 ? (
-                <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-500">Belum ada siswa terdaftar.</td></tr>
+              ) : filteredStudents.length === 0 ? (
+                <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                  {searchTerm ? "Tidak ada siswa yang cocok dengan pencarian." : "Belum ada siswa terdaftar."}
+                </td></tr>
               ) : (
-                students.map(student => (
+                filteredStudents.map(student => (
                   <tr key={student.id} className={`transition-colors ${selectedIds.includes(student.id) ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'}`}>
                     <td className="px-6 py-4 text-center">
                       <input 
