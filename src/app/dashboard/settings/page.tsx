@@ -25,7 +25,8 @@ export default function SettingsPage() {
             fullName: data.fullName,
             email: data.email,
             password: "",
-            avatarUrl: data.avatarUrl || ""
+            avatarUrl: data.avatarUrl || "",
+            avatarFile: null
           });
         }
         setLoading(false);
