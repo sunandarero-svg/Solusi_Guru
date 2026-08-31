@@ -49,7 +49,7 @@ export default function AdminTeachingPage() {
       const [mapsRes, teachRes, classRes, subRes] = await Promise.all([
         fetch("/api/admin/teaching"),
         fetch("/api/admin/teachers"),
-        fetch("/api/classes"),
+        fetch("/api/admin/classes"),
         fetch("/api/admin/subjects")
       ]);
       
@@ -194,7 +194,7 @@ export default function AdminTeachingPage() {
                 required
                 value={formData.teacherId}
                 onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-slate-900 bg-white"
               >
                 <option value="">-- Pilih Guru --</option>
                 {teachers.map(t => (
@@ -208,7 +208,7 @@ export default function AdminTeachingPage() {
                 required
                 value={formData.subjectId}
                 onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-slate-900 bg-white"
               >
                 <option value="">-- Pilih Mata Pelajaran --</option>
                 {subjects.map(s => (
@@ -222,7 +222,7 @@ export default function AdminTeachingPage() {
                 required
                 value={formData.classId}
                 onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-slate-900 bg-white"
               >
                 <option value="">-- Pilih Kelas --</option>
                 {classes.map(c => (
