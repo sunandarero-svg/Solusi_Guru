@@ -20,6 +20,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
     if (role === "ADMIN") {
       return [
         { href: "/dashboard/admin", label: "Dashboard Admin", icon: ShieldCheck },
+        { href: "/dashboard/admin/classes", label: "Manajemen Kelas", icon: BookOpen },
         { href: "/dashboard/admin/teachers", label: "Kelola Guru", icon: Users },
         { href: "/dashboard/admin/subjects", label: "Mata Pelajaran", icon: BookOpen },
         { href: "/dashboard/admin/teaching", label: "Tautkan Guru", icon: LayoutDashboard },
