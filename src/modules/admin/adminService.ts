@@ -110,6 +110,29 @@ export async function deleteTeacher(teacherProfileId: string) {
 }
 
 /**
+ * Reset teacher password to 'guru123'
+ */
+export async function resetTeacherPassword(teacherProfileId: string) {
+  await dbConnect();
+  
+  const teacher = await TeacherProfile.findById(teacherProfileId);
+  if (!teacher) {
+    throw new Error("Guru tidak ditemukan");
+  }
+
+  const user = await User.findById(teacher.userId);
+  if (!user) {
+    throw new Error("Data user guru tidak ditemukan");
+  }
+
+  const hashedPassword = await bcrypt.hash("guru123", 10);
+  user.passwordHash = hashedPassword;
+  await user.save();
+
+  return { success: true, message: "Password berhasil direset" };
+}
+
+/**
  * Update teacher quota (maxStudents, maxClasses)
  */
 export async function updateTeacherQuota(

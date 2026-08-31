@@ -42,39 +42,55 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { teacherId, classId, subjectId, force } = body;
+    const { teacherId, classIds, subjectIds, force } = body;
 
-    if (!teacherId || !classId || !subjectId) {
-      return NextResponse.json({ error: "Semua bidang (Guru, Kelas, Mata Pelajaran) harus diisi." }, { status: 400 });
+    if (!teacherId || !classIds || !subjectIds || classIds.length === 0 || subjectIds.length === 0) {
+      return NextResponse.json({ error: "Semua bidang (Guru, Kelas, Mata Pelajaran) harus diisi minimal satu." }, { status: 400 });
     }
 
     await dbConnect();
     
-    // Check if this EXACT mapping exists
-    const exactMatch = await TeacherClass.findOne({ teacherId, classId, subjectId });
-    if (exactMatch) {
-      return NextResponse.json({ error: "Guru ini sudah ditugaskan untuk mata pelajaran dan kelas yang sama." }, { status: 400 });
+    // Create cartesian product
+    const newMappings = [];
+    for (const cId of classIds) {
+      for (const sId of subjectIds) {
+        newMappings.push({ teacherId, classId: cId, subjectId: sId });
+      }
+    }
+
+    // Check exact matches
+    for (const m of newMappings) {
+      const exactMatch = await TeacherClass.findOne(m);
+      if (exactMatch) {
+        return NextResponse.json({ error: "Beberapa penugasan sudah ada sebelumnya dan tidak dapat ditambahkan lagi." }, { status: 400 });
+      }
     }
 
     // Check if another teacher is already teaching this subject in this class
     if (!force) {
-      const conflict = await TeacherClass.findOne({ classId, subjectId })
-        .populate('teacherId', 'fullName');
-      if (conflict) {
+      const conflicts = [];
+      for (const m of newMappings) {
+        const conflict = await TeacherClass.findOne({ classId: m.classId, subjectId: m.subjectId })
+          .populate('teacherId', 'fullName')
+          .populate('classId', 'name')
+          .populate('subjectId', 'name');
+        
+        if (conflict) {
+          conflicts.push(`Kelas ${(conflict as any).classId?.name} (Mapel: ${(conflict as any).subjectId?.name}) oleh ${(conflict as any).teacherId?.fullName}`);
+        }
+      }
+
+      if (conflicts.length > 0) {
         return NextResponse.json({
           warning: true,
-          message: `Perhatian: Kelas ini sudah diajar mata pelajaran ini oleh guru ${(conflict as any).teacherId?.fullName}. Apakah Anda yakin ingin menambahkan guru lain untuk mata pelajaran yang sama di kelas ini?`
+          message: `Perhatian: Ada bentrok pengajar.\n${conflicts.join('\n')}\nApakah Anda yakin ingin menambahkan guru lain untuk mapel yang sama?`
         }, { status: 409 });
       }
     }
 
-    const newMapping = await TeacherClass.create({
-      teacherId,
-      classId,
-      subjectId
-    });
+    const created = await TeacherClass.insertMany(newMappings);
 
-    return NextResponse.json({ success: true, id: newMapping._id.toString() }, { status: 201 });
+    return NextResponse.json({ success: true, count: created.length }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -40,7 +40,7 @@ export default function AdminTeachingPage() {
   const [success, setSuccess] = useState("");
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({ teacherId: "", classId: "", subjectId: "" });
+  const [formData, setFormData] = useState({ teacherId: "", classIds: [] as string[], subjectIds: [] as string[] });
   const [addLoading, setAddLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -98,7 +98,7 @@ export default function AdminTeachingPage() {
       
       setSuccess("Guru berhasil ditautkan ke kelas dan mata pelajaran");
       setShowAddForm(false);
-      setFormData({ teacherId: "", classId: "", subjectId: "" });
+      setFormData({ teacherId: "", classIds: [], subjectIds: [] });
       fetchAllData();
     } catch (err: any) {
       setError(err.message);
@@ -203,37 +203,51 @@ export default function AdminTeachingPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Pilih Mata Pelajaran</label>
-              <select
-                required
-                value={formData.subjectId}
-                onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-slate-900 bg-white"
-              >
-                <option value="">-- Pilih Mata Pelajaran --</option>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Pilih Mata Pelajaran (Bisa lebih dari 1)</label>
+              <div className="max-h-48 overflow-y-auto space-y-2 p-3 border border-slate-200 rounded-xl bg-white">
                 {subjects.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <label key={s.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      checked={formData.subjectIds.includes(s.id)}
+                      onChange={(e) => {
+                        const newIds = e.target.checked 
+                          ? [...formData.subjectIds, s.id]
+                          : formData.subjectIds.filter(id => id !== s.id);
+                        setFormData({ ...formData, subjectIds: newIds });
+                      }}
+                    />
+                    <span className="text-sm text-slate-700">{s.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Pilih Kelas</label>
-              <select
-                required
-                value={formData.classId}
-                onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-slate-900 bg-white"
-              >
-                <option value="">-- Pilih Kelas --</option>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Pilih Kelas (Bisa lebih dari 1)</label>
+              <div className="max-h-48 overflow-y-auto space-y-2 p-3 border border-slate-200 rounded-xl bg-white">
                 {classes.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      checked={formData.classIds.includes(c.id)}
+                      onChange={(e) => {
+                        const newIds = e.target.checked 
+                          ? [...formData.classIds, c.id]
+                          : formData.classIds.filter(id => id !== c.id);
+                        setFormData({ ...formData, classIds: newIds });
+                      }}
+                    />
+                    <span className="text-sm text-slate-700">{c.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           </form>
           <button
             onClick={(e) => handleAdd(e as any, false)}
-            disabled={addLoading || !formData.teacherId || !formData.subjectId || !formData.classId}
+            disabled={addLoading || !formData.teacherId || formData.subjectIds.length === 0 || formData.classIds.length === 0}
             className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
           >
             {addLoading ? "Menyimpan..." : "Simpan Tautan"}

@@ -135,6 +135,24 @@ export default function AdminTeachersPage() {
     }
   };
 
+  // Reset Password
+  const handleResetPassword = async (teacherId: string) => {
+    if (!confirm("Apakah Anda yakin ingin mereset password guru ini menjadi 'guru123'?")) return;
+    clearMessages();
+    
+    try {
+      const res = await fetch(`/api/admin/teachers/${teacherId}/reset-password`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal mereset password");
+      
+      setSuccess("Password berhasil direset menjadi 'guru123'");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -308,7 +326,7 @@ export default function AdminTeachersPage() {
                         <input
                           type="number"
                           min={1}
-                          className="w-20 border border-purple-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-400"
+                          className="w-20 border border-purple-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-900 bg-white"
                           value={quotaData.maxStudents}
                           onChange={(e) => setQuotaData({ ...quotaData, maxStudents: parseInt(e.target.value) || 1 })}
                         />
@@ -326,7 +344,7 @@ export default function AdminTeachersPage() {
                         <input
                           type="number"
                           min={1}
-                          className="w-20 border border-purple-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-400"
+                          className="w-20 border border-purple-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-900 bg-white"
                           value={quotaData.maxClasses}
                           onChange={(e) => setQuotaData({ ...quotaData, maxClasses: parseInt(e.target.value) || 1 })}
                         />
@@ -389,6 +407,13 @@ export default function AdminTeachersPage() {
                               title="Edit kuota"
                             >
                               ✏️ Kuota
+                            </button>
+                            <button
+                              onClick={() => handleResetPassword(teacher.id)}
+                              className="text-blue-500 hover:text-blue-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition"
+                              title="Reset password"
+                            >
+                              🔑 Reset PW
                             </button>
                             <button
                               onClick={() => {
