@@ -8,7 +8,7 @@ import { Enrollment, Class } from "@/models/Class";
 import { Assignment, AssignmentStatus } from "@/models/Assignment";
 import { Submission } from "@/models/Submission";
 
-import { Subject } from "@/models/Subject";
+import "@/models/Subject";
 
 export default async function MyAssignmentsPage({ searchParams }: { searchParams: Promise<{ subjectId?: string }> }) {
   const resolvedSearchParams = await searchParams;

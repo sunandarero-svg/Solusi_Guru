@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { User, Lock, Save, Camera, AlertTriangle } from "lucide-react";
 
-export default function TeacherSettingsPage() {
+export default function SettingsPage() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -73,7 +73,7 @@ export default function TeacherSettingsPage() {
     <div className="p-6 md:p-8 max-w-4xl mx-auto animate-in fade-in duration-500">
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-8 border-b border-slate-100 bg-slate-50/50">
-          <h1 className="text-2xl font-bold text-slate-800">Profil Guru</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Profil Akun</h1>
           <p className="text-slate-500 mt-1">Kelola informasi pribadi dan keamanan akun Anda</p>
         </div>
 

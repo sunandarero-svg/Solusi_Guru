@@ -46,6 +46,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/subjects", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/dashboard/my-assignments", label: "Tugas Saya", icon: CheckSquare },
+      { href: "/dashboard/settings", label: "Pengaturan Akun", icon: ShieldCheck },
     ];
   };
 

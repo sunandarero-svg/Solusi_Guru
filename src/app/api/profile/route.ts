@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTeacherSession } from "@/modules/auth/session";
+import { requireAuth } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
-import { TeacherProfile } from "@/models/Profile";
+import { TeacherProfile, StudentProfile } from "@/models/Profile";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
   try {
-    const session = await requireTeacherSession();
+    const session = await requireAuth();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await dbConnect();
@@ -17,7 +17,12 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const profile = await TeacherProfile.findOne({ userId: user._id });
+    let profile = null;
+    if (user.role === 'TEACHER') {
+      profile = await TeacherProfile.findOne({ userId: user._id });
+    } else if (user.role === 'STUDENT') {
+      profile = await StudentProfile.findOne({ userId: user._id });
+    }
 
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -26,7 +31,7 @@ export async function GET() {
     return NextResponse.json({
       fullName: profile.fullName,
       email: user.email,
-      avatarUrl: profile.avatarUrl || ""
+      avatarUrl: (profile as any).avatarUrl || ""
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -35,7 +40,7 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await requireTeacherSession();
+    const session = await requireAuth();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
@@ -54,7 +59,14 @@ export async function PATCH(req: NextRequest) {
       if (fullName !== undefined) updateData.fullName = fullName;
       if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
       
-      await TeacherProfile.findOneAndUpdate({ userId: user._id }, updateData);
+      if (user.role === 'TEACHER') {
+        await TeacherProfile.findOneAndUpdate({ userId: user._id }, updateData);
+      } else if (user.role === 'STUDENT') {
+        // Students might not have avatarUrl in their schema, but let's pass it anyway or omit it
+        const studentUpdateData: any = {};
+        if (fullName !== undefined) studentUpdateData.fullName = fullName;
+        await StudentProfile.findOneAndUpdate({ userId: user._id }, studentUpdateData);
+      }
     }
 
     // Update Password
