@@ -129,13 +129,21 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       if (!initRes.ok) throw new Error("Gagal inisialisasi tugas");
       const submission = await initRes.json();
 
-      // 2. Upload each image as a page
+      // 2. Clear existing pages to avoid accumulation on retries
+      const clearRes = await fetch(`/api/submissions/${submission.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CLEAR_PAGES" })
+      });
+      if (!clearRes.ok) throw new Error("Gagal membersihkan sesi halaman sebelumnya");
+
+      // 3. Upload each image as a page
       let finalAiScore: number | null = null;
       let finalAiReason: string | null = null;
+      
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
         
-        // Ensure we have a File/Blob to upload
         let fileToUpload: File | Blob = img.file!;
         if (!fileToUpload && img.dataUrl) {
           const res = await fetch(img.dataUrl);
@@ -155,19 +163,30 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
           const errData = await uploadRes.json().catch(() => ({}));
           throw new Error(JSON.stringify(errData));
         }
-
-        const data = await uploadRes.json();
-        // If this is the last page, we can show the AI Result
-        if (i === images.length - 1 && data.aiResult) {
-          finalAiScore = data.aiResult.readabilityScore;
-          finalAiReason = data.aiResult.reason;
-        }
       }
+
+      setUploadProgress(70);
+
+      // 4. Verify all pages at once with AI
+      const verifyRes = await fetch(`/api/submissions/${submission.id}/verify`, {
+        method: "POST"
+      });
+      
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok) {
+        if (verifyData.error === "AI_REJECTION") {
+          throw new Error(JSON.stringify(verifyData));
+        }
+        throw new Error(verifyData.error || "Gagal memverifikasi AI");
+      }
+      
+      finalAiScore = verifyData.aiResult.readabilityScore;
+      finalAiReason = verifyData.aiResult.reason;
 
       clearInterval(progressInterval);
       setUploadProgress(95);
 
-      // 3. Finalize submission
+      // 5. Finalize submission
       const submitRes = await fetch(`/api/submissions/${submission.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -345,14 +364,14 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
                 onClick={() => {
                   if (aiResultModal.type === 'error') {
                     setAiResultModal(null);
-                    setImages([]);
+                    // Do not delete images, let user manually delete the blurry one
                   } else {
                     router.push(`/dashboard/my-assignments/${resolvedParams.id}?success=1`);
                   }
                 }}
                 className={`w-full ${aiResultModal.type === 'error' ? 'bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400' : 'bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400'} text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:-translate-y-1`}
               >
-                {aiResultModal.type === 'error' ? 'Tulis Ulang & Foto Kembali' : 'Lihat Hasil AI'}
+                {aiResultModal.type === 'error' ? 'Tutup & Perbaiki Foto' : 'Lihat Hasil AI'}
               </button>
             </div>
           </div>

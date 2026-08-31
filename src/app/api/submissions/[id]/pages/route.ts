@@ -34,76 +34,6 @@ export async function POST(
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // AI Feasibility Check using Gemini 3.6 Flash
-    const keysStr = process.env.GEMINI_API_KEYS;
-    let apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.replace(/['"]/g, '').trim() : undefined;
-    
-    if (keysStr) {
-      const keys = keysStr.split(',').map(k => k.replace(/['"]/g, '').trim()).filter(Boolean);
-      if (keys.length > 0) {
-        apiKey = keys[Math.floor(Math.random() * keys.length)];
-      }
-    }
-
-    let aiResult: any = null;
-
-    if (apiKey) {
-      try {
-        const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-3.6-flash",
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: SchemaType.OBJECT,
-              properties: {
-                feasible: { type: SchemaType.BOOLEAN, description: "Apakah tulisan cukup jelas untuk dibaca?" },
-                readabilityScore: { type: SchemaType.INTEGER, description: "Skor dari 0-100" },
-                reason: { type: SchemaType.STRING, description: "Alasan singkat dan spesifik kenapa skornya sekian (misal: ada typo di paragraf X)" }
-              },
-              required: ["feasible", "readabilityScore", "reason"]
-            }
-          }
-        });
-        
-        const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Tugas Anda:
-1. Pastikan Anda membaca SELURUH teks yang ada di foto dari awal hingga akhir.
-2. Mengecek apakah tulisan tangan di foto ini dapat dibaca jelas, tidak terpotong, dan pencahayaannya baik.
-3. Memberikan skor keterbacaan (readabilityScore) dari 0-100.
-4. DILARANG KERAS menebak kata yang buram. Hitung berapa banyak kesalahan (typo, salah tulis, kata buram, kata terpotong).
-5. ATURAN KETAT: Jika terdapat >= 5 kesalahan, Anda WAJIB memberikan skor di bawah 85 (misal 84 atau lebih rendah) dan set 'feasible' ke false. Berikan rekomendasi spesifik (misal: "Tulisan di paragraf 2 terdapat typo, mohon tulis ulang dan foto kembali").
-6. Jika terdapat < 5 kesalahan (misal 0-4 kesalahan), berikan skor 85 atau lebih tinggi dan set 'feasible' ke true. Tugas ini layak diperiksa.
-
-Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": number, "reason": "string"}.`;
-        
-        const image = {
-          inlineData: {
-            data: buffer.toString("base64"),
-            mimeType: file.type
-          }
-        };
-
-        const result = await model.generateContent([prompt, image]);
-        const text = result.response.text();
-        const parsed = JSON.parse(text);
-        aiResult = parsed;
-
-        if (parsed.feasible === false || parsed.readabilityScore < 85) {
-          return NextResponse.json({ 
-            error: "AI_REJECTION",
-            score: parsed.readabilityScore,
-            reason: parsed.reason 
-          }, { status: 400 });
-        }
-      } catch (aiError) {
-        console.error("AI Feasibility check error:", aiError);
-        // If AI fails (e.g. rate limit), we can choose to either block or allow.
-        // For now, we block to ensure only valid images are uploaded.
-        return NextResponse.json({ error: "Gagal memverifikasi kelayakan foto dengan AI." }, { status: 500 });
-      }
-    }
-
     // Save locally
     const uploadDir = path.join(process.cwd(), "public", "uploads", "submissions");
     await mkdir(uploadDir, { recursive: true });
@@ -132,10 +62,7 @@ Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": 
       pageNumber
     });
 
-    return NextResponse.json({
-      ...savedPage,
-      aiResult
-    });
+    return NextResponse.json(savedPage);
   } catch (error: any) {
     console.error("Upload page error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

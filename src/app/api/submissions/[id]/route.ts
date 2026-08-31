@@ -60,6 +60,9 @@ export async function PATCH(
       const { pageId } = body;
       await submissionService.removePage(pageId);
       return NextResponse.json({ success: true });
+    } else if (body.action === "CLEAR_PAGES") {
+      await submissionService.clearAllPages(resolvedParams.id);
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

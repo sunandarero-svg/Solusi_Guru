@@ -75,7 +75,13 @@ export const submissionService = {
   // Remove a page
   async removePage(pageId: string) {
     await dbConnect();
-    return SubmissionPage.deleteOne({ _id: pageId });
+    return (await import("@/models/Submission")).SubmissionPage.deleteOne({ _id: pageId });
+  },
+
+  // Clear all pages for a submission
+  async clearAllPages(submissionId: string) {
+    await dbConnect();
+    return (await import("@/models/Submission")).SubmissionPage.deleteMany({ submissionId });
   },
 
   // Submit the assignment
