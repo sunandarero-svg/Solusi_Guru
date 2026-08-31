@@ -163,7 +163,7 @@ export default function StudentsManagementPage() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap,NIS\nBudi Santoso,1001\nSiti Aminah,1002";
+    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap,NIS,Username,Password\nBudi Santoso,1001,1001@siswa.com,siswa123\nSiti Aminah,1002,1002@siswa.com,siswa123";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
