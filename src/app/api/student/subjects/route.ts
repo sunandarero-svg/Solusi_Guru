@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { StudentProfile } from "@/models/Profile";
 import { Enrollment, TeacherClass } from "@/models/Class";
-import { Subject } from "@/models/Subject";
+import "@/models/Subject";
 import { TeacherProfile } from "@/models/Profile";
 import { mapId } from "@/lib/mapId";
 

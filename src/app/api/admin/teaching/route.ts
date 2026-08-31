@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
-import { TeacherClass, Class } from "@/models/Class";
-import { TeacherProfile } from "@/models/Profile";
-import { Subject } from "@/models/Subject";
+import { TeacherClass } from "@/models/Class";
+import "@/models/Class";
+import "@/models/Profile";
+import "@/models/Subject";
 import { mapId } from "@/lib/mapId";
 
 export async function GET() {

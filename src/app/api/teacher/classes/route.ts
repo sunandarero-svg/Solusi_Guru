@@ -3,8 +3,9 @@ import { requireTeacherSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
-import { TeacherClass, Class } from "@/models/Class";
-import { Subject } from "@/models/Subject";
+import { TeacherClass } from "@/models/Class";
+import "@/models/Class";
+import "@/models/Subject";
 import { mapId } from "@/lib/mapId";
 
 export async function GET() {
