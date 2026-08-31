@@ -58,7 +58,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
     <div className="min-h-screen bg-slate-50 flex overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden transition-opacity"
           onClick={() => setSidebarOpen(false)}
         />
@@ -69,9 +69,9 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
         <div className="p-6 border-b border-slate-100/50 flex items-center justify-between">
           <div>
             <h1 className="font-extrabold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-              AssessAI
+              SistenDAR
             </h1>
-            <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">Sistem Penilaian Cerdas</p>
+            <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">Asisten Pak Nandar</p>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
             <X size={20} />
@@ -87,11 +87,10 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
                 key={link.href}
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${
-                  isActive
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${isActive
                     ? "bg-blue-50 text-blue-700 shadow-sm"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 <Icon size={18} className={isActive ? "text-blue-600" : "text-slate-400 group-hover:text-blue-500 transition-colors"} strokeWidth={isActive ? 2.5 : 2} />
                 {link.label}
@@ -103,14 +102,14 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
         <div className="p-6 border-t border-slate-100/50">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-4 border border-slate-200/50 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-50 translate-x-1/2 -translate-y-1/2"></div>
-            
+
             <p className="text-xs text-slate-500 font-medium mb-1 relative z-10">Login sebagai</p>
             <p className="text-sm font-bold text-slate-800 truncate relative z-10">{userEmail}</p>
             <div className="mt-3 flex items-center justify-between relative z-10">
               <span className={`text-xs px-2.5 py-1 rounded-full font-bold shadow-sm ${roleColor}`}>
                 {roleLabel}
               </span>
-              
+
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 group"
@@ -127,15 +126,15 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Subtle decorative background for main area */}
         <div className="absolute top-0 right-0 w-full h-96 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none -z-10"></div>
-        
+
         <header className="bg-white/70 backdrop-blur-md border-b border-slate-200/60 px-4 sm:px-8 py-4 flex items-center lg:justify-end justify-between sticky top-0 z-30 shadow-sm">
-          <button 
+          <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
           >
             <Menu size={24} />
           </button>
-          
+
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-2 text-sm text-slate-500 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -143,7 +142,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
             </div>
           </div>
         </header>
-        
+
         <main className="flex-1 p-4 sm:p-8 overflow-y-auto overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
             {children}
