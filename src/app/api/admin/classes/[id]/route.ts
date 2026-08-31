@@ -3,12 +3,12 @@ import { requireAdminSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
 import { Class, TeacherClass, Enrollment } from "@/models/Class";
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAdminSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const id = params.id;
+    const { id } = await params;
     if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
 
     await dbConnect();
