@@ -295,7 +295,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       {/* AI Result Modal (Futuristic Modern Design) */}
       {aiResultModal && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className={`bg-gray-900 border ${aiResultModal.type === 'error' ? 'border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'border-green-500/50 shadow-[0_0_40px_rgba(34,197,94,0.3)]'} rounded-2xl w-full max-w-md p-6 relative overflow-hidden`}>
+          <div className={`bg-gray-900 border ${aiResultModal.type === 'error' ? 'border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'border-green-500/50 shadow-[0_0_40px_rgba(34,197,94,0.3)]'} rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 relative`}>
             <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${aiResultModal.type === 'error' ? 'from-red-500 via-orange-500 to-red-500' : 'from-green-400 via-emerald-500 to-green-500'}`}></div>
             
             <div className="flex flex-col items-center text-center">

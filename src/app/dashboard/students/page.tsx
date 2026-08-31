@@ -279,7 +279,7 @@ export default function StudentsManagementPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-xl font-bold text-slate-800">Tambah Siswa</h3>
               <button onClick={() => {setShowModal(false); setMessage({type:"",text:""})}} className="text-slate-400 hover:text-slate-600 transition p-1">
@@ -317,7 +317,7 @@ export default function StudentsManagementPage() {
               </button>
             </div>
 
-            <div className="p-8">
+            <div className="p-8 overflow-y-auto">
               {message.text && (
                 <div className={`mb-6 p-4 rounded-xl text-sm font-medium flex items-center gap-3 ${message.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-red-50 text-red-700 border border-red-100"}`}>
                   {message.type === "success" ? <Check size={20} /> : <AlertTriangle size={20} />}
