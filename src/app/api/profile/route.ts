@@ -4,6 +4,8 @@ import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { TeacherProfile, StudentProfile } from "@/models/Profile";
 import bcrypt from "bcryptjs";
+import path from "path";
+import { writeFile, mkdir } from "fs/promises";
 
 export async function GET() {
   try {
@@ -43,14 +45,41 @@ export async function PATCH(req: NextRequest) {
     const session = await requireAuth();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await req.json();
-    const { fullName, password, avatarUrl } = body;
-
     await dbConnect();
 
     const user = await User.findOne({ email: session.user.email });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const contentType = req.headers.get("content-type") || "";
+    let fullName, password, avatarUrl;
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      fullName = formData.get("fullName") as string;
+      password = formData.get("password") as string;
+      
+      const file = formData.get("avatar") as File;
+      if (file && file.size > 0) {
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        const uploadDir = path.join(process.cwd(), "public", "uploads", "avatars");
+        await mkdir(uploadDir, { recursive: true });
+        
+        const ext = path.extname(file.name) || ".jpg";
+        const filename = `${user._id}${ext}`;
+        const filePath = path.join(uploadDir, filename);
+        
+        await writeFile(filePath, buffer);
+        avatarUrl = `/uploads/avatars/${filename}?v=${Date.now()}`;
+      }
+    } else {
+      const body = await req.json();
+      fullName = body.fullName;
+      password = body.password;
+      avatarUrl = body.avatarUrl;
     }
 
     // Update Profile

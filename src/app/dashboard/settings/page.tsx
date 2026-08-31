@@ -8,7 +8,8 @@ export default function SettingsPage() {
     fullName: "",
     email: "",
     password: "",
-    avatarUrl: ""
+    avatarUrl: "",
+    avatarFile: null as File | null
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,24 +43,31 @@ export default function SettingsPage() {
     setSuccess("");
 
     try {
-      const payload: any = {
-        fullName: formData.fullName,
-        avatarUrl: formData.avatarUrl,
-      };
+      const payload = new FormData();
+      payload.append("fullName", formData.fullName);
       if (formData.password) {
-        payload.password = formData.password;
+        payload.append("password", formData.password);
+      }
+      if (formData.avatarFile) {
+        payload.append("avatar", formData.avatarFile);
+      } else if (formData.avatarUrl && !formData.avatarUrl.startsWith('data:')) {
+        payload.append("avatarUrl", formData.avatarUrl);
       }
 
       const res = await fetch("/api/profile", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: payload
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal memperbarui profil");
 
       setSuccess("Profil berhasil diperbarui!");
-      setFormData(prev => ({ ...prev, password: "" })); // Clear password field
+      setFormData(prev => ({ 
+        ...prev, 
+        password: "", 
+        avatarUrl: data.avatarUrl || prev.avatarUrl,
+        avatarFile: null 
+      }));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -100,19 +108,30 @@ export default function SettingsPage() {
                   ) : (
                     <User size={48} className="text-slate-300" />
                   )}
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="text-white" size={24} />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <label className="cursor-pointer w-full h-full flex items-center justify-center">
+                      <Camera className="text-white" size={24} />
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const file = e.target.files[0];
+                            setFormData(prev => ({ ...prev, avatarFile: file }));
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setFormData(prev => ({ ...prev, avatarUrl: ev.target!.result as string }));
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }} 
+                      />
+                    </label>
                   </div>
                 </div>
                 <div className="mt-4 w-full">
-                  <label className="block text-xs font-semibold text-slate-500 text-center mb-1">URL Foto Profil</label>
-                  <input
-                    type="url"
-                    value={formData.avatarUrl}
-                    onChange={e => setFormData({ ...formData, avatarUrl: e.target.value })}
-                    className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg text-center focus:outline-none focus:border-blue-500"
-                    placeholder="https://..."
-                  />
+                  <label className="block text-xs font-semibold text-slate-500 text-center mb-1">Klik gambar di atas untuk mengubah foto</label>
                 </div>
               </div>
 

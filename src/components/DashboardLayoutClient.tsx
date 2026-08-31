@@ -143,10 +143,13 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-8 overflow-y-auto overflow-x-hidden">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto overflow-x-hidden flex flex-col justify-between">
+          <div className="max-w-7xl mx-auto w-full">
             {children}
           </div>
+          <footer className="mt-12 py-4 text-center text-sm text-slate-400 font-medium border-t border-slate-200/50">
+            Created by Nandar-Dev
+          </footer>
         </main>
       </div>
     </div>
