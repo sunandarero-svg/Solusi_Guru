@@ -3,6 +3,7 @@ import { requireTeacherSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
 import User, { Role } from "@/models/User";
 import { StudentProfile } from "@/models/Profile";
+import { Enrollment } from "@/models/Class";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { students } = body;
+    const { students, classId } = body;
 
     if (!students || !Array.isArray(students) || students.length === 0) {
       return NextResponse.json({ error: "Data siswa tidak valid" }, { status: 400 });
@@ -42,11 +43,18 @@ export async function POST(req: NextRequest) {
           role: Role.STUDENT
         });
 
-        await StudentProfile.create({
+        const studentProfile = await StudentProfile.create({
           userId: newUser._id,
           studentNumber: student.studentNumber,
           fullName: student.fullName
         });
+
+        if (classId) {
+          await Enrollment.create({
+            classId,
+            studentId: studentProfile._id
+          });
+        }
 
         results.success++;
       } catch (err: any) {

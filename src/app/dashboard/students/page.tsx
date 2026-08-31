@@ -13,6 +13,7 @@ interface Student {
 
 export default function StudentsManagementPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Bulk selection
@@ -22,10 +23,10 @@ export default function StudentsManagementPage() {
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'manual'|'csv'>('manual');
+  const [selectedClassId, setSelectedClassId] = useState("");
   const [manualName, setManualName] = useState("");
   const [manualNis, setManualNis] = useState("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
@@ -43,8 +44,20 @@ export default function StudentsManagementPage() {
     }
   };
 
+  const fetchClasses = async () => {
+    try {
+      const res = await fetch("/api/teacher/classes");
+      if (res.ok) {
+        setClasses(await res.json());
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
+    fetchClasses();
   }, []);
 
   const handleBulkAction = async (action: "reset-password" | "delete") => {
@@ -82,7 +95,10 @@ export default function StudentsManagementPage() {
       const res = await fetch("/api/students/bulk-add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ students: [{ fullName: manualName, studentNumber: manualNis }] })
+        body: JSON.stringify({ 
+          students: [{ fullName: manualName, studentNumber: manualNis }],
+          classId: selectedClassId 
+        })
       });
       const data = await res.json();
       
@@ -108,10 +124,7 @@ export default function StudentsManagementPage() {
       
       Papa.parse(file, {
         header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-          setCsvPreview(results.data.slice(0, 5));
-        }
+        skipEmptyLines: true
       });
     }
   };
@@ -141,14 +154,13 @@ export default function StudentsManagementPage() {
           const res = await fetch("/api/students/bulk-add", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ students: parsedStudents })
+            body: JSON.stringify({ students: parsedStudents, classId: selectedClassId })
           });
           const data = await res.json();
           
           if (res.ok && data.success) {
             setMessage({ type: "success", text: data.message });
             setCsvFile(null);
-            setCsvPreview([]);
             fetchStudents();
           } else {
             setMessage({ type: "error", text: data.message || "Beberapa siswa gagal ditambahkan" });
@@ -279,6 +291,21 @@ export default function StudentsManagementPage() {
                 <X size={24} />
               </button>
             </div>
+
+            <div className="p-6 border-b border-slate-100 bg-white">
+              <label className="block text-sm font-bold text-slate-700 mb-2">Pilih Kelas <span className="text-red-500">*</span></label>
+              <select 
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition appearance-none bg-white"
+                required
+              >
+                <option value="" disabled>-- Pilih Kelas Tujuan --</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
             
             <div className="flex border-b border-slate-100">
               <button 
@@ -334,7 +361,7 @@ export default function StudentsManagementPage() {
                   </div>
                   <button 
                     type="submit" 
-                    disabled={submitting}
+                    disabled={!selectedClassId || submitting}
                     className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50 mt-4 shadow-sm shadow-blue-200"
                   >
                     {submitting ? "Menyimpan..." : "Simpan Siswa"}
@@ -371,31 +398,9 @@ export default function StudentsManagementPage() {
                     </p>
                   </div>
 
-                  {csvPreview.length > 0 && (
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                      <p className="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Pratinjau (5 Baris)</p>
-                      <table className="w-full text-xs text-left">
-                        <thead className="text-slate-400 border-b border-slate-200">
-                          <tr>
-                            <th className="pb-2">Nama Lengkap</th>
-                            <th className="pb-2">NIS</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {csvPreview.map((row, i) => (
-                            <tr key={i}>
-                              <td className="py-2 text-slate-700 font-medium truncate max-w-[120px]">{row.NamaLengkap || row.Nama || row.name || Object.values(row)[0]}</td>
-                              <td className="py-2 text-slate-500 font-mono">{row.NIS || row.nis || row.studentNumber || Object.values(row)[1]}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
                   <button 
                     onClick={handleCsvSubmit}
-                    disabled={!csvFile || submitting}
+                    disabled={!csvFile || !selectedClassId || submitting}
                     className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50 mt-2 shadow-sm shadow-blue-200"
                   >
                     {submitting ? "Memproses Data..." : "Upload & Simpan"}
