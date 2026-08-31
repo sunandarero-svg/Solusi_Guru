@@ -49,9 +49,23 @@ export async function POST(
 
     if (apiKey) {
       try {
-        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-3.6-flash",
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: SchemaType.OBJECT,
+              properties: {
+                feasible: { type: SchemaType.BOOLEAN, description: "Apakah tulisan cukup jelas untuk dibaca?" },
+                readabilityScore: { type: SchemaType.INTEGER, description: "Skor dari 0-100" },
+                reason: { type: SchemaType.STRING, description: "Alasan singkat dan spesifik kenapa skornya sekian (misal: ada typo di paragraf X)" }
+              },
+              required: ["feasible", "readabilityScore", "reason"]
+            }
+          }
+        });
         
         const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Tugas Anda:
 1. Pastikan Anda membaca SELURUH teks yang ada di foto dari awal hingga akhir.
@@ -72,8 +86,7 @@ Output harus murni JSON dengan format {"feasible": boolean, "readabilityScore": 
 
         const result = await model.generateContent([prompt, image]);
         const text = result.response.text();
-        const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanText);
+        const parsed = JSON.parse(text);
         aiResult = parsed;
 
         if (parsed.feasible === false || parsed.readabilityScore < 85) {

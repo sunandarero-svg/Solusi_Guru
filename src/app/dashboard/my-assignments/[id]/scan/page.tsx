@@ -4,6 +4,7 @@ import { useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { PDFDocument } from "pdf-lib";
+import imageCompression from "browser-image-compression";
 
 interface PageImage {
   id: string; // temp client id
@@ -23,28 +24,39 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
 
   // Handle file capture
-  const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     
     const filesArray = Array.from(e.target.files);
     
-    // Convert files to dataURLs for preview
-    filesArray.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target && typeof event.target.result === "string") {
-          setImages(prev => [
-            ...prev, 
-            {
-              id: Math.random().toString(36).substring(7),
-              file: file,
-              dataUrl: event.target!.result as string
-            }
-          ]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of filesArray) {
+      try {
+        const options = {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+        // Tampilkan loading singkat jika perlu, atau andalkan async
+        const compressedFile = await imageCompression(file, options);
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target && typeof event.target.result === "string") {
+            setImages(prev => [
+              ...prev, 
+              {
+                id: Math.random().toString(36).substring(7),
+                file: compressedFile,
+                dataUrl: event.target!.result as string
+              }
+            ]);
+          }
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error("Compression error:", error);
+      }
+    }
     
     // Reset input
     if (fileInputRef.current) {
