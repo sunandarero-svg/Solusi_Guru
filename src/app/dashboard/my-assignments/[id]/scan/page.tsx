@@ -21,6 +21,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
 
   // Handle file capture
@@ -110,6 +111,13 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
 
     setIsUploading(true);
     setUploadProgress(10);
+    setElapsedTime(0);
+    
+    const startTime = Date.now();
+    const progressInterval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+      setUploadProgress(prev => (prev < 90 ? prev + 1 : prev));
+    }, 1000);
     
     try {
       // 1. Init submission
@@ -125,7 +133,6 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       let finalAiScore: number | null = null;
       let finalAiReason: string | null = null;
       for (let i = 0; i < images.length; i++) {
-        setUploadProgress(10 + Math.round((i / images.length) * 80));
         const img = images[i];
         
         // Ensure we have a File/Blob to upload
@@ -157,6 +164,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         }
       }
 
+      clearInterval(progressInterval);
       setUploadProgress(95);
 
       // 3. Finalize submission
@@ -178,6 +186,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         router.push(`/dashboard/my-assignments/${resolvedParams.id}?success=1`);
       }
     } catch (err: any) {
+      clearInterval(progressInterval);
       setIsUploading(false);
       try {
         const parsedErr = JSON.parse(err.message);
@@ -273,8 +282,9 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
               ></div>
             </div>
           </div>
-          <p className="text-white font-medium">Mengunggah... {uploadProgress}%</p>
-          <p className="text-gray-400 text-sm text-center mt-2">Harap jangan tutup halaman ini.</p>
+          <p className="text-white font-medium mb-1">Menganalisis & Mengunggah... {uploadProgress}%</p>
+          <p className="text-blue-400 text-sm font-mono font-bold mb-2">{elapsedTime} detik berlalu</p>
+          <p className="text-gray-400 text-xs text-center">Tugas sedang dibaca oleh AI. Harap jangan tutup halaman ini.</p>
         </div>
       )}
 
