@@ -51,7 +51,7 @@ export default function AssignmentsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Manajemen Tugas</h1>
           <p className="text-gray-500 mt-1">Total: <span className="font-semibold text-blue-600">{assignments.length} tugas</span></p>
@@ -64,7 +64,7 @@ export default function AssignmentsPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow border border-gray-100 overflow-x-auto">
         {loading ? (
           <div className="p-8 text-center text-gray-400">Memuat data tugas...</div>
         ) : assignments.length === 0 ? (

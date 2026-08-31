@@ -130,7 +130,7 @@ export default function AttendancePage() {
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-800">📝 Absensi Siswa</h1>
       
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6 flex gap-4 items-end">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 md:items-end">
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Kelas</label>
           <select
@@ -158,7 +158,7 @@ export default function AttendancePage() {
       {isLoading ? (
         <div className="text-center py-8 text-gray-500">Memuat data...</div>
       ) : selectedClass ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
