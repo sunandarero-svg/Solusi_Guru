@@ -69,7 +69,7 @@ export default async function AdminDashboardPage() {
       {/* Quick Actions */}
       <div className="mt-10">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Aksi Cepat</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <a
             href="/dashboard/admin/teachers"
             className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl p-5 hover:from-purple-600 hover:to-purple-700 transition-all shadow hover:shadow-lg flex items-center gap-4"
@@ -83,6 +83,18 @@ export default async function AdminDashboardPage() {
             </div>
           </a>
           <a
+            href="/dashboard/admin/principals"
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl p-5 hover:from-emerald-600 hover:to-emerald-700 transition-all shadow hover:shadow-lg flex items-center gap-4"
+          >
+            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+              <span className="text-2xl">👨‍💼</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Kepala Sekolah</h3>
+              <p className="text-emerald-100 text-sm">Buat akun akses kepala sekolah</p>
+            </div>
+          </a>
+          <a
             href="/dashboard"
             className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-5 hover:from-blue-600 hover:to-blue-700 transition-all shadow hover:shadow-lg flex items-center gap-4"
           >
@@ -90,8 +102,8 @@ export default async function AdminDashboardPage() {
               <span className="text-2xl">📊</span>
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Lihat Semua Data</h3>
-              <p className="text-blue-100 text-sm">Pantau aktivitas sistem secara keseluruhan</p>
+              <h3 className="font-semibold text-lg">Data Sistem</h3>
+              <p className="text-blue-100 text-sm">Pantau aktivitas keseluruhan</p>
             </div>
           </a>
         </div>
