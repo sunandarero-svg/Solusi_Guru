@@ -290,7 +290,7 @@ export default function AdminTeachingPage() {
                       <p className="text-slate-600">{mapping.subjectName}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                      <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
                         {mapping.className}
                       </span>
                     </td>
@@ -314,3 +314,4 @@ export default function AdminTeachingPage() {
     </div>
   );
 }
+

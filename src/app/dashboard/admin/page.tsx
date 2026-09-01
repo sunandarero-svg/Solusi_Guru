@@ -45,12 +45,12 @@ export default async function AdminDashboardPage() {
 
         <div className="bg-white rounded-xl shadow p-6 border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
               <span className="text-xl">🏫</span>
             </div>
             <h2 className="text-lg font-semibold text-gray-700">Kelas</h2>
           </div>
-          <p className="text-3xl font-bold text-blue-600">{stats.classes}</p>
+          <p className="text-3xl font-bold text-emerald-600">{stats.classes}</p>
           <p className="text-sm text-gray-400 mt-1">Total kelas</p>
         </div>
 
@@ -96,14 +96,14 @@ export default async function AdminDashboardPage() {
           </a>
           <a
             href="/dashboard"
-            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-5 hover:from-blue-600 hover:to-blue-700 transition-all shadow hover:shadow-lg flex items-center gap-4"
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl p-5 hover:from-emerald-600 hover:to-emerald-700 transition-all shadow hover:shadow-lg flex items-center gap-4"
           >
             <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
               <span className="text-2xl">📊</span>
             </div>
             <div>
               <h3 className="font-semibold text-lg">Data Sistem</h3>
-              <p className="text-blue-100 text-sm">Pantau aktivitas keseluruhan</p>
+              <p className="text-emerald-100 text-sm">Pantau aktivitas keseluruhan</p>
             </div>
           </a>
         </div>
@@ -111,3 +111,4 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
+

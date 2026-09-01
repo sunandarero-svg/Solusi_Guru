@@ -42,3 +42,4 @@ export async function getTeacherProfileByEmail(email: string) {
   const profile = await TeacherProfile.findOne({ userId: user._id }).lean();
   return mapId(profile);
 }
+

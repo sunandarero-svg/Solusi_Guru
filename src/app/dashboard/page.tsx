@@ -107,7 +107,7 @@ export default async function DashboardPage() {
             Dashboard Overview
           </h1>
           <p className="text-slate-500 mt-1 font-medium">
-            Selamat datang kembali! Anda masuk sebagai <span className="font-bold text-blue-600">{roleLabel}</span>
+            Selamat datang kembali! Anda masuk sebagai <span className="font-bold text-emerald-600">{roleLabel}</span>
           </p>
         </div>
         <div className="text-sm font-semibold text-slate-400 bg-white/60 px-4 py-2 rounded-xl shadow-sm border border-slate-200/50 inline-block backdrop-blur-sm">
@@ -118,14 +118,14 @@ export default async function DashboardPage() {
       {role === "TEACHER" ? (
         <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="glass rounded-3xl p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full mix-blend-multiply filter blur-2xl opacity-50 translate-x-1/3 -translate-y-1/3 group-hover:scale-110 transition-transform duration-500"></div>
+          <div className="glass rounded-3xl p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100 rounded-full mix-blend-multiply filter blur-2xl opacity-50 translate-x-1/3 -translate-y-1/3 group-hover:scale-110 transition-transform duration-500"></div>
             <div className="flex justify-between items-start mb-4 relative z-10">
               <div>
                 <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Tugas</p>
                 <h2 className="text-4xl font-black text-slate-800 mt-1">{stats.assignments}</h2>
               </div>
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
                 <FileText size={24} />
               </div>
             </div>
@@ -174,14 +174,14 @@ export default async function DashboardPage() {
       ) : (
         <>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="glass rounded-3xl p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 border-l-4 border-l-blue-500">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full mix-blend-multiply filter blur-2xl opacity-50 translate-x-1/3 -translate-y-1/3 group-hover:scale-110 transition-transform duration-500"></div>
+          <div className="glass rounded-3xl p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 border-l-4 border-l-emerald-500">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100 rounded-full mix-blend-multiply filter blur-2xl opacity-50 translate-x-1/3 -translate-y-1/3 group-hover:scale-110 transition-transform duration-500"></div>
             <div className="flex justify-between items-start mb-4 relative z-10">
               <div>
                 <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Tugas Aktif</p>
                 <h2 className="text-4xl font-black text-slate-800 mt-1">{studentStats.activeAssignments}</h2>
               </div>
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
                 <BookOpen size={24} />
               </div>
             </div>
@@ -209,4 +209,5 @@ export default async function DashboardPage() {
     </div>
   );
 }
+
 

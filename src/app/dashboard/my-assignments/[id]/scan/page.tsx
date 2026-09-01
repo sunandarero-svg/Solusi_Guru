@@ -233,7 +233,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         <button 
           onClick={handleSubmit} 
           disabled={isUploading || images.length === 0}
-          className="bg-blue-600 px-4 py-2 rounded-full font-medium disabled:opacity-50 text-sm"
+          className="bg-emerald-600 px-4 py-2 rounded-full font-medium disabled:opacity-50 text-sm"
         >
           {isUploading ? "Mengirim..." : "Kumpul"}
         </button>
@@ -272,7 +272,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
                   </button>
                   <button 
                     onClick={() => setPreviewImageId(img.id)}
-                    className="bg-blue-600 bg-opacity-80 p-2 rounded-full"
+                    className="bg-emerald-600 bg-opacity-80 p-2 rounded-full"
                   >
                     🔍
                   </button>
@@ -296,20 +296,20 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
           <div className="w-full max-w-sm mb-4">
             <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-blue-500 transition-all duration-300" 
+                className="h-full bg-emerald-500 transition-all duration-300" 
                 style={{ width: `${uploadProgress}%` }}
               ></div>
             </div>
           </div>
           <p className="text-white font-medium mb-1">Menganalisis & Mengunggah... {uploadProgress}%</p>
-          <p className="text-blue-400 text-sm font-mono font-bold mb-2">{elapsedTime} detik berlalu</p>
+          <p className="text-emerald-400 text-sm font-mono font-bold mb-2">{elapsedTime} detik berlalu</p>
           <p className="text-gray-400 text-xs text-center">Tugas sedang dibaca oleh AI. Harap jangan tutup halaman ini.</p>
         </div>
       )}
 
       {/* Floating Action Button (Camera) */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
-        <label className="bg-white text-blue-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto hover:bg-gray-100 transition transform hover:scale-105 border-4 border-blue-50">
+        <label className="bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto hover:bg-gray-100 transition transform hover:scale-105 border-4 border-emerald-50">
           <span className="text-3xl">📷</span>
           <input 
             ref={fileInputRef}

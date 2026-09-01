@@ -74,3 +74,4 @@ export const rubricService = {
     return mapId({ ...rubric.toObject(), criteria });
   }
 };
+

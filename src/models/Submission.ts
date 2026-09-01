@@ -155,3 +155,4 @@ const TeacherReviewSchema: Schema = new Schema({
 });
 
 export const TeacherReview = mongoose.models.TeacherReview || mongoose.model<ITeacherReview>('TeacherReview', TeacherReviewSchema);
+

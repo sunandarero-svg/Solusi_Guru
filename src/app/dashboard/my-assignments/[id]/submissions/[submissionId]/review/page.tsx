@@ -71,7 +71,7 @@ export default function StudentReviewPage({
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shrink-0 shadow-sm z-10">
         <div>
           <div className="text-xs text-gray-500 mb-1 flex items-center space-x-2">
-            <Link href={`/dashboard/my-assignments/${resolvedParams.id}`} className="hover:text-blue-600">
+            <Link href={`/dashboard/my-assignments/${resolvedParams.id}`} className="hover:text-emerald-600">
               ← Kembali ke Detail Tugas
             </Link>
           </div>
@@ -101,13 +101,13 @@ export default function StudentReviewPage({
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-md p-1 flex space-x-1 z-10">
             <button 
               onClick={() => setViewMode("PDF")}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "PDF" ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "PDF" ? 'bg-emerald-100 text-emerald-700' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               PDF Anda
             </button>
             <button 
               onClick={() => setViewMode("OCR")}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "OCR" ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "OCR" ? 'bg-emerald-100 text-emerald-700' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               Teks Terbaca
             </button>
@@ -172,7 +172,7 @@ export default function StudentReviewPage({
                   <span>🤖 Analisis Otomatis AI</span>
                 </h3>
                 {!isPublished && (
-                  <div className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
+                  <div className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-medium">
                     Estimasi Skor AI: {ai.suggestedScore}
                   </div>
                 )}
@@ -205,7 +205,7 @@ export default function StudentReviewPage({
               <button 
                 onClick={handleProcessAI}
                 disabled={isProcessingAI}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition shadow-md disabled:opacity-50"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-full transition shadow-md disabled:opacity-50"
               >
                 {isProcessingAI ? "Memulai Proses..." : "Proses dengan AI Sekarang"}
               </button>

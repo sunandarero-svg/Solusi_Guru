@@ -96,7 +96,7 @@ export default function JournalPage() {
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-900"
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50 text-gray-900"
                 required
               >
                 <option value="">-- Pilih Kelas --</option>
@@ -111,7 +111,7 @@ export default function JournalPage() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-900"
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50 text-gray-900"
                 required
               />
             </div>
@@ -128,7 +128,7 @@ export default function JournalPage() {
                     value={status}
                     checked={attendanceStatus === status}
                     onChange={(e) => setAttendanceStatus(e.target.value as any)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"
                   />
                   <span className={`text-sm font-medium ${
                     attendanceStatus === status ? 'text-gray-900' : 'text-gray-500'
@@ -147,7 +147,7 @@ export default function JournalPage() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Contoh: Aljabar Linier, Tata Bahasa..."
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
               required
             />
           </div>
@@ -159,7 +159,7 @@ export default function JournalPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Jelaskan secara singkat kegiatan belajar mengajar hari ini..."
               rows={4}
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
               required
             />
           </div>
@@ -168,7 +168,7 @@ export default function JournalPage() {
             <button
               type="submit"
               disabled={isLoading || !selectedClass}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-8 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2"
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white px-8 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2"
             >
               {isLoading ? "Menyimpan..." : "Simpan Jurnal"}
             </button>
@@ -178,3 +178,4 @@ export default function JournalPage() {
     </div>
   );
 }
+

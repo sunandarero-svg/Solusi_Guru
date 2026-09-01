@@ -136,7 +136,7 @@ export default function AttendancePage() {
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
           >
             <option value="">-- Pilih Kelas --</option>
             {classes.map(c => (
@@ -150,7 +150,7 @@ export default function AttendancePage() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
           />
         </div>
       </div>
@@ -183,7 +183,7 @@ export default function AttendancePage() {
                           attendance[student._id] === status
                             ? status === 'HADIR' ? 'bg-green-100 text-green-800 border-green-200' 
                               : status === 'SAKIT' ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                              : status === 'IZIN' ? 'bg-blue-100 text-blue-800 border-blue-200'
+                              : status === 'IZIN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                               : 'bg-red-100 text-red-800 border-red-200'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         } border`}
@@ -199,7 +199,7 @@ export default function AttendancePage() {
           <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end">
             <button
               onClick={handleSave}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-sm"
             >
               Simpan Absensi
             </button>
@@ -213,3 +213,4 @@ export default function AttendancePage() {
     </div>
   );
 }
+

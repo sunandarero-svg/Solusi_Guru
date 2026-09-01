@@ -36,3 +36,4 @@ const StudentAttendanceSchema: Schema = new Schema({
 StudentAttendanceSchema.index({ classId: 1, date: 1, teacherId: 1 }, { unique: true });
 
 export const StudentAttendance = mongoose.models.StudentAttendance || mongoose.model<IStudentAttendance>('StudentAttendance', StudentAttendanceSchema);
+

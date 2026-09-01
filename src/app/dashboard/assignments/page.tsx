@@ -54,11 +54,11 @@ export default function AssignmentsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Manajemen Tugas</h1>
-          <p className="text-gray-500 mt-1">Total: <span className="font-semibold text-blue-600">{assignments.length} tugas</span></p>
+          <p className="text-gray-500 mt-1">Total: <span className="font-semibold text-emerald-600">{assignments.length} tugas</span></p>
         </div>
         <button
           onClick={() => router.push("/dashboard/assignments/create")}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+          className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition font-medium"
         >
           + Buat Tugas Baru
         </button>
@@ -89,7 +89,7 @@ export default function AssignmentsPage() {
                 <tr key={a.id} className={`border-b border-gray-50 hover:bg-gray-50 transition ${i % 2 === 0 ? "" : "bg-gray-50/50"}`}>
                   <td className="px-6 py-4 font-medium text-gray-800">{a.title}</td>
                   <td className="px-6 py-4 text-gray-600">
-                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
+                    <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs">
                       {a.class.name}
                     </span>
                   </td>
@@ -108,7 +108,7 @@ export default function AssignmentsPage() {
                   <td className="px-6 py-4 text-gray-600 font-medium">{a._count.submissions}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      <Link href={`/dashboard/assignments/${a.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-2">
+                      <Link href={`/dashboard/assignments/${a.id}`} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-2">
                         Detail →
                       </Link>
                       <button 
@@ -129,3 +129,4 @@ export default function AssignmentsPage() {
     </div>
   );
 }
+

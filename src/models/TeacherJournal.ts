@@ -24,3 +24,4 @@ const TeacherJournalSchema: Schema = new Schema({
 TeacherJournalSchema.index({ classId: 1, date: 1, teacherId: 1 }, { unique: true });
 
 export const TeacherJournal = mongoose.models.TeacherJournal || mongoose.model<ITeacherJournal>('TeacherJournal', TeacherJournalSchema);
+

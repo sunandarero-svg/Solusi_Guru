@@ -410,7 +410,7 @@ export default function AdminTeachersPage() {
                             </button>
                             <button
                               onClick={() => handleResetPassword(teacher.id)}
-                              className="text-blue-500 hover:text-blue-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition"
+                              className="text-emerald-500 hover:text-emerald-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition"
                               title="Reset password"
                             >
                               🔑 Reset PW
@@ -439,3 +439,4 @@ export default function AdminTeachersPage() {
     </div>
   );
 }
+

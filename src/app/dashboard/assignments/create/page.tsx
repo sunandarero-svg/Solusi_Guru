@@ -82,7 +82,7 @@ export default function CreateAssignmentPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 space-x-2 text-sm">
-        <Link href="/dashboard/assignments" className="text-gray-500 hover:text-blue-600">Manajemen Tugas</Link>
+        <Link href="/dashboard/assignments" className="text-gray-500 hover:text-emerald-600">Manajemen Tugas</Link>
         <span className="text-gray-400">/</span>
         <span className="text-gray-800 font-medium">Buat Tugas Baru</span>
       </div>
@@ -199,7 +199,7 @@ export default function CreateAssignmentPage() {
             <button 
               type="submit" 
               disabled={loading}
-              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+              className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50"
             >
               {loading ? "Menyimpan..." : "Simpan & Lanjut ke Rubrik"}
             </button>
@@ -209,3 +209,4 @@ export default function CreateAssignmentPage() {
     </div>
   );
 }
+

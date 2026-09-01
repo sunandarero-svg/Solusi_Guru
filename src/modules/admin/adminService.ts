@@ -187,3 +187,4 @@ export async function getTeacherStudentCount(teacherProfileId: string) {
   const uniqueStudentIds = new Set(enrollments.map((e) => e.studentId.toString()));
   return uniqueStudentIds.size;
 }
+

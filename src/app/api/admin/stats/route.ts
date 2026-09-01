@@ -12,3 +12,4 @@ export async function GET() {
   const stats = await getAdminStats();
   return NextResponse.json(stats);
 }
+

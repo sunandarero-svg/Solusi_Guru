@@ -200,13 +200,13 @@ export default function StudentsManagementPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
-            <Users className="text-blue-500" /> Manajemen Akun Siswa
+            <Users className="text-emerald-500" /> Manajemen Akun Siswa
           </h1>
           <p className="text-slate-500 mt-1">Kelola data siswa, tambah siswa baru, dan reset password massal.</p>
         </div>
         <button 
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm flex items-center gap-2"
+          className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition shadow-sm flex items-center gap-2"
         >
           <UserPlus size={18} /> Tambah Siswa
         </button>
@@ -223,14 +223,14 @@ export default function StudentsManagementPage() {
                 placeholder="Cari nama atau NIS..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-slate-200 bg-white rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-64 transition-all"
+                className="pl-9 pr-4 py-2 border border-slate-200 bg-white rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 w-full sm:w-64 transition-all"
               />
             </div>
           </div>
           
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
-              <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+              <span className="text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
                 {selectedIds.length} dipilih
               </span>
               <button
@@ -263,7 +263,7 @@ export default function StudentsManagementPage() {
                       if (e.target.checked) setSelectedIds(filteredStudents.map(s => s.id));
                       else setSelectedIds([]);
                     }}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                   />
                 </th>
                 <th className="px-6 py-4 font-semibold text-slate-700">Nama Lengkap</th>
@@ -280,13 +280,13 @@ export default function StudentsManagementPage() {
                 </td></tr>
               ) : (
                 filteredStudents.map(student => (
-                  <tr key={student.id} className={`transition-colors ${selectedIds.includes(student.id) ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'}`}>
+                  <tr key={student.id} className={`transition-colors ${selectedIds.includes(student.id) ? 'bg-emerald-50/30' : 'hover:bg-slate-50/50'}`}>
                     <td className="px-6 py-4 text-center">
                       <input 
                         type="checkbox"
                         checked={selectedIds.includes(student.id)}
                         onChange={() => toggleSelect(student.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                       />
                     </td>
                     <td className="px-6 py-4 font-semibold text-slate-800">{student.fullName}</td>
@@ -315,7 +315,7 @@ export default function StudentsManagementPage() {
               <select 
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition appearance-none bg-white"
+                className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition appearance-none bg-white"
                 required
               >
                 <option value="" disabled>-- Pilih Kelas Tujuan --</option>
@@ -328,13 +328,13 @@ export default function StudentsManagementPage() {
             <div className="flex border-b border-slate-100">
               <button 
                 onClick={() => {setActiveTab("manual"); setMessage({type:"",text:""})}}
-                className={`flex-1 py-4 text-sm font-bold transition ${activeTab === "manual" ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/30" : "text-slate-500 hover:bg-slate-50"}`}
+                className={`flex-1 py-4 text-sm font-bold transition ${activeTab === "manual" ? "text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/30" : "text-slate-500 hover:bg-slate-50"}`}
               >
                 Input Manual
               </button>
               <button 
                 onClick={() => {setActiveTab("csv"); setMessage({type:"",text:""})}}
-                className={`flex-1 py-4 text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === "csv" ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/30" : "text-slate-500 hover:bg-slate-50"}`}
+                className={`flex-1 py-4 text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === "csv" ? "text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/30" : "text-slate-500 hover:bg-slate-50"}`}
               >
                 <Upload size={16} /> Upload Massal (CSV)
               </button>
@@ -350,8 +350,8 @@ export default function StudentsManagementPage() {
 
               {activeTab === "manual" ? (
                 <form onSubmit={handleManualSubmit} className="space-y-5">
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-2">
-                    <p className="text-sm text-blue-800 font-medium text-center">
+                  <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 mb-2">
+                    <p className="text-sm text-emerald-800 font-medium text-center">
                       Password default: <span className="font-bold font-mono bg-white px-2 py-1 rounded ml-1">siswa123</span>
                     </p>
                   </div>
@@ -360,7 +360,7 @@ export default function StudentsManagementPage() {
                     <input 
                       required 
                       autoFocus
-                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition"
                       placeholder="Masukkan nama lengkap siswa..." 
                       value={manualName}
                       onChange={e => setManualName(e.target.value)} 
@@ -370,7 +370,7 @@ export default function StudentsManagementPage() {
                     <label className="block text-sm font-bold text-slate-700 mb-2">Nomor Induk Siswa (NIS)</label>
                     <input 
                       required 
-                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition"
                       placeholder="Masukkan NIS..." 
                       value={manualNis}
                       onChange={e => setManualNis(e.target.value)} 
@@ -380,35 +380,35 @@ export default function StudentsManagementPage() {
                   <button 
                     type="submit" 
                     disabled={!selectedClassId || submitting}
-                    className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50 mt-4 shadow-sm shadow-blue-200"
+                    className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-700 transition disabled:opacity-50 mt-4 shadow-sm shadow-emerald-200"
                   >
                     {submitting ? "Menyimpan..." : "Simpan Siswa"}
                   </button>
                 </form>
               ) : (
                 <div className="space-y-6">
-                  <div className="bg-blue-50/50 rounded-xl p-5 border border-blue-100 text-center">
-                    <p className="text-sm text-blue-800 font-bold mb-2">Panduan Upload CSV</p>
-                    <p className="text-xs text-blue-600 mb-4 leading-relaxed">
+                  <div className="bg-emerald-50/50 rounded-xl p-5 border border-emerald-100 text-center">
+                    <p className="text-sm text-emerald-800 font-bold mb-2">Panduan Upload CSV</p>
+                    <p className="text-xs text-emerald-600 mb-4 leading-relaxed">
                       Format CSV (Comma delimited) dengan 2 kolom: <strong>NamaLengkap</strong> dan <strong>NIS</strong>.<br/>
                       Password default: <strong className="font-mono">siswa123</strong>
                     </p>
                     <button 
                       onClick={downloadTemplate}
-                      className="text-xs bg-white text-blue-600 font-bold px-4 py-2 rounded-lg border border-blue-200 hover:bg-blue-50 inline-flex items-center gap-2 transition shadow-sm"
+                      className="text-xs bg-white text-emerald-600 font-bold px-4 py-2 rounded-lg border border-emerald-200 hover:bg-emerald-50 inline-flex items-center gap-2 transition shadow-sm"
                     >
                       <Download size={14} /> Download Template CSV
                     </button>
                   </div>
                   
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-blue-400 hover:bg-blue-50/30 transition cursor-pointer relative group">
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-emerald-400 hover:bg-emerald-50/30 transition cursor-pointer relative group">
                     <input 
                       type="file" 
                       accept=".csv" 
                       onChange={handleCsvChange}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                     />
-                    <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                       <Upload size={28} />
                     </div>
                     <p className="text-sm font-bold text-slate-700">
@@ -419,7 +419,7 @@ export default function StudentsManagementPage() {
                   <button 
                     onClick={handleCsvSubmit}
                     disabled={!csvFile || !selectedClassId || submitting}
-                    className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50 mt-2 shadow-sm shadow-blue-200"
+                    className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-700 transition disabled:opacity-50 mt-2 shadow-sm shadow-emerald-200"
                   >
                     {submitting ? "Memproses Data..." : "Upload & Simpan"}
                   </button>
@@ -432,3 +432,4 @@ export default function StudentsManagementPage() {
     </div>
   );
 }
+

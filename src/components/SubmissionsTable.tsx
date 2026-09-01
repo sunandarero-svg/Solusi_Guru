@@ -127,7 +127,7 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
           <select 
             value={selectedClassId}
             onChange={(e) => setSelectedClassId(e.target.value)}
-            className="px-4 py-2 border border-slate-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700"
+            className="px-4 py-2 border border-slate-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-700"
           >
             <option value="all">Semua Kelas</option>
             <option value="class-current">Kelas Saat Ini</option>
@@ -135,13 +135,13 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
 
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
-              <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">
+              <span className="text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">
                 {selectedIds.length} dipilih
               </span>
               <button
                 onClick={() => handleBulkAction("approve")}
                 disabled={isBulkActioning}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <CheckSquare size={16} /> Approve Massal
               </button>
@@ -159,7 +159,7 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                   type="checkbox"
                   checked={submissions.length > 0 && selectedIds.length === submissions.length}
                   onChange={toggleSelectAll}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </th>
               <th className="px-6 py-4 font-semibold text-slate-700">Siswa</th>
@@ -178,13 +178,13 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
               </tr>
             ) : (
               submissions.map(sub => (
-                <tr key={sub.id} className={`transition-colors ${selectedIds.includes(sub.id) ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'}`}>
+                <tr key={sub.id} className={`transition-colors ${selectedIds.includes(sub.id) ? 'bg-emerald-50/30' : 'hover:bg-slate-50/50'}`}>
                   <td className="px-6 py-4 text-center">
                     <input 
                       type="checkbox"
                       checked={selectedIds.includes(sub.id)}
                       onChange={() => toggleSelect(sub.id)}
-                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                     />
                   </td>
                   <td className="px-6 py-4">
@@ -193,7 +193,7 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                   </td>
                   <td className="px-6 py-4">
                     {sub.status === "NEEDS_TEACHER_REVIEW" && <span className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold">Perlu Diulas</span>}
-                    {sub.status === "APPROVED" && <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold">Disetujui</span>}
+                    {sub.status === "APPROVED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Disetujui</span>}
                     {sub.status === "PUBLISHED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Selesai</span>}
                     {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED"].includes(sub.status) && (
                       <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{sub.status}</span>
@@ -201,7 +201,7 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                   </td>
                   <td className="px-6 py-4">
                     {sub.aiAssessment ? (
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-700 font-bold text-xs border border-blue-100">
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-100">
                         {sub.aiAssessment.suggestedScore}
                       </span>
                     ) : (
@@ -220,7 +220,7 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                   <td className="px-6 py-4 text-right flex items-center justify-end space-x-3">
                     <Link 
                       href={`/dashboard/assignments/${assignmentId}/submissions/${sub.id}/review`}
-                      className="px-3 py-1.5 bg-white border border-slate-200 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
+                      className="px-3 py-1.5 bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
                     >
                       {["APPROVED", "PUBLISHED"].includes(sub.status) ? "Lihat Hasil" : "Edit ✏️"}
                     </Link>
@@ -242,3 +242,4 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
     </div>
   );
 }
+

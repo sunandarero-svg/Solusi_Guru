@@ -42,14 +42,14 @@ export default function StudentSubjectsPage() {
     <div className="mt-8 animate-in fade-in duration-500">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
-          <BookOpen className="text-blue-500" /> Mata Pelajaran Saya
+          <BookOpen className="text-emerald-500" /> Mata Pelajaran Saya
         </h1>
         <p className="text-slate-500 mt-1 font-medium">Daftar mata pelajaran yang Anda ambil di kelas Anda.</p>
       </div>
 
       {subjects.length === 0 ? (
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-12 text-center">
-          <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <BookOpen size={32} />
           </div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">Belum Ada Mata Pelajaran</h2>
@@ -58,8 +58,8 @@ export default function StudentSubjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {subjects.map(item => (
-            <div key={item.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 hover:shadow-lg hover:border-blue-200 transition-all duration-300 group">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+            <div key={item.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 hover:shadow-lg hover:border-emerald-200 transition-all duration-300 group">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
                 <BookOpen size={24} />
               </div>
               <h2 className="text-xl font-bold text-slate-800 mb-1">{item.subject.name}</h2>
@@ -77,7 +77,7 @@ export default function StudentSubjectsPage() {
 
               <Link 
                 href={`/dashboard/my-assignments?subjectId=${item.subject.id}`}
-                className="mt-6 block text-center bg-blue-50 text-blue-600 font-bold py-2.5 rounded-xl hover:bg-blue-100 transition-colors"
+                className="mt-6 block text-center bg-emerald-50 text-emerald-600 font-bold py-2.5 rounded-xl hover:bg-emerald-100 transition-colors"
               >
                 Lihat Tugas
               </Link>
@@ -88,3 +88,4 @@ export default function StudentSubjectsPage() {
     </div>
   );
 }
+

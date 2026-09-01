@@ -180,7 +180,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <div className="flex items-center mb-6 space-x-2 text-sm">
-        <Link href="/dashboard/classes" className="text-gray-500 hover:text-blue-600 flex items-center">
+        <Link href="/dashboard/classes" className="text-gray-500 hover:text-emerald-600 flex items-center">
           <ChevronLeft size={16} className="mr-1"/> Manajemen Kelas
         </Link>
         <span className="text-gray-400">/</span>
@@ -197,7 +197,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
       <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
           <h2 className="font-semibold text-gray-700 flex items-center gap-2">
-            <Users size={18} className="text-blue-500"/> 
+            <Users size={18} className="text-emerald-500"/> 
             Daftar Siswa ({classData.enrollments.length})
           </h2>
         </div>

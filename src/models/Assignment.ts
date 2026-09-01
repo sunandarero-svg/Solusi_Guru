@@ -68,3 +68,4 @@ const RubricCriterionSchema: Schema = new Schema({
 });
 
 export const RubricCriterion = mongoose.models.RubricCriterion || mongoose.model<IRubricCriterion>('RubricCriterion', RubricCriterionSchema);
+

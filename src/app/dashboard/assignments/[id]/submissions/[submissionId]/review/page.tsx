@@ -86,7 +86,7 @@ export default function TeacherReviewPage({
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shrink-0 shadow-sm z-10">
         <div>
           <div className="text-xs text-gray-500 mb-1 flex items-center space-x-2">
-            <Link href={`/dashboard/assignments/${resolvedParams.id}`} className="hover:text-blue-600">
+            <Link href={`/dashboard/assignments/${resolvedParams.id}`} className="hover:text-emerald-600">
               ← Kembali ke Daftar Pengumpulan
             </Link>
           </div>
@@ -106,7 +106,7 @@ export default function TeacherReviewPage({
           <button 
             onClick={() => handleSave(true)}
             disabled={saving || isPublished}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50 shadow-sm"
+            className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
           >
             {isPublished ? "Telah di-Publish" : "Publish Nilai Akhir"}
           </button>
@@ -119,7 +119,7 @@ export default function TeacherReviewPage({
         <div className="w-1/2 border-r border-gray-200 bg-gray-100 flex flex-col relative">
           <div className="bg-white px-4 py-3 border-b border-gray-200 flex justify-between items-center shadow-sm z-10">
             <h3 className="font-bold text-gray-700">Foto Tugas Siswa</h3>
-            <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-1 rounded-md">
+            <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md">
               {submission.pages?.length || 0} Halaman
             </span>
           </div>
@@ -143,7 +143,7 @@ export default function TeacherReviewPage({
                       download
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-xs text-emerald-600 hover:text-emerald-800 font-medium"
                     >
                       Unduh Gambar
                     </a>
@@ -165,10 +165,10 @@ export default function TeacherReviewPage({
             <div className="p-8 space-y-8">
               
               {/* Grading Input */}
-              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
+              <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-gray-800">Penilaian Akhir</h3>
-                  <div className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
+                  <div className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-medium">
                     Rekomendasi AI: {ai.suggestedScore}
                   </div>
                 </div>
@@ -182,7 +182,7 @@ export default function TeacherReviewPage({
                       value={finalScore}
                       onChange={(e) => setFinalScore(parseInt(e.target.value) || 0)}
                       disabled={isPublished}
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl font-bold text-xl text-gray-900 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-100"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl font-bold text-xl text-gray-900 text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition disabled:bg-gray-100"
                     />
                   </div>
                   <div className="flex-1">
@@ -201,7 +201,7 @@ export default function TeacherReviewPage({
                   onChange={(e) => setFinalFeedback(e.target.value)}
                   disabled={isPublished}
                   rows={4}
-                  className="w-full p-4 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-50"
+                  className="w-full p-4 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition disabled:bg-gray-50"
                   placeholder="Tambahkan umpan balik tambahan atau edit saran dari AI di sini..."
                 />
               </div>

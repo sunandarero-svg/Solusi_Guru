@@ -73,12 +73,12 @@ export default function TeacherProgressDashboard() {
     <div className="mt-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <Users className="text-blue-500" /> Progress Kemajuan Siswa Per Kelas
+          <Users className="text-emerald-500" /> Progress Kemajuan Siswa Per Kelas
         </h2>
         <select
           value={selectedClassId}
           onChange={(e) => setSelectedClassId(e.target.value)}
-          className="px-4 py-2 border border-slate-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 font-medium"
+          className="px-4 py-2 border border-slate-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 font-medium"
         >
           <option value="all">Semua Kelas</option>
           {data.map(c => (
@@ -107,7 +107,7 @@ export default function TeacherProgressDashboard() {
                 </div>
                 <button 
                   onClick={() => setSelectedClass(cls)}
-                  className="px-4 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
+                  className="px-4 py-2 bg-emerald-50 text-emerald-600 text-sm font-semibold rounded-xl hover:bg-emerald-100 transition-colors"
                 >
                   Detail Progress
                 </button>
@@ -149,7 +149,7 @@ export default function TeacherProgressDashboard() {
                     <h4 className="text-sm font-bold text-slate-700">Status Pengumpulan Tugas Aktif</h4>
                     <button 
                       onClick={() => setSelectedTracker(cls)}
-                      className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors"
+                      className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md hover:bg-emerald-100 transition-colors"
                     >
                       Lihat Siswa Bolong
                     </button>
@@ -218,7 +218,7 @@ export default function TeacherProgressDashboard() {
                     }
 
                     return (
-                      <div key={student.id} className="border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 hover:border-blue-200 transition-colors bg-white">
+                      <div key={student.id} className="border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 hover:border-emerald-200 transition-colors bg-white">
                         <div className="md:w-1/3 shrink-0">
                           <h4 className="font-bold text-slate-800 text-lg">{student.fullName}</h4>
                           <p className="text-slate-500 text-sm mb-3">NIS: {student.studentNumber}</p>
@@ -320,3 +320,4 @@ export default function TeacherProgressDashboard() {
     </div>
   );
 }
+

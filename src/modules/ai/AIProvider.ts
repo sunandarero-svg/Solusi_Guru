@@ -21,3 +21,4 @@ export interface AIProvider {
    */
   assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult>;
 }
+

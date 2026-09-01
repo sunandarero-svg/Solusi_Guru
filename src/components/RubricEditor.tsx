@@ -93,7 +93,7 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
       )}
 
       {isPublished && (
-        <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm mb-6 border border-blue-100">
+        <div className="bg-emerald-50 text-emerald-700 p-3 rounded-lg text-sm mb-6 border border-emerald-100">
           ℹ️ Tugas sudah di-publish. Rubrik ini bersifat read-only untuk menjaga konsistensi penilaian.
         </div>
       )}
@@ -140,7 +140,7 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
                     value={c.maxScore}
                     disabled={isPublished}
                     onChange={e => updateCriterion(idx, "maxScore", parseInt(e.target.value) || 0)}
-                    className="w-full border border-gray-300 rounded-lg p-2 pr-8 text-sm font-bold text-blue-600 bg-white disabled:bg-gray-100 disabled:text-gray-500"
+                    className="w-full border border-gray-300 rounded-lg p-2 pr-8 text-sm font-bold text-emerald-600 bg-white disabled:bg-gray-100 disabled:text-gray-500"
                   />
                   <span className="absolute right-3 top-2 text-sm text-gray-400">Poin</span>
                 </div>
@@ -163,7 +163,7 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
         <div className="flex justify-between items-center border-t border-gray-100 pt-4">
           <button 
             onClick={addCriterion}
-            className="text-blue-600 text-sm font-medium hover:text-blue-800"
+            className="text-emerald-600 text-sm font-medium hover:text-emerald-800"
           >
             + Tambah Kriteria
           </button>
@@ -180,3 +180,4 @@ export default function RubricEditor({ assignmentId, isPublished, initialRubric,
     </div>
   );
 }
+

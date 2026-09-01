@@ -88,10 +88,10 @@ export default async function MyAssignmentsPage({ searchParams }: { searchParams
               <Link 
                 href={`/dashboard/my-assignments/${assignment._id}`} 
                 key={assignment.id}
-                className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:border-blue-200 transition group block"
+                className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:border-emerald-200 transition group block"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <h2 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition">{assignment.title}</h2>
+                  <h2 className="text-lg font-bold text-gray-800 group-hover:text-emerald-600 transition">{assignment.title}</h2>
                   {hasSubmitted ? (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
                       ✅ Dikumpul
@@ -113,7 +113,7 @@ export default async function MyAssignmentsPage({ searchParams }: { searchParams
 
                 <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
                   <div className="flex gap-2">
-                    <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded font-semibold">
+                    <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-semibold">
                       {assignment.subjectId?.name || "Umum"}
                     </span>
                     <span className="bg-slate-50 text-slate-600 px-2 py-1 rounded">
@@ -128,7 +128,7 @@ export default async function MyAssignmentsPage({ searchParams }: { searchParams
                         })}
                       </span>
                     )}
-                    <span className="text-blue-600 group-hover:translate-x-1 transition transform inline-block">→</span>
+                    <span className="text-emerald-600 group-hover:translate-x-1 transition transform inline-block">→</span>
                   </div>
                 </div>
               </Link>
@@ -139,3 +139,4 @@ export default async function MyAssignmentsPage({ searchParams }: { searchParams
     </div>
   );
 }
+

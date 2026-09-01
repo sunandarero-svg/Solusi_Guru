@@ -52,7 +52,7 @@ export default function NavLinks({ role }: NavLinksProps) {
               href={link.href}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 isActive
-                  ? "bg-blue-50 text-blue-700"
+                  ? "bg-emerald-50 text-emerald-700"
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
@@ -64,4 +64,5 @@ export default function NavLinks({ role }: NavLinksProps) {
     </ul>
   );
 }
+
 

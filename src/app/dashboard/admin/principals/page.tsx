@@ -99,7 +99,7 @@ export default function AdminPrincipalsPage() {
       <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/dashboard/admin" className="text-gray-400 hover:text-blue-600 transition-colors">
+            <Link href="/dashboard/admin" className="text-gray-400 hover:text-emerald-600 transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <h1 className="text-2xl font-bold text-gray-800">Manajemen Kepala Sekolah</h1>
@@ -108,7 +108,7 @@ export default function AdminPrincipalsPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
         >
           <UserPlus size={18} />
           {showForm ? "Batal" : "Tambah Akun"}
@@ -137,7 +137,7 @@ export default function AdminPrincipalsPage() {
                 <input
                   type="text"
                   required
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-900"
                   placeholder="Contoh: Budi Santoso, M.Pd"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -148,7 +148,7 @@ export default function AdminPrincipalsPage() {
                 <input
                   type="text"
                   required
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-900"
                   placeholder="Contoh: kepsek@kepsek.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -159,7 +159,7 @@ export default function AdminPrincipalsPage() {
                 <input
                   type="password"
                   required
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-900"
                   placeholder="Minimal 6 karakter"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -170,7 +170,7 @@ export default function AdminPrincipalsPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isSubmitting && <Loader2 size={18} className="animate-spin" />}
                 Buat Akun
@@ -187,7 +187,7 @@ export default function AdminPrincipalsPage() {
         
         {loading ? (
           <div className="p-12 text-center text-gray-500 flex flex-col items-center">
-            <Loader2 className="animate-spin h-8 w-8 text-blue-600 mb-4" />
+            <Loader2 className="animate-spin h-8 w-8 text-emerald-600 mb-4" />
             Memuat data...
           </div>
         ) : principals.length === 0 ? (
@@ -209,7 +209,7 @@ export default function AdminPrincipalsPage() {
                 <tr key={principal._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
                         {principal.fullName.charAt(0)}
                       </div>
                       {principal.fullName}
@@ -236,3 +236,4 @@ export default function AdminPrincipalsPage() {
     </div>
   );
 }
+

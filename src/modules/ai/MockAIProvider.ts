@@ -38,3 +38,4 @@ export class MockAIProvider implements AIProvider {
     };
   }
 }
+

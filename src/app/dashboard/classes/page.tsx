@@ -58,11 +58,11 @@ export default function ClassesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Manajemen Kelas</h1>
-          <p className="text-gray-500 mt-1">Total: <span className="font-semibold text-blue-600">{classes.length} kelas</span></p>
+          <p className="text-gray-500 mt-1">Total: <span className="font-semibold text-emerald-600">{classes.length} kelas</span></p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+          className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition font-medium"
         >
           {showForm ? "✕ Tutup" : "+ Buat Kelas Baru"}
         </button>
@@ -102,7 +102,7 @@ export default function ClassesPage() {
             </div>
             <div className="flex justify-end">
               <button type="submit" disabled={submitting}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50">
+                className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition font-medium disabled:opacity-50">
                 {submitting ? "Menyimpan..." : "Simpan Kelas"}
               </button>
             </div>
@@ -120,17 +120,17 @@ export default function ClassesPage() {
           </div>
         ) : (
           classes.map(c => (
-            <Link href={`/dashboard/classes/${c.id}`} key={c.id} className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition duration-300 block cursor-pointer group">
+            <Link href={`/dashboard/classes/${c.id}`} key={c.id} className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 hover:border-emerald-200 transition duration-300 block cursor-pointer group">
               <div className="flex justify-between items-start">
-                <h2 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{c.name}</h2>
-                <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">➔</span>
+                <h2 className="text-lg font-bold text-gray-800 group-hover:text-emerald-600 transition-colors">{c.name}</h2>
+                <span className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">➔</span>
               </div>
               {c.description && <p className="text-sm text-gray-400 mt-1">{c.description}</p>}
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-sm text-gray-500">
                   👨‍🎓 <span className="font-semibold text-gray-700">{c.enrollments.length}</span> siswa
                 </span>
-                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">
+                <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded">
                   {c.teachers.length > 0 ? c.teachers[0].teacher.fullName : "Tanpa Guru"}
                 </span>
               </div>
@@ -141,3 +141,4 @@ export default function ClassesPage() {
     </div>
   );
 }
+

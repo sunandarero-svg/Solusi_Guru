@@ -93,3 +93,4 @@ export class AIService {
 
 // Instantiate with GeminiProvider
 export const aiService = new AIService(new GeminiProvider());
+

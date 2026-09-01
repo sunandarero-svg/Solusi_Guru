@@ -89,7 +89,7 @@ export default function AdminClassesPage() {
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
+          <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl">
             <BookOpen size={28} />
           </div>
           <div>
@@ -99,7 +99,7 @@ export default function AdminClassesPage() {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-blue-200"
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-emerald-200"
         >
           {showAddForm ? "Batal" : <><Plus size={20} /> Tambah Kelas</>}
         </button>
@@ -129,7 +129,7 @@ export default function AdminClassesPage() {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-slate-900 bg-white"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white"
                 placeholder="Misal: Kelas X IPA 1"
               />
             </div>
@@ -138,7 +138,7 @@ export default function AdminClassesPage() {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-slate-900 bg-white"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white"
                 placeholder="Deskripsi singkat tentang kelas ini..."
                 rows={3}
               />
@@ -146,7 +146,7 @@ export default function AdminClassesPage() {
             <button
               type="submit"
               disabled={addLoading}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {addLoading ? "Menyimpan..." : "Simpan Mata Pelajaran"}
             </button>
@@ -161,7 +161,7 @@ export default function AdminClassesPage() {
           classes.map((cls) => (
             <div key={cls.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-110 group-hover:bg-blue-100 transition-all">
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl group-hover:scale-110 group-hover:bg-emerald-100 transition-all">
                   <BookOpen size={24} />
                 </div>
                 <button
@@ -196,3 +196,4 @@ export default function AdminClassesPage() {
     </div>
   );
 }
+

@@ -42,7 +42,7 @@ export default function StudentQuickScan() {
     <>
       <button 
         onClick={handleOpen}
-        className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-3xl p-6 flex items-center justify-between shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02]"
+        className="w-full mt-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-3xl p-6 flex items-center justify-between shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02]"
       >
         <div className="flex items-center gap-4">
           <div className="bg-white/20 p-4 rounded-2xl">
@@ -50,10 +50,10 @@ export default function StudentQuickScan() {
           </div>
           <div className="text-left">
             <h3 className="text-xl font-bold">Mulai Scan Tugas</h3>
-            <p className="text-blue-100 text-sm">Foto lembar jawaban dan otomatis terkirim</p>
+            <p className="text-emerald-100 text-sm">Foto lembar jawaban dan otomatis terkirim</p>
           </div>
         </div>
-        <div className="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold">
+        <div className="bg-white text-emerald-600 px-6 py-3 rounded-xl font-bold">
           Buka Kamera
         </div>
       </button>
@@ -91,13 +91,13 @@ export default function StudentQuickScan() {
                       className={`w-full text-left p-4 rounded-2xl border transition-colors flex gap-4 items-center group ${
                         a.isSubmitted 
                           ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed' 
-                          : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50'
+                          : 'border-slate-200 hover:border-emerald-500 hover:bg-emerald-50'
                       }`}
                     >
                       <div className={`p-3 rounded-xl transition-colors ${
                         a.isSubmitted 
                           ? 'bg-slate-200 text-slate-500' 
-                          : 'bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'
+                          : 'bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white'
                       }`}>
                         <FileText size={20} />
                       </div>
@@ -118,3 +118,4 @@ export default function StudentQuickScan() {
     </>
   );
 }
+

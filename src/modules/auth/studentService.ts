@@ -124,3 +124,4 @@ export async function deleteStudent(studentId: string) {
   await StudentProfile.findByIdAndDelete(studentId);
   return true;
 }
+
