@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, User, Loader2, ArrowLeft } from "lucide-react";
+import { UserPlus, User, Loader2, ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 interface Principal {
@@ -72,6 +72,25 @@ export default function AdminPrincipalsPage() {
       setError("Terjadi kesalahan jaringan");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus akun kepala sekolah ini?")) return;
+
+    try {
+      const res = await fetch(`/api/admin/principals/${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setPrincipals(principals.filter((p) => p._id !== id));
+      } else {
+        const data = await res.json();
+        alert(data.error || "Gagal menghapus akun");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan jaringan");
     }
   };
 
@@ -182,6 +201,7 @@ export default function AdminPrincipalsPage() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Lengkap</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email / Username</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -197,6 +217,15 @@ export default function AdminPrincipalsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {principal.userId?.email || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                    <button
+                      onClick={() => handleDelete(principal._id)}
+                      className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Hapus Akun"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </td>
                 </tr>
               ))}
