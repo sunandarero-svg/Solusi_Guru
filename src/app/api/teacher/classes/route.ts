@@ -41,10 +41,14 @@ export async function GET() {
       }
 
       if (tc.subjectId) {
-        classesMap.get(classId).subjects.push({
-          id: tc.subjectId._id.toString(),
-          name: tc.subjectId.name,
-        });
+        const subjects = classesMap.get(classId).subjects;
+        const subjectIdStr = tc.subjectId._id.toString();
+        if (!subjects.some((s: any) => s.id === subjectIdStr)) {
+          subjects.push({
+            id: subjectIdStr,
+            name: tc.subjectId.name,
+          });
+        }
       }
     });
 

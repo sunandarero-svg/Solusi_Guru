@@ -85,7 +85,7 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">DRAFT</span>
               )}
             </div>
-            <p className="text-sm text-gray-500">Kelas: <span className="font-semibold text-gray-700">{assignment.class.name}</span></p>
+            <p className="text-sm text-gray-500">Kelas: <span className="font-semibold text-gray-700">{assignment.class?.name || "Kelas Tidak Ditemukan"}</span></p>
           </div>
 
           {isPublished ? (

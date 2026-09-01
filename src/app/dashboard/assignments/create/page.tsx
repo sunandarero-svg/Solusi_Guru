@@ -48,13 +48,13 @@ export default function CreateAssignmentPage() {
       
       // Auto select if only 1 subject
       if (selectedClass.subjects.length === 1) {
-        setForm({...form, classId: selectedClassId, subjectId: selectedClass.subjects[0].id});
+        setForm(prev => ({...prev, classId: selectedClassId, subjectId: selectedClass.subjects[0].id}));
       } else {
-        setForm({...form, classId: selectedClassId, subjectId: ""});
+        setForm(prev => ({...prev, classId: selectedClassId, subjectId: ""}));
       }
     } else {
       setAvailableSubjects([]);
-      setForm({...form, classId: selectedClassId, subjectId: ""});
+      setForm(prev => ({...prev, classId: selectedClassId, subjectId: ""}));
     }
   };
 
@@ -105,7 +105,7 @@ export default function CreateAssignmentPage() {
               className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
               placeholder="Contoh: Esai Sejarah Kemerdekaan"
               value={form.title}
-              onChange={e => setForm({...form, title: e.target.value})}
+              onChange={e => setForm(prev => ({...prev, title: e.target.value}))}
             />
           </div>
 
@@ -131,7 +131,7 @@ export default function CreateAssignmentPage() {
                 required
                 className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
                 value={form.subjectId}
-                onChange={e => setForm({...form, subjectId: e.target.value})}
+                onChange={e => setForm(prev => ({...prev, subjectId: e.target.value}))}
                 disabled={!form.classId || availableSubjects.length === 0}
               >
                 <option value="">-- Pilih Mata Pelajaran --</option>
@@ -148,7 +148,7 @@ export default function CreateAssignmentPage() {
               className="w-full border border-gray-300 rounded-lg p-2.5 text-sm h-20 text-gray-900 bg-white"
               placeholder="Deskripsi singkat mengenai tujuan tugas ini..."
               value={form.description}
-              onChange={e => setForm({...form, description: e.target.value})}
+              onChange={e => setForm(prev => ({...prev, description: e.target.value}))}
             />
           </div>
 
@@ -158,7 +158,7 @@ export default function CreateAssignmentPage() {
               className="w-full border border-gray-300 rounded-lg p-2.5 text-sm h-32 text-gray-900 bg-white"
               placeholder="Instruksi pengerjaan untuk siswa. Contoh: Gunakan kertas folio bergaris, tulis nama di pojok kanan atas..."
               value={form.instructions}
-              onChange={e => setForm({...form, instructions: e.target.value})}
+              onChange={e => setForm(prev => ({...prev, instructions: e.target.value}))}
             />
           </div>
 
@@ -169,7 +169,7 @@ export default function CreateAssignmentPage() {
                 type="date" 
                 className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
                 value={form.deadline}
-                onChange={e => setForm({...form, deadline: e.target.value})}
+                onChange={e => setForm(prev => ({...prev, deadline: e.target.value}))}
               />
             </div>
             <div>
@@ -181,7 +181,7 @@ export default function CreateAssignmentPage() {
                 value={form.maxPages === 0 ? "" : form.maxPages}
                 onChange={e => {
                   const val = e.target.value;
-                  setForm({...form, maxPages: val === "" ? 0 : parseInt(val)});
+                  setForm(prev => ({...prev, maxPages: val === "" ? 0 : parseInt(val)}));
                 }}
               />
               <p className="text-xs text-gray-400 mt-1">Default: 5 halaman (opsional)</p>
