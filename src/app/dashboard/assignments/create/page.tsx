@@ -96,6 +96,13 @@ export default function CreateAssignmentPage() {
           </div>
         )}
 
+        {classes.length === 0 && !loading && (
+          <div className="bg-yellow-50 text-yellow-800 p-4 rounded-lg text-sm mb-6 border border-yellow-200">
+            <strong>⚠️ Anda belum ditautkan ke kelas mana pun!</strong><br />
+            Silakan minta Admin untuk menautkan Anda ke kelas dan mata pelajaran melalui menu <strong>Tautkan Guru</strong> di Dashboard Admin.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Judul Tugas *</label>
