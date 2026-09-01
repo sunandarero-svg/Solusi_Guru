@@ -65,6 +65,40 @@ export async function GET() {
       });
     }
 
+    // Seed Data Kelas, Mata Pelajaran, dan Mapping Guru untuk Testing
+    const { Class, Enrollment, TeacherClass } = await import("@/models/Class");
+    const { Subject } = await import("@/models/Subject");
+
+    let cls = await Class.findOne({ name: "Kelas X-A" });
+    if (!cls) {
+      cls = await Class.create({ name: "Kelas X-A", description: "Kelas Unggulan" });
+    }
+
+    let sub = await Subject.findOne({ name: "Matematika" });
+    if (!sub) {
+      sub = await Subject.create({ name: "Matematika", description: "Pelajaran Wajib" });
+    }
+
+    const guruUser = await User.findOne({ email: "guru@guru.com" });
+    const teacherProfile = await TeacherProfile.findOne({ userId: guruUser?._id });
+    
+    if (teacherProfile && cls && sub) {
+      const tc = await TeacherClass.findOne({ teacherId: teacherProfile._id, classId: cls._id, subjectId: sub._id });
+      if (!tc) {
+        await TeacherClass.create({ teacherId: teacherProfile._id, classId: cls._id, subjectId: sub._id });
+      }
+    }
+
+    const siswaUser = await User.findOne({ email: "siswa@siswa.com" });
+    const studentProfile = await StudentProfile.findOne({ userId: siswaUser?._id });
+
+    if (studentProfile && cls) {
+      const enr = await Enrollment.findOne({ studentId: studentProfile._id, classId: cls._id });
+      if (!enr) {
+        await Enrollment.create({ studentId: studentProfile._id, classId: cls._id });
+      }
+    }
+
     return NextResponse.json({
       message: "Seeding successful",
       accounts: {
