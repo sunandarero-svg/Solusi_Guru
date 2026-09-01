@@ -90,7 +90,7 @@ export default function AssignmentsPage() {
                   <td className="px-6 py-4 font-medium text-gray-800">{a.title}</td>
                   <td className="px-6 py-4 text-gray-600">
                     <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs">
-                      {a.class.name}
+                      {a.class?.name || "Kelas Tidak Ditemukan"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-gray-500">
@@ -105,7 +105,7 @@ export default function AssignmentsPage() {
                       <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">{a.status}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-gray-600 font-medium">{a._count.submissions}</td>
+                  <td className="px-6 py-4 text-gray-600 font-medium">{a._count?.submissions || 0}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-2">
                       <Link href={`/dashboard/assignments/${a.id}`} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-2">
