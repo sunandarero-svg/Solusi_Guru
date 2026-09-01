@@ -21,7 +21,7 @@ interface Submission {
   updatedAt: string;
 }
 
-export default function SubmissionsTable({ assignmentId }: { assignmentId: string }) {
+export default function SubmissionsTable({ assignmentId, assignmentClassName }: { assignmentId: string, assignmentClassName?: string }) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -163,6 +163,7 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                 />
               </th>
               <th className="px-6 py-4 font-semibold text-slate-700">Siswa</th>
+              <th className="px-6 py-4 font-semibold text-slate-700">Kelas</th>
               <th className="px-6 py-4 font-semibold text-slate-700">Status</th>
               <th className="px-6 py-4 font-semibold text-slate-700">Rekomendasi AI</th>
               <th className="px-6 py-4 font-semibold text-slate-700">Nilai Akhir</th>
@@ -190,6 +191,9 @@ export default function SubmissionsTable({ assignmentId }: { assignmentId: strin
                   <td className="px-6 py-4">
                     <div className="font-semibold text-slate-800">{sub.student.fullName}</div>
                     <div className="text-xs text-slate-500 font-mono mt-1">{sub.student.studentNumber}</div>
+                  </td>
+                  <td className="px-6 py-4 text-slate-600 font-medium">
+                    {assignmentClassName || "-"}
                   </td>
                   <td className="px-6 py-4">
                     {sub.status === "NEEDS_TEACHER_REVIEW" && <span className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold">Perlu Diulas</span>}

@@ -141,7 +141,7 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
       <RubricEditor assignmentId={assignment.id} isPublished={isPublished} initialRubric={assignment.rubrics && assignment.rubrics[0]} onSaved={fetchAssignment} />
 
       {isPublished && (
-        <SubmissionsTable assignmentId={assignment.id} />
+        <SubmissionsTable assignmentId={assignment.id} assignmentClassName={assignment.class?.name || "-"} />
       )}
     </div>
   );
