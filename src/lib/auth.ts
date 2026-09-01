@@ -20,7 +20,10 @@ export const authOptions: NextAuthOptions = {
         
         let identifier = credentials.email;
         if (!identifier.includes('@')) {
-          identifier = `${identifier}@siswa.com`;
+          if (identifier.toLowerCase() === 'admin') identifier = 'admin@admin.com';
+          else if (identifier.toLowerCase() === 'guru') identifier = 'guru@guru.com';
+          else if (identifier.toLowerCase() === 'kepsek') identifier = 'kepsek@kepsek.com';
+          else identifier = `${identifier}@siswa.com`;
         }
 
         const user = await User.findOne({ email: identifier });

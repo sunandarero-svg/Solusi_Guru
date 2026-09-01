@@ -8,6 +8,7 @@ interface Assignment {
   id: string;
   title: string;
   dueDate: string;
+  isSubmitted?: boolean;
 }
 
 export default function StudentQuickScan() {
@@ -32,7 +33,8 @@ export default function StudentQuickScan() {
     }
   };
 
-  const handleSelect = (id: string) => {
+  const handleSelect = (id: string, isSubmitted?: boolean) => {
+    if (isSubmitted) return;
     router.push(`/dashboard/my-assignments/${id}/scan`);
   };
 
@@ -84,15 +86,26 @@ export default function StudentQuickScan() {
                   {assignments.map(a => (
                     <button
                       key={a.id}
-                      onClick={() => handleSelect(a.id)}
-                      className="w-full text-left p-4 rounded-2xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-colors flex gap-4 items-center group"
+                      onClick={() => handleSelect(a.id, a.isSubmitted)}
+                      disabled={a.isSubmitted}
+                      className={`w-full text-left p-4 rounded-2xl border transition-colors flex gap-4 items-center group ${
+                        a.isSubmitted 
+                          ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed' 
+                          : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50'
+                      }`}
                     >
-                      <div className="bg-blue-100 text-blue-600 p-3 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                      <div className={`p-3 rounded-xl transition-colors ${
+                        a.isSubmitted 
+                          ? 'bg-slate-200 text-slate-500' 
+                          : 'bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'
+                      }`}>
                         <FileText size={20} />
                       </div>
                       <div>
                         <h4 className="font-bold text-slate-800">{a.title}</h4>
-                        <p className="text-xs text-slate-500">Tenggat: {new Date(a.dueDate).toLocaleDateString('id-ID')}</p>
+                        <p className="text-xs text-slate-500">
+                          {a.isSubmitted ? 'Sudah Dikumpulkan' : `Tenggat: ${new Date(a.dueDate).toLocaleDateString('id-ID')}`}
+                        </p>
                       </div>
                     </button>
                   ))}

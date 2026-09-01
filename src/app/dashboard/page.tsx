@@ -20,6 +20,9 @@ export default async function DashboardPage() {
   if (role === "ADMIN") {
     redirect("/dashboard/admin");
   }
+  if (role === "PRINCIPAL") {
+    redirect("/dashboard/principal");
+  }
 
   let stats = { assignments: 0, submissions: 0, students: 0 };
 

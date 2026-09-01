@@ -6,6 +6,7 @@ import User from "@/models/User";
 import { StudentProfile } from "@/models/Profile";
 import { Enrollment } from "@/models/Class";
 import { Assignment, AssignmentStatus } from "@/models/Assignment";
+import { Submission } from "@/models/Submission";
 
 export async function GET(req: Request) {
   try {
@@ -32,12 +33,23 @@ export async function GET(req: Request) {
     .sort({ dueDate: 1 })
     .lean();
 
-    // Map to string IDs
-    const formatted = activeAssignments.map(a => ({
-      id: a._id.toString(),
-      title: a.title,
-      dueDate: a.dueDate,
-    }));
+    // Fetch submissions for these assignments to check if already submitted
+    const assignmentIds = activeAssignments.map(a => a._id);
+    const submissions = await Submission.find({
+      studentId: studentProfile._id,
+      assignmentId: { $in: assignmentIds }
+    }).lean();
+
+    // Map to string IDs and add isSubmitted flag
+    const formatted = activeAssignments.map(a => {
+      const isSubmitted = submissions.some(s => s.assignmentId.toString() === a._id.toString());
+      return {
+        id: a._id.toString(),
+        title: a.title,
+        dueDate: a.dueDate,
+        isSubmitted,
+      };
+    });
 
     return NextResponse.json(formatted);
   } catch (error: any) {
