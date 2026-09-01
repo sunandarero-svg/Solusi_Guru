@@ -31,22 +31,28 @@ export async function GET() {
     teacherClasses.forEach((tc: any) => {
       if (!tc.classId) return;
 
-      const classId = tc.classId._id.toString();
-      if (!classesMap.has(classId)) {
-        classesMap.set(classId, {
-          id: tc.classId._id.toString(),
-          name: tc.classId.name,
+      const classIdObj = tc.classId._id || tc.classId;
+      const classIdStr = classIdObj.toString();
+      const className = tc.classId.name || "Kelas Tidak Diketahui";
+
+      if (!classesMap.has(classIdStr)) {
+        classesMap.set(classIdStr, {
+          id: classIdStr,
+          name: className,
           subjects: []
         });
       }
 
       if (tc.subjectId) {
-        const subjects = classesMap.get(classId).subjects;
-        const subjectIdStr = tc.subjectId._id.toString();
+        const subjects = classesMap.get(classIdStr).subjects;
+        const subjectIdObj = tc.subjectId._id || tc.subjectId;
+        const subjectIdStr = subjectIdObj.toString();
+        const subjectName = tc.subjectId.name || "Mata Pelajaran Tidak Diketahui";
+
         if (!subjects.some((s: any) => s.id === subjectIdStr)) {
           subjects.push({
             id: subjectIdStr,
-            name: tc.subjectId.name,
+            name: subjectName,
           });
         }
       }
