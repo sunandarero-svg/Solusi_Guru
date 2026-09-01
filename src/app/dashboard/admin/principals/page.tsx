@@ -118,7 +118,7 @@ export default function AdminPrincipalsPage() {
                 <input
                   type="text"
                   required
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                   placeholder="Contoh: Budi Santoso, M.Pd"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -129,7 +129,7 @@ export default function AdminPrincipalsPage() {
                 <input
                   type="text"
                   required
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                   placeholder="Contoh: kepsek@kepsek.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -140,7 +140,7 @@ export default function AdminPrincipalsPage() {
                 <input
                   type="password"
                   required
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                   placeholder="Minimal 6 karakter"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
