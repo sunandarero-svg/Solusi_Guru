@@ -5,9 +5,13 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 function getGroqModels(): string[] {
   const custom = process.env.GROQ_MODEL?.trim();
   const defaults = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
     "llama-3.2-11b-vision-instruct",
     "llama-3.2-90b-vision-instruct",
-    "llava-v1.5-7b-cloud",
+    "llama3-70b-8192",
+    "llama3-8b-8192",
+    "mixtral-8x7b-32768",
   ];
   return custom ? [custom, ...defaults] : defaults;
 }
@@ -15,10 +19,12 @@ function getGroqModels(): string[] {
 function getGeminiModels(): string[] {
   const custom = process.env.GEMINI_MODEL?.trim();
   const defaults = [
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
     "gemini-1.5-pro",
+    "gemini-flash",
+    "gemini-pro",
   ];
   return custom ? [custom, ...defaults] : defaults;
 }
@@ -89,13 +95,23 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
 
   // 2. Fallback to Gemini Secondary
   console.log("[Verify] Groq unavailable/failed. Falling back to Gemini...");
-  const geminiKeys = parseKeys(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
-  if (geminiKeys.length === 0) {
+  const rawGeminiKeys = parseKeys(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
+  const geminiKeys = rawGeminiKeys.filter(k => {
+    if (k.startsWith("AQ.")) {
+      console.warn("[Verify-Gemini] WARNING: Key starting with 'AQ.' is an invalid OAuth token. Real API keys start with 'AIza...'.");
+      return false;
+    }
+    return true;
+  });
+
+  const activeGeminiKeys = geminiKeys.length > 0 ? geminiKeys : rawGeminiKeys;
+
+  if (activeGeminiKeys.length === 0) {
     throw new Error("No valid Groq or Gemini API keys configured.");
   }
 
   const geminiModels = getGeminiModels();
-  const shuffledGeminiKeys = [...geminiKeys].sort(() => Math.random() - 0.5);
+  const shuffledGeminiKeys = [...activeGeminiKeys].sort(() => Math.random() - 0.5);
   let lastError: any = null;
 
   for (const apiKey of shuffledGeminiKeys) {
@@ -131,15 +147,18 @@ async function runGroqVerify(
   prompt: string,
   imageBuffers: { buffer: Buffer; mimeType: string }[]
 ): Promise<VerifyResult> {
+  const isVisionModel = modelName.includes("vision") || modelName.includes("llava");
   const contentParts: any[] = [{ type: "text", text: prompt }];
 
   for (const img of imageBuffers) {
-    contentParts.push({
-      type: "image_url",
-      image_url: {
-        url: `data:${img.mimeType};base64,${img.buffer.toString("base64")}`,
-      },
-    });
+    if (isVisionModel) {
+      contentParts.push({
+        type: "image_url",
+        image_url: {
+          url: `data:${img.mimeType};base64,${img.buffer.toString("base64")}`,
+        },
+      });
+    }
   }
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -150,7 +169,12 @@ async function runGroqVerify(
     },
     body: JSON.stringify({
       model: modelName,
-      messages: [{ role: "user", content: contentParts }],
+      messages: [
+        {
+          role: "user",
+          content: isVisionModel ? contentParts : prompt,
+        },
+      ],
       temperature: 0.2,
       response_format: { type: "json_object" },
     }),

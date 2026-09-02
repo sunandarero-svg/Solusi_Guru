@@ -6,10 +6,12 @@ import path from "path";
 function getGeminiModels(): string[] {
   const custom = process.env.GEMINI_MODEL?.trim();
   const defaults = [
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
     "gemini-1.5-pro",
+    "gemini-flash",
+    "gemini-pro",
   ];
   return custom ? [custom, ...defaults] : defaults;
 }
@@ -26,12 +28,22 @@ export class GeminiProvider implements AIProvider {
         .map((k) => k.replace(/['"` ]/g, "").trim())
         .filter((k) => k.length > 10);
 
-      console.log(`[Gemini] Found ${keys.length} API keys`);
+      // Warn if OAuth tokens detected
+      const validKeys = keys.filter(k => {
+        if (k.startsWith("AQ.")) {
+          console.warn("[Gemini] WARNING: Key starting with 'AQ.' is an invalid OAuth token. Real API keys start with 'AIza...'.");
+          return false;
+        }
+        return true;
+      });
 
-      if (keys.length > 0) {
-        const selectedIndex = Math.floor(Math.random() * keys.length);
-        console.log(`[Gemini] Using key index: ${selectedIndex}`);
-        return keys[selectedIndex];
+      const activeKeys = validKeys.length > 0 ? validKeys : keys;
+      console.log(`[Gemini] Found ${activeKeys.length} usable API keys`);
+
+      if (activeKeys.length > 0) {
+        const selectedIndex = Math.floor(Math.random() * activeKeys.length);
+        console.log(`[Gemini] Using key index: ${selectedIndex} (prefix ${activeKeys[selectedIndex].substring(0, 6)}...)`);
+        return activeKeys[selectedIndex];
       }
     }
     throw new Error("GEMINI_API_KEY is not configured.");
@@ -51,10 +63,6 @@ export class GeminiProvider implements AIProvider {
         lastError = error;
         const errorMsg = error?.message || String(error);
         console.warn(`[Gemini] Model ${modelName} failed:`, errorMsg);
-        if (errorMsg.includes("not found") || errorMsg.includes("not supported") || errorMsg.includes("404")) {
-          continue;
-        }
-        // If it's a model error, continue to try next model
         continue;
       }
     }

@@ -5,9 +5,13 @@ import path from "path";
 function getGroqModels(): string[] {
   const custom = process.env.GROQ_MODEL?.trim();
   const defaults = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
     "llama-3.2-11b-vision-instruct",
     "llama-3.2-90b-vision-instruct",
-    "llava-v1.5-7b-cloud",
+    "llama3-70b-8192",
+    "llama3-8b-8192",
+    "mixtral-8x7b-32768",
   ];
   return custom ? [custom, ...defaults] : defaults;
 }
@@ -57,8 +61,6 @@ export class GroqProvider implements AIProvider {
     pages: any[],
     rubrics: any[]
   ): Promise<AIAssessmentResult> {
-    const contentParts: any[] = [];
-
     const firstRubric = rubrics[0];
     let rubricInstruction = "";
     if (firstRubric && firstRubric.criteria) {
@@ -92,7 +94,8 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
   ]
 }`;
 
-    contentParts.push({ type: "text", text: promptText });
+    const isVisionModel = modelName.includes("vision") || modelName.includes("llava");
+    const contentParts: any[] = [{ type: "text", text: promptText }];
 
     for (const page of pages) {
       let buffer: Buffer;
@@ -108,12 +111,14 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       const mimeType = page.mimeType || "image/jpeg";
       const base64Data = buffer.toString("base64");
 
-      contentParts.push({
-        type: "image_url",
-        image_url: {
-          url: `data:${mimeType};base64,${base64Data}`,
-        },
-      });
+      if (isVisionModel) {
+        contentParts.push({
+          type: "image_url",
+          image_url: {
+            url: `data:${mimeType};base64,${base64Data}`,
+          },
+        });
+      }
     }
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -127,7 +132,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
         messages: [
           {
             role: "user",
-            content: contentParts,
+            content: isVisionModel ? contentParts : promptText,
           },
         ],
         temperature: 0.2,
