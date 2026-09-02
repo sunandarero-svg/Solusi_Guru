@@ -133,7 +133,6 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
   ]
 }`;
 
-    const isVisionModel = modelName.includes("vision") || modelName.includes("llava") || modelName.includes("pixtral");
     const contentParts: any[] = [{ type: "text", text: promptText }];
 
     for (const page of pages) {
@@ -150,14 +149,12 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       const mimeType = page.mimeType || "image/jpeg";
       const base64Data = buffer.toString("base64");
 
-      if (isVisionModel) {
-        contentParts.push({
-          type: "image_url",
-          image_url: {
-            url: `data:${mimeType};base64,${base64Data}`,
-          },
-        });
-      }
+      contentParts.push({
+        type: "image_url",
+        image_url: {
+          url: `data:${mimeType};base64,${base64Data}`,
+        },
+      });
     }
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -171,7 +168,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
         messages: [
           {
             role: "user",
-            content: isVisionModel ? contentParts : promptText,
+            content: contentParts,
           },
         ],
         temperature: 0.2,

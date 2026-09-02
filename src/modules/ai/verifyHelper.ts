@@ -130,20 +130,15 @@ async function runGroqVerify(
   prompt: string,
   imageBuffers: { buffer: Buffer; mimeType: string }[]
 ): Promise<VerifyResult> {
-  // If model doesn't support vision but we have images, Groq will throw an error if we send image_url.
-  // We can try to send it anyway if it is a vision model. For non-vision models, we only send text.
-  const isVisionModel = modelName.includes("vision") || modelName.includes("llava") || modelName.includes("pixtral");
   const contentParts: any[] = [{ type: "text", text: prompt }];
 
   for (const img of imageBuffers) {
-    if (isVisionModel) {
-      contentParts.push({
-        type: "image_url",
-        image_url: {
-          url: `data:${img.mimeType};base64,${img.buffer.toString("base64")}`,
-        },
-      });
-    }
+    contentParts.push({
+      type: "image_url",
+      image_url: {
+        url: `data:${img.mimeType};base64,${img.buffer.toString("base64")}`,
+      },
+    });
   }
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -157,7 +152,7 @@ async function runGroqVerify(
       messages: [
         {
           role: "user",
-          content: isVisionModel ? contentParts : prompt,
+          content: contentParts,
         },
       ],
       temperature: 0.2,
