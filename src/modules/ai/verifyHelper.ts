@@ -2,16 +2,26 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GROQ_MODELS = [
-  "llama-3.2-11b-vision-preview",
-  "llama-3.2-90b-vision-preview",
-];
+function getGroqModels(): string[] {
+  const custom = process.env.GROQ_MODEL?.trim();
+  const defaults = [
+    "llama-3.2-11b-vision-instruct",
+    "llama-3.2-90b-vision-instruct",
+    "llava-v1.5-7b-cloud",
+  ];
+  return custom ? [custom, ...defaults] : defaults;
+}
 
-const GEMINI_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
-];
+function getGeminiModels(): string[] {
+  const custom = process.env.GEMINI_MODEL?.trim();
+  const defaults = [
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
+  ];
+  return custom ? [custom, ...defaults] : defaults;
+}
 
 export interface VerifyResult {
   feasible: boolean;
@@ -19,9 +29,6 @@ export interface VerifyResult {
   reason: string;
 }
 
-/**
-  * Clean and parse comma-separated or single API key string
-  */
 function parseKeys(envValue?: string): string[] {
   if (!envValue) return [];
   return envValue
@@ -31,9 +38,6 @@ function parseKeys(envValue?: string): string[] {
     .filter((k) => k.length > 5);
 }
 
-/**
- * Verify page readability using Groq primary (5 keys) and Gemini fallback (1 key)
- */
 export async function verifyPageReadability(pages: any[]): Promise<VerifyResult> {
   const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Anda menerima ${pages.length} halaman foto sekaligus. Tugas Anda:
 1. Pastikan Anda membaca SELURUH teks di setiap halaman dari awal hingga akhir.
@@ -46,7 +50,6 @@ export async function verifyPageReadability(pages: any[]): Promise<VerifyResult>
 WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
 {"feasible": true/false, "readabilityScore": 0-100, "reason": "alasan spesifik"}`;
 
-  // Prepare images buffer and mimeTypes
   const imageBuffers: { buffer: Buffer; mimeType: string }[] = [];
   for (const page of pages) {
     let buffer: Buffer;
@@ -64,12 +67,14 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     });
   }
 
-  // 1. Try Groq Primary (up to 5 keys)
+  // 1. Try Groq Primary
   const groqKeys = parseKeys(process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY);
+  const groqModels = getGroqModels();
+
   if (groqKeys.length > 0) {
     const shuffledGroqKeys = [...groqKeys].sort(() => Math.random() - 0.5);
     for (const apiKey of shuffledGroqKeys) {
-      for (const modelName of GROQ_MODELS) {
+      for (const modelName of groqModels) {
         try {
           console.log(`[Verify-Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}...`);
           const result = await runGroqVerify(apiKey, modelName, prompt, imageBuffers);
@@ -86,40 +91,38 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
   console.log("[Verify] Groq unavailable/failed. Falling back to Gemini...");
   const geminiKeys = parseKeys(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
   if (geminiKeys.length === 0) {
-    throw new Error("No Groq or Gemini API keys configured.");
+    throw new Error("No valid Groq or Gemini API keys configured.");
   }
 
-  const selectedGeminiKey = geminiKeys[Math.floor(Math.random() * geminiKeys.length)];
-  const genAI = new GoogleGenerativeAI(selectedGeminiKey);
-
+  const geminiModels = getGeminiModels();
+  const shuffledGeminiKeys = [...geminiKeys].sort(() => Math.random() - 0.5);
   let lastError: any = null;
-  for (const modelName of GEMINI_MODELS) {
-    try {
-      console.log(`[Verify-Gemini] Trying model ${modelName}...`);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const imageParts = imageBuffers.map((img) => ({
-        inlineData: {
-          data: img.buffer.toString("base64"),
-          mimeType: img.mimeType,
-        },
-      }));
-      const result = await model.generateContent([prompt, ...imageParts]);
-      const text = result.response.text();
-      const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-      console.log(`[Verify-Gemini] Success with model: ${modelName}`);
-      return JSON.parse(cleanText) as VerifyResult;
-    } catch (err: any) {
-      lastError = err;
-      const errorMsg = err?.message || String(err);
-      if (errorMsg.includes("not found") || errorMsg.includes("not supported") || errorMsg.includes("404")) {
-        console.warn(`[Verify-Gemini] Model ${modelName} not available, trying next...`);
-        continue;
+
+  for (const apiKey of shuffledGeminiKeys) {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    for (const modelName of geminiModels) {
+      try {
+        console.log(`[Verify-Gemini] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}...`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const imageParts = imageBuffers.map((img) => ({
+          inlineData: {
+            data: img.buffer.toString("base64"),
+            mimeType: img.mimeType,
+          },
+        }));
+        const result = await model.generateContent([prompt, ...imageParts]);
+        const text = result.response.text();
+        const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+        console.log(`[Verify-Gemini] Success with model: ${modelName}`);
+        return JSON.parse(cleanText) as VerifyResult;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[Verify-Gemini] Model ${modelName} failed:`, err?.message || err);
       }
-      throw err;
     }
   }
 
-  throw lastError || new Error("All AI verification providers failed.");
+  throw lastError || new Error("All AI verification providers (Groq & Gemini) failed.");
 }
 
 async function runGroqVerify(

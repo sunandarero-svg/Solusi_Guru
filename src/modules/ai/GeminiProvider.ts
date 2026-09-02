@@ -3,11 +3,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { readFile } from "fs/promises";
 import path from "path";
 
-const GEMINI_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
-];
+function getGeminiModels(): string[] {
+  const custom = process.env.GEMINI_MODEL?.trim();
+  const defaults = [
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
+  ];
+  return custom ? [custom, ...defaults] : defaults;
+}
 
 export class GeminiProvider implements AIProvider {
   readonly providerName = "Gemini-Flash";
@@ -35,20 +40,22 @@ export class GeminiProvider implements AIProvider {
   async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
     const apiKey = this.getRandomKey();
     const genAI = new GoogleGenerativeAI(apiKey);
+    const geminiModels = getGeminiModels();
 
     let lastError: any = null;
-    for (const modelName of GEMINI_MODELS) {
+    for (const modelName of geminiModels) {
       try {
         const result = await this._doAssessment(genAI, modelName, pages, rubrics);
         return result;
       } catch (error: any) {
         lastError = error;
         const errorMsg = error?.message || String(error);
+        console.warn(`[Gemini] Model ${modelName} failed:`, errorMsg);
         if (errorMsg.includes("not found") || errorMsg.includes("not supported") || errorMsg.includes("404")) {
-          console.warn(`[Gemini] Model ${modelName} not available, trying next...`);
           continue;
         }
-        throw error;
+        // If it's a model error, continue to try next model
+        continue;
       }
     }
     throw lastError || new Error("No Gemini model available");

@@ -2,10 +2,15 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
 
-const GROQ_MODELS = [
-  "llama-3.2-11b-vision-preview",
-  "llama-3.2-90b-vision-preview",
-];
+function getGroqModels(): string[] {
+  const custom = process.env.GROQ_MODEL?.trim();
+  const defaults = [
+    "llama-3.2-11b-vision-instruct",
+    "llama-3.2-90b-vision-instruct",
+    "llava-v1.5-7b-cloud",
+  ];
+  return custom ? [custom, ...defaults] : defaults;
+}
 
 export class GroqProvider implements AIProvider {
   readonly providerName = "Groq-Vision";
@@ -26,12 +31,12 @@ export class GroqProvider implements AIProvider {
       throw new Error("GROQ_API_KEY / GROQ_API_KEYS is not configured.");
     }
 
-    // Shuffle keys for load balancing across available Groq keys
+    const groqModels = getGroqModels();
     const shuffledKeys = [...keys].sort(() => Math.random() - 0.5);
     let lastError: any = null;
 
     for (const apiKey of shuffledKeys) {
-      for (const modelName of GROQ_MODELS) {
+      for (const modelName of groqModels) {
         try {
           console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}...`);
           const result = await this._doAssessment(apiKey, modelName, pages, rubrics);
