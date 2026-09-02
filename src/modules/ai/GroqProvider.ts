@@ -5,21 +5,34 @@ import path from "path";
 // Global counter for round-robin
 let currentKeyIndex = 0;
 
-function getGroqModels(): string[] {
-  const custom = process.env.GROQ_MODEL?.trim();
-  const defaults = [
-    "llama-3.2-11b-vision-preview",
-    "llama-3.2-90b-vision-preview",
-    "llama-3.2-11b-vision-instruct",
-    "llama-3.2-90b-vision-instruct",
-    "llava-v1.5-7b-4096-preview",
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "llama3-70b-8192",
-    "llama3-8b-8192",
-    "mixtral-8x7b-32768",
-  ];
-  return custom ? [custom, ...defaults] : defaults;
+// Cache for dynamically fetched models per API key
+const modelCache: Record<string, string[]> = {};
+
+async function getDynamicModels(apiKey: string): Promise<string[]> {
+  if (modelCache[apiKey]) {
+    return modelCache[apiKey];
+  }
+  
+  const res = await fetch("https://api.groq.com/openai/v1/models", {
+    headers: { Authorization: `Bearer ${apiKey}` }
+  });
+  
+  if (!res.ok) {
+    console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
+    return [
+      "llama-4-scout-17b-16e-instruct",
+      "llama-4-maverick-17b-128e-instruct",
+      "llama-3.2-11b-vision-instruct",
+      "llama-3.2-90b-vision-instruct",
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant"
+    ]; // Ultimate fallback defaults if fetch fails
+  }
+  
+  const data = await res.json();
+  const availableModels = data.data.map((m: any) => m.id);
+  modelCache[apiKey] = availableModels;
+  return availableModels;
 }
 
 export class GroqProvider implements AIProvider {
@@ -41,17 +54,29 @@ export class GroqProvider implements AIProvider {
       throw new Error("GROQ_API_KEY / GROQ_API_KEYS is not configured.");
     }
 
-    const groqModels = getGroqModels();
-    
     // Select key using round robin
     const apiKey = keys[currentKeyIndex % keys.length];
     const usedIndex = currentKeyIndex % keys.length;
     // Increment and wrap around to prevent overflow
     currentKeyIndex = (currentKeyIndex + 1) % keys.length;
     
+    const availableModels = await getDynamicModels(apiKey);
+    
+    // Sort models: Vision models first, then general Llama models
+    const visionModels = availableModels.filter(m => m.toLowerCase().includes("vision") || m.toLowerCase().includes("llava") || m.toLowerCase().includes("pixtral"));
+    const textModels = availableModels.filter(m => !visionModels.includes(m));
+    
+    // Add env custom model to front if provided and valid
+    const customModel = process.env.GROQ_MODEL?.trim();
+    let modelsToTry = [...visionModels, ...textModels];
+    
+    if (customModel) {
+      modelsToTry = [customModel, ...modelsToTry];
+    }
+    
     let lastError: any = null;
 
-    for (const modelName of groqModels) {
+    for (const modelName of modelsToTry) {
       try {
         console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${keys.length})`);
         const result = await this._doAssessment(apiKey, modelName, pages, rubrics);
@@ -59,10 +84,14 @@ export class GroqProvider implements AIProvider {
       } catch (error: any) {
         lastError = error;
         console.warn(`[Groq] Error with model ${modelName}:`, error?.message || error);
+        // Clear cache so it fetches fresh models list next time if there's permission error
+        if (error?.message?.includes("404") || error?.message?.includes("400")) {
+           delete modelCache[apiKey];
+        }
       }
     }
 
-    throw lastError || new Error("All Groq API models failed for the selected round-robin key.");
+    throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key.");
   }
 
   private async _doAssessment(
@@ -104,7 +133,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
   ]
 }`;
 
-    const isVisionModel = modelName.includes("vision") || modelName.includes("llava");
+    const isVisionModel = modelName.includes("vision") || modelName.includes("llava") || modelName.includes("pixtral");
     const contentParts: any[] = [{ type: "text", text: promptText }];
 
     for (const page of pages) {

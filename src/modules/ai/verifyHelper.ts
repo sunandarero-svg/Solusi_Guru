@@ -4,21 +4,34 @@ import path from "path";
 // Global counter for round-robin
 let currentKeyIndex = 0;
 
-function getGroqModels(): string[] {
-  const custom = process.env.GROQ_MODEL?.trim();
-  const defaults = [
-    "llama-3.2-11b-vision-preview",
-    "llama-3.2-90b-vision-preview",
-    "llama-3.2-11b-vision-instruct",
-    "llama-3.2-90b-vision-instruct",
-    "llava-v1.5-7b-4096-preview",
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "llama3-70b-8192",
-    "llama3-8b-8192",
-    "mixtral-8x7b-32768",
-  ];
-  return custom ? [custom, ...defaults] : defaults;
+// Cache for dynamically fetched models per API key
+const modelCache: Record<string, string[]> = {};
+
+async function getDynamicModels(apiKey: string): Promise<string[]> {
+  if (modelCache[apiKey]) {
+    return modelCache[apiKey];
+  }
+  
+  const res = await fetch("https://api.groq.com/openai/v1/models", {
+    headers: { Authorization: `Bearer ${apiKey}` }
+  });
+  
+  if (!res.ok) {
+    console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
+    return [
+      "llama-4-scout-17b-16e-instruct",
+      "llama-4-maverick-17b-128e-instruct",
+      "llama-3.2-11b-vision-instruct",
+      "llama-3.2-90b-vision-instruct",
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant"
+    ]; // Ultimate fallback defaults if fetch fails
+  }
+  
+  const data = await res.json();
+  const availableModels = data.data.map((m: any) => m.id);
+  modelCache[apiKey] = availableModels;
+  return availableModels;
 }
 
 export interface VerifyResult {
@@ -70,17 +83,29 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     throw new Error("No valid Groq API keys configured.");
   }
 
-  const groqModels = getGroqModels();
-  
   // Select key using round robin
   const apiKey = keys[currentKeyIndex % keys.length];
   const usedIndex = currentKeyIndex % keys.length;
-  // Increment and wrap around to prevent overflow
+  // Increment and wrap around
   currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+
+  const availableModels = await getDynamicModels(apiKey);
   
+  // Sort models: Vision models first, then general Llama models
+  const visionModels = availableModels.filter(m => m.toLowerCase().includes("vision") || m.toLowerCase().includes("llava") || m.toLowerCase().includes("pixtral"));
+  const textModels = availableModels.filter(m => !visionModels.includes(m));
+  
+  // Add env custom model to front if provided and valid
+  const customModel = process.env.GROQ_MODEL?.trim();
+  let modelsToTry = [...visionModels, ...textModels];
+  
+  if (customModel) {
+    modelsToTry = [customModel, ...modelsToTry];
+  }
+
   let lastError: any = null;
 
-  for (const modelName of groqModels) {
+  for (const modelName of modelsToTry) {
     try {
       console.log(`[Verify-Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${keys.length})`);
       const result = await runGroqVerify(apiKey, modelName, prompt, imageBuffers);
@@ -89,10 +114,14 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     } catch (err: any) {
       lastError = err;
       console.warn(`[Verify-Groq] Failed with model ${modelName}:`, err?.message || err);
+      // If unauthorized/not found, clear cache so we fetch fresh next time
+      if (err?.message?.includes("404") || err?.message?.includes("400")) {
+        delete modelCache[apiKey];
+      }
     }
   }
 
-  throw lastError || new Error("All Groq API models failed for the selected round-robin key.");
+  throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key.");
 }
 
 async function runGroqVerify(
@@ -101,7 +130,9 @@ async function runGroqVerify(
   prompt: string,
   imageBuffers: { buffer: Buffer; mimeType: string }[]
 ): Promise<VerifyResult> {
-  const isVisionModel = modelName.includes("vision") || modelName.includes("llava");
+  // If model doesn't support vision but we have images, Groq will throw an error if we send image_url.
+  // We can try to send it anyway if it is a vision model. For non-vision models, we only send text.
+  const isVisionModel = modelName.includes("vision") || modelName.includes("llava") || modelName.includes("pixtral");
   const contentParts: any[] = [{ type: "text", text: prompt }];
 
   for (const img of imageBuffers) {
