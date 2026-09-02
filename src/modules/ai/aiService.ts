@@ -1,6 +1,7 @@
 import dbConnect from "@/lib/mongoose";
 import { Submission, OCRResult, AIAssessment, AssessmentCriterion } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
+import { AIProvider } from "./AIProvider";
 import { FallbackAIProvider } from "./FallbackAIProvider";
 
 export class AIService {
