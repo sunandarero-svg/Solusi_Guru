@@ -1,30 +1,22 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Global counter for round-robin
+let currentKeyIndex = 0;
 
 function getGroqModels(): string[] {
   const custom = process.env.GROQ_MODEL?.trim();
   const defaults = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
+    "llama-3.2-11b-vision-preview",
+    "llama-3.2-90b-vision-preview",
     "llama-3.2-11b-vision-instruct",
     "llama-3.2-90b-vision-instruct",
+    "llava-v1.5-7b-4096-preview",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
     "llama3-70b-8192",
     "llama3-8b-8192",
     "mixtral-8x7b-32768",
-  ];
-  return custom ? [custom, ...defaults] : defaults;
-}
-
-function getGeminiModels(): string[] {
-  const custom = process.env.GEMINI_MODEL?.trim();
-  const defaults = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-flash",
-    "gemini-pro",
   ];
   return custom ? [custom, ...defaults] : defaults;
 }
@@ -73,72 +65,34 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     });
   }
 
-  // 1. Try Groq Primary
-  const groqKeys = parseKeys(process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY);
+  const keys = parseKeys(process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY);
+  if (keys.length === 0) {
+    throw new Error("No valid Groq API keys configured.");
+  }
+
   const groqModels = getGroqModels();
-
-  if (groqKeys.length > 0) {
-    const shuffledGroqKeys = [...groqKeys].sort(() => Math.random() - 0.5);
-    for (const apiKey of shuffledGroqKeys) {
-      for (const modelName of groqModels) {
-        try {
-          console.log(`[Verify-Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}...`);
-          const result = await runGroqVerify(apiKey, modelName, prompt, imageBuffers);
-          console.log(`[Verify-Groq] Success with model: ${modelName}`);
-          return result;
-        } catch (err: any) {
-          console.warn(`[Verify-Groq] Failed with model ${modelName}:`, err?.message || err);
-        }
-      }
-    }
-  }
-
-  // 2. Fallback to Gemini Secondary
-  console.log("[Verify] Groq unavailable/failed. Falling back to Gemini...");
-  const rawGeminiKeys = parseKeys(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
-  const geminiKeys = rawGeminiKeys.filter(k => {
-    if (k.startsWith("AQ.")) {
-      console.warn("[Verify-Gemini] WARNING: Key starting with 'AQ.' is an invalid OAuth token. Real API keys start with 'AIza...'.");
-      return false;
-    }
-    return true;
-  });
-
-  const activeGeminiKeys = geminiKeys.length > 0 ? geminiKeys : rawGeminiKeys;
-
-  if (activeGeminiKeys.length === 0) {
-    throw new Error("No valid Groq or Gemini API keys configured.");
-  }
-
-  const geminiModels = getGeminiModels();
-  const shuffledGeminiKeys = [...activeGeminiKeys].sort(() => Math.random() - 0.5);
+  
+  // Select key using round robin
+  const apiKey = keys[currentKeyIndex % keys.length];
+  const usedIndex = currentKeyIndex % keys.length;
+  // Increment and wrap around to prevent overflow
+  currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+  
   let lastError: any = null;
 
-  for (const apiKey of shuffledGeminiKeys) {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    for (const modelName of geminiModels) {
-      try {
-        console.log(`[Verify-Gemini] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const imageParts = imageBuffers.map((img) => ({
-          inlineData: {
-            data: img.buffer.toString("base64"),
-            mimeType: img.mimeType,
-          },
-        }));
-        const result = await model.generateContent([prompt, ...imageParts]);
-        const text = result.response.text();
-        const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-        console.log(`[Verify-Gemini] Success with model: ${modelName}`);
-        return JSON.parse(cleanText) as VerifyResult;
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[Verify-Gemini] Model ${modelName} failed:`, err?.message || err);
-      }
+  for (const modelName of groqModels) {
+    try {
+      console.log(`[Verify-Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${keys.length})`);
+      const result = await runGroqVerify(apiKey, modelName, prompt, imageBuffers);
+      console.log(`[Verify-Groq] Success with model: ${modelName}`);
+      return result;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[Verify-Groq] Failed with model ${modelName}:`, err?.message || err);
     }
   }
 
-  throw lastError || new Error("All AI verification providers (Groq & Gemini) failed.");
+  throw lastError || new Error("All Groq API models failed for the selected round-robin key.");
 }
 
 async function runGroqVerify(

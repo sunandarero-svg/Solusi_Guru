@@ -2,13 +2,19 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
 
+// Global counter for round-robin
+let currentKeyIndex = 0;
+
 function getGroqModels(): string[] {
   const custom = process.env.GROQ_MODEL?.trim();
   const defaults = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
+    "llama-3.2-11b-vision-preview",
+    "llama-3.2-90b-vision-preview",
     "llama-3.2-11b-vision-instruct",
     "llama-3.2-90b-vision-instruct",
+    "llava-v1.5-7b-4096-preview",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
     "llama3-70b-8192",
     "llama3-8b-8192",
     "mixtral-8x7b-32768",
@@ -36,23 +42,27 @@ export class GroqProvider implements AIProvider {
     }
 
     const groqModels = getGroqModels();
-    const shuffledKeys = [...keys].sort(() => Math.random() - 0.5);
+    
+    // Select key using round robin
+    const apiKey = keys[currentKeyIndex % keys.length];
+    const usedIndex = currentKeyIndex % keys.length;
+    // Increment and wrap around to prevent overflow
+    currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+    
     let lastError: any = null;
 
-    for (const apiKey of shuffledKeys) {
-      for (const modelName of groqModels) {
-        try {
-          console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}...`);
-          const result = await this._doAssessment(apiKey, modelName, pages, rubrics);
-          return result;
-        } catch (error: any) {
-          lastError = error;
-          console.warn(`[Groq] Error with model ${modelName}:`, error?.message || error);
-        }
+    for (const modelName of groqModels) {
+      try {
+        console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${keys.length})`);
+        const result = await this._doAssessment(apiKey, modelName, pages, rubrics);
+        return result;
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[Groq] Error with model ${modelName}:`, error?.message || error);
       }
     }
 
-    throw lastError || new Error("All Groq API keys and models failed.");
+    throw lastError || new Error("All Groq API models failed for the selected round-robin key.");
   }
 
   private async _doAssessment(
