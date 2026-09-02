@@ -54,9 +54,9 @@ export async function verifyPageReadability(pages: any[]): Promise<VerifyResult>
 1. Pastikan Anda membaca SELURUH teks di setiap halaman dari awal hingga akhir.
 2. Mengecek apakah tulisan tangan di SEMUA halaman dapat dibaca jelas, tidak terpotong, dan pencahayaannya baik.
 3. Memberikan skor keterbacaan keseluruhan (readabilityScore) dari 0-100.
-4. Hitung kesalahan (typo, salah tulis, kata buram, kata terpotong) di semua halaman. DILARANG KERAS menebak kata yang buram.
-5. ATURAN KETAT: Jika terdapat >= 5 kesalahan SECARA KESELURUHAN atau JIKA ADA SATU SAJA HALAMAN YANG BURAM/TIDAK TERBACA, Anda WAJIB memberikan skor di bawah 80 (misal 79 atau lebih rendah) dan set 'feasible' ke false. Berikan rekomendasi spesifik (misal: "Tulisan di Halaman 2 paragraf 2 buram, mohon tulis ulang/foto kembali halaman 2").
-6. Jika semua halaman jelas dan kesalahan total < 5, berikan skor 80 atau lebih tinggi dan set 'feasible' ke true. Tugas ini layak diperiksa.
+4. Hitung kesalahan (typo, salah tulis, kata buram, kata terpotong) di semua halaman. DILARANG KERAS menebak kata yang buram. Jika terdapat kesalahan ejaan atau salah tulis, Anda WAJIB mencocokkan dan memberikan perbaikan ejaan yang benar sesuai dengan ejaan baku Kamus Besar Bahasa Indonesia (KBBI).
+5. ATURAN KETAT: Jika terdapat >= 5 kesalahan SECARA KESELURUHAN atau JIKA ADA SATU SAJA HALAMAN YANG BURAM/TIDAK TERBACA, Anda WAJIB memberikan skor di bawah 80 (misal 79 atau lebih rendah) dan set 'feasible' ke false. Berikan rekomendasi spesifik pada 'reason' (misal: "Kata 'apotik' salah, seharusnya 'apotek' sesuai KBBI. Tulisan di Halaman 2 buram, mohon tulis ulang/foto kembali.").
+6. Jika semua halaman jelas dan kesalahan total < 5, berikan skor 80 atau lebih tinggi dan set 'feasible' ke true. Tugas ini layak diperiksa. Jika ada minor typo, Anda tetap boleh menyertakan masukan perbaikan sesuai KBBI pada 'reason'.
 
 WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
 {"feasible": true/false, "readabilityScore": 0-100, "reason": "alasan spesifik"}`;
