@@ -93,12 +93,11 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
   
   // Sort models: Vision models first, then general Llama models
   const visionModels = availableModels.filter(m => m.toLowerCase().includes("vision") || m.toLowerCase().includes("llava") || m.toLowerCase().includes("pixtral"));
-  const textModels = availableModels.filter(m => !visionModels.includes(m));
   
-  // Add env custom model to front if provided and valid
+  // Since we are verifying images, we MUST use a vision model. Do not fallback to text models.
+  let modelsToTry = visionModels.length > 0 ? visionModels : ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"];
+  
   const customModel = process.env.GROQ_MODEL?.trim();
-  let modelsToTry = [...visionModels, ...textModels];
-  
   if (customModel) {
     modelsToTry = [customModel, ...modelsToTry];
   }
