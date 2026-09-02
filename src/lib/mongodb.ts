@@ -1,10 +1,6 @@
 import { MongoClient } from "mongodb";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('Invalid/Missing environment variable: "DATABASE_URL"');
-}
-
-const uri = process.env.DATABASE_URL;
+const uri = process.env.DATABASE_URL || process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/dummy_build";
 const options = {};
 
 let client: MongoClient;
@@ -26,4 +22,3 @@ if (process.env.NODE_ENV === "development") {
 }
 
 export default clientPromise;
-
