@@ -1,13 +1,12 @@
 import dbConnect from "@/lib/mongoose";
 import { Submission, OCRResult, AIAssessment, AssessmentCriterion } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
-import { AIProvider } from "./AIProvider";
-import { GeminiProvider } from "./GeminiProvider";
+import { FallbackAIProvider } from "./FallbackAIProvider";
 
 export class AIService {
   private provider: AIProvider;
 
-  constructor(provider: AIProvider) {
+  constructor(provider: AIProvider = new FallbackAIProvider()) {
     this.provider = provider;
   }
 
@@ -91,6 +90,6 @@ export class AIService {
   }
 }
 
-// Instantiate with GeminiProvider
-export const aiService = new AIService(new GeminiProvider());
+// Instantiate with FallbackAIProvider (Groq primary with 5 keys, Gemini fallback)
+export const aiService = new AIService(new FallbackAIProvider());
 

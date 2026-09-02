@@ -3,7 +3,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { readFile } from "fs/promises";
 import path from "path";
 
-// Supported Gemini models in order of preference
 const GEMINI_MODELS = [
   "gemini-2.0-flash",
   "gemini-2.0-flash-lite",
@@ -14,41 +13,29 @@ export class GeminiProvider implements AIProvider {
   readonly providerName = "Gemini-Flash";
 
   private getRandomKey(): string {
-    const keysStr = process.env.GEMINI_API_KEYS;
+    const keysStr = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY;
     if (keysStr) {
-      // Aggressive sanitization for Railway env vars
       const keys = keysStr
-        .replace(/[\r\n]/g, '')        // Remove newlines
-        .split(',')
-        .map(k => k.replace(/['"` ]/g, '').trim())  // Remove quotes, backticks, spaces
-        .filter(k => k.length > 10);    // Valid API keys are long strings
-      
+        .replace(/[\r\n]/g, "")
+        .split(",")
+        .map((k) => k.replace(/['"` ]/g, "").trim())
+        .filter((k) => k.length > 10);
+
       console.log(`[Gemini] Found ${keys.length} API keys`);
-      
+
       if (keys.length > 0) {
         const selectedIndex = Math.floor(Math.random() * keys.length);
         console.log(`[Gemini] Using key index: ${selectedIndex}`);
         return keys[selectedIndex];
       }
     }
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured.");
-    }
-    return process.env.GEMINI_API_KEY.replace(/['"` ]/g, '').trim();
-  }
-
-  private getModelName(): string {
-    // Allow override via env var
-    const envModel = process.env.GEMINI_MODEL;
-    if (envModel) return envModel.replace(/['"` ]/g, '').trim();
-    return GEMINI_MODELS[0]; // Default: gemini-2.0-flash
+    throw new Error("GEMINI_API_KEY is not configured.");
   }
 
   async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
     const apiKey = this.getRandomKey();
     const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Try models in order until one works
+
     let lastError: any = null;
     for (const modelName of GEMINI_MODELS) {
       try {
@@ -57,48 +44,46 @@ export class GeminiProvider implements AIProvider {
       } catch (error: any) {
         lastError = error;
         const errorMsg = error?.message || String(error);
-        // If it's a model-not-found error, try next model
-        if (errorMsg.includes('not found') || errorMsg.includes('not supported') || errorMsg.includes('404')) {
+        if (errorMsg.includes("not found") || errorMsg.includes("not supported") || errorMsg.includes("404")) {
           console.warn(`[Gemini] Model ${modelName} not available, trying next...`);
           continue;
         }
-        // For other errors (rate limit, etc.), throw immediately
         throw error;
       }
     }
     throw lastError || new Error("No Gemini model available");
   }
 
-  private async _doAssessment(genAI: any, modelName: string, pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
+  private async _doAssessment(
+    genAI: any,
+    modelName: string,
+    pages: any[],
+    rubrics: any[]
+  ): Promise<AIAssessmentResult> {
     console.log(`[Gemini] Using model: ${modelName}`);
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    // 1. Prepare images
     const imageParts = [];
     for (const page of pages) {
-      // In production (Railway), storageKey could be an absolute URL or local path.
-      // If it's local (e.g. /uploads/submissions/xxx.jpg), we need to read it.
       let buffer: Buffer;
-      
+
       if (page.storageKey.startsWith("http")) {
         const res = await fetch(page.storageKey);
         const arrayBuffer = await res.arrayBuffer();
         buffer = Buffer.from(arrayBuffer);
       } else {
-        // Local path
-        const filePath = path.join(process.cwd(), "public", page.storageKey);
+        const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
         buffer = await readFile(filePath);
       }
 
       imageParts.push({
         inlineData: {
           data: buffer.toString("base64"),
-          mimeType: page.mimeType || "image/jpeg"
-        }
+          mimeType: page.mimeType || "image/jpeg",
+        },
       });
     }
 
-    // 2. Prepare rubrics prompt
     const firstRubric = rubrics[0];
     let rubricInstruction = "";
     if (firstRubric && firstRubric.criteria) {
@@ -120,33 +105,27 @@ Berikan penilaian yang objektif. Untuk setiap kriteria, tentukan skor dan berika
 
 Output Anda HARUS berupa JSON murni (tanpa format markdown) dengan struktur berikut:
 {
-  "totalScore": number, // total semua skor
+  "totalScore": number,
   "generalFeedback": "Umpan balik keseluruhan untuk siswa",
   "rubricScores": [
     {
       "rubricCriterionId": "ID Kriteria",
-      "score": number, // skor yang diberikan
-      "maxScore": number, // skor maksimal kriteria
+      "score": number,
+      "maxScore": number,
       "reasoning": "Alasan penilaian..."
     }
   ]
-}
-`;
+}`;
 
-    // 3. Send to Gemini
     const result = await model.generateContent([prompt, ...imageParts]);
     const responseText = result.response.text();
-    
-    // Parse JSON
+
     try {
-      const cleanText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanText) as AIAssessmentResult;
-      
-      return parsed;
+      const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      return JSON.parse(cleanText) as AIAssessmentResult;
     } catch (e) {
       console.error("Failed to parse Gemini response:", responseText);
       throw new Error("Failed to parse AI response into valid JSON.");
     }
   }
 }
-
