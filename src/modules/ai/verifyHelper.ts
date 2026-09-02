@@ -55,8 +55,8 @@ export async function verifyPageReadability(pages: any[]): Promise<VerifyResult>
 2. Mengecek apakah tulisan tangan di SEMUA halaman dapat dibaca jelas, tidak terpotong, dan pencahayaannya baik.
 3. Memberikan skor keterbacaan keseluruhan (readabilityScore) dari 0-100.
 4. Hitung kesalahan (typo, salah tulis, kata buram, kata terpotong) di semua halaman. DILARANG KERAS menebak kata yang buram.
-5. ATURAN KETAT: Jika terdapat >= 5 kesalahan SECARA KESELURUHAN atau JIKA ADA SATU SAJA HALAMAN YANG BURAM/TIDAK TERBACA, Anda WAJIB memberikan skor di bawah 85 (misal 84 atau lebih rendah) dan set 'feasible' ke false. Berikan rekomendasi spesifik (misal: "Tulisan di Halaman 2 paragraf 2 buram, mohon tulis ulang/foto kembali halaman 2").
-6. Jika semua halaman jelas dan kesalahan total < 5, berikan skor 85 atau lebih tinggi dan set 'feasible' ke true. Tugas ini layak diperiksa.
+5. ATURAN KETAT: Jika terdapat >= 5 kesalahan SECARA KESELURUHAN atau JIKA ADA SATU SAJA HALAMAN YANG BURAM/TIDAK TERBACA, Anda WAJIB memberikan skor di bawah 80 (misal 79 atau lebih rendah) dan set 'feasible' ke false. Berikan rekomendasi spesifik (misal: "Tulisan di Halaman 2 paragraf 2 buram, mohon tulis ulang/foto kembali halaman 2").
+6. Jika semua halaman jelas dan kesalahan total < 5, berikan skor 80 atau lebih tinggi dan set 'feasible' ke true. Tugas ini layak diperiksa.
 
 WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
 {"feasible": true/false, "readabilityScore": 0-100, "reason": "alasan spesifik"}`;

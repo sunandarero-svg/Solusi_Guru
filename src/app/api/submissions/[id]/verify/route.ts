@@ -28,7 +28,7 @@ export async function POST(
     try {
       const parsed = await verifyPageReadability(submission.pages);
 
-      if (parsed.feasible === false || parsed.readabilityScore < 85) {
+      if (parsed.feasible === false || parsed.readabilityScore < 80) {
         return NextResponse.json(
           {
             error: "AI_REJECTION",
