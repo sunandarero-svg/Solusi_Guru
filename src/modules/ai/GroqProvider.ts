@@ -131,24 +131,26 @@ ${rubricInstruction}
 INSTRUKSI PENILAIAN:
 1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir.
 2. Berikan penilaian yang objektif untuk setiap kriteria rubrik.
-3. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) yang mendetail mengapa skor tersebut diberikan berdasarkan tulisan siswa di gambar.
+3. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) singkat dan jelas.
 
-ATURAN BAHASA (WAJIB DIPATUHI):
-- Seluruh umpan balik ('generalFeedback' dan 'reasoning') WAJIB menggunakan bahasa Indonesia yang baik dan benar sesuai ejaan baku Kamus Besar Bahasa Indonesia (KBBI).
-- Gunakan kata-kata baku, bukan kata tidak baku. Contoh: gunakan "apotek" (bukan "apotik"), "risiko" (bukan "resiko"), "aktivitas" (bukan "aktifitas"), "efektif" (bukan "efektip"), "analisis" (bukan "analisa").
-- Jika menemukan kesalahan ejaan pada tulisan siswa, sebutkan koreksinya sesuai KBBI di dalam 'reasoning' atau 'generalFeedback'. Contoh: "Siswa menulis 'aktifitas', seharusnya 'aktivitas' sesuai KBBI."
-- Gunakan kalimat yang jelas, sopan, dan konstruktif agar siswa dapat belajar dari umpan balik yang diberikan.
+ATURAN BAHASA DAN FEEDBACK (WAJIB DIPATUHI):
+- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI dalam seluruh umpan balik.
+- JANGAN PERNAH mengoreksi kata yang SUDAH BENAR ejaannya menurut KBBI. Jika siswa sudah menulis kata dengan ejaan yang benar, JANGAN sebutkan kata itu sebagai koreksi.
+- HANYA koreksi kata yang BENAR-BENAR SALAH ejaannya. Contoh: jika siswa menulis 'apotik' maka koreksi menjadi 'apotek'. Tetapi jika siswa menulis 'aktivitas' (sudah benar), JANGAN koreksi.
+- Jika tidak ada kesalahan ejaan, JANGAN memaksakan koreksi.
+- SELALU berikan apresiasi positif kepada siswa dalam 'generalFeedback'.
+- Gunakan kalimat yang singkat, sopan, dan konstruktif.
 
 Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
   "totalScore": number,
-  "generalFeedback": "Umpan balik keseluruhan untuk siswa, menggunakan bahasa Indonesia baku sesuai KBBI",
+  "generalFeedback": "Apresiasi dan umpan balik singkat untuk siswa",
   "rubricScores": [
     {
       "rubricCriterionId": "ID Kriteria",
       "score": number,
       "maxScore": number,
-      "reasoning": "Alasan penilaian dengan bahasa baku KBBI..."
+      "reasoning": "Alasan penilaian singkat..."
     }
   ]
 }`;

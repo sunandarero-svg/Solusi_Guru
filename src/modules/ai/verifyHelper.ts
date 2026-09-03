@@ -67,24 +67,22 @@ function isMultimodalModel(modelId: string): boolean {
 
 export async function verifyPageReadability(pages: any[]): Promise<VerifyResult> {
   const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Anda menerima ${pages.length} halaman foto sekaligus. Tugas Anda:
-1. Pastikan Anda membaca SELURUH teks di setiap halaman dari awal hingga akhir, tanpa ada yang terlewat.
-2. Mengecek apakah tulisan tangan di SEMUA halaman dapat dibaca, tidak terpotong, dan pencahayaannya memadai.
-3. Memberikan skor keterbacaan keseluruhan (readabilityScore) dari 0-100.
-4. Hitung kesalahan ejaan (typo, salah tulis, kata terpotong) di semua halaman. Jika terdapat kesalahan ejaan atau salah tulis, Anda WAJIB memberikan koreksi ejaan yang benar sesuai Kamus Besar Bahasa Indonesia (KBBI). Contoh: "Kata 'apotik' seharusnya 'apotek' sesuai KBBI."
+1. Baca SELURUH teks di setiap halaman dari awal hingga akhir.
+2. Cek apakah tulisan tangan di SEMUA halaman dapat dibaca, tidak terpotong, dan pencahayaannya memadai.
+3. Berikan skor keterbacaan keseluruhan (readabilityScore) dari 0-100.
 
-ATURAN PENTING untuk menentukan 'feasible':
-- Jika Anda BISA MEMBACA SELURUH tulisan di semua halaman (meskipun ada typo, tulisan kurang rapi, atau kesalahan ejaan), maka set 'feasible' ke TRUE. Tugas boleh dikumpulkan.
-- HANYA set 'feasible' ke FALSE jika ada halaman yang BENAR-BENAR TIDAK TERBACA (buram total, gelap, terpotong parah, atau tidak bisa dibaca sama sekali).
+ATURAN 'feasible':
+- Jika Anda BISA MEMBACA seluruh tulisan di semua halaman, set 'feasible' ke TRUE.
+- HANYA set 'feasible' ke FALSE jika ada halaman yang BENAR-BENAR TIDAK TERBACA (buram total, gelap, terpotong parah).
 
-ATURAN PENTING untuk 'reason' (WAJIB diisi dengan detail):
-- SELALU berikan feedback yang membangun pada 'reason', baik ketika feasible true MAUPUN false.
-- Jika ada kesalahan ejaan, sebutkan satu per satu beserta koreksinya sesuai KBBI.
-- Jika tulisan kurang rapi, sampaikan saran agar siswa menulis lebih rapi dan teliti.
-- Jika pencahayaan foto kurang baik, sarankan agar siswa memfoto ulang dengan pencahayaan lebih baik.
-- Jika semua bagus, tetap berikan apresiasi singkat dan motivasi agar siswa terus menulis dengan rapi.
+ATURAN 'reason' (feedback untuk siswa):
+- Berikan feedback SINGKAT (maksimal 2-3 kalimat).
+- SELALU awali dengan apresiasi positif untuk siswa (contoh: "Tulisan kamu sudah rapi dan mudah dibaca, bagus!").
+- HANYA koreksi kata yang BENAR-BENAR SALAH ejaan menurut KBBI. JANGAN PERNAH mengoreksi kata yang sudah benar. Jika siswa menulis kata dengan ejaan yang sudah sesuai KBBI, JANGAN sebutkan kata itu sebagai koreksi.
+- Jika tidak ada kesalahan ejaan, cukup berikan apresiasi singkat saja, JANGAN memaksakan koreksi.
 
 WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
-{"feasible": true/false, "readabilityScore": 0-100, "reason": "feedback detail untuk siswa"}`;
+{"feasible": true/false, "readabilityScore": 0-100, "reason": "feedback singkat untuk siswa"}`;
 
   const imageBuffers: { buffer: Buffer; mimeType: string }[] = [];
   for (const page of pages) {
