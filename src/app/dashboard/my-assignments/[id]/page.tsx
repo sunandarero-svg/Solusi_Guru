@@ -170,7 +170,29 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
             </div>
             <div className="md:col-span-3 bg-white p-5 rounded-xl shadow-sm border border-emerald-100">
               <h3 className="text-sm font-bold text-gray-700 mb-2">Umpan Balik AI:</h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{submission.aiAssessment.feedback || "Tidak ada umpan balik."}</p>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-4">{submission.aiAssessment.feedback || "Tidak ada umpan balik."}</p>
+              
+              {submission.aiAssessment.criteria && submission.aiAssessment.criteria.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3">Rincian Penilaian Berdasarkan Rubrik:</h4>
+                  <div className="space-y-3">
+                    {submission.aiAssessment.criteria.map((c: any, index: number) => {
+                      const rubricTitle = assignment?.rubrics?.[0]?.criteria?.find((rc: any) => rc.id === c.rubricCriterionId)?.name || `Kriteria ${index + 1}`;
+                      return (
+                        <div key={c.id || index} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold text-sm text-gray-800">{rubricTitle}</span>
+                            <span className="text-xs font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
+                              {c.score} / {c.maxScore}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">{c.reason}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
