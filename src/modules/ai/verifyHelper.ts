@@ -76,9 +76,10 @@ ATURAN 'feasible':
 - HANYA set 'feasible' ke FALSE jika ada halaman yang BENAR-BENAR TIDAK TERBACA (buram total, gelap, terpotong parah).
 
 ATURAN 'reason' (feedback untuk siswa):
-- Berikan feedback SINGKAT (maksimal 2-3 kalimat).
-- SELALU awali dengan apresiasi positif untuk siswa (contoh: "Tulisan kamu sudah rapi dan mudah dibaca, bagus!").
+- Berikan feedback SINGKAT (maksimal 2-3 kalimat) dengan bahasa yang sangat ramah, hangat, dan bersahabat (cocok untuk anak usia 10 tahun / kelas 4-5 SD).
+- SELALU awali dengan apresiasi positif untuk siswa (contoh: "Wah, tulisanmu sudah rapi dan mudah dibaca lho, hebat!").
 - HANYA koreksi kata yang BENAR-BENAR SALAH ejaan menurut KBBI. JANGAN PERNAH mengoreksi kata yang sudah benar. Jika siswa menulis kata dengan ejaan yang sudah sesuai KBBI, JANGAN sebutkan kata itu sebagai koreksi.
+- Jika ada hal yang perlu diperbaiki (seperti salah ejaan atau kurang rapi), sampaikan dengan cara yang menyemangati (contoh: "Supaya makin keren, kata 'apotik' bisa kamu perbaiki jadi 'apotek' ya.").
 - Jika tidak ada kesalahan ejaan, cukup berikan apresiasi singkat saja, JANGAN memaksakan koreksi.
 
 WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
