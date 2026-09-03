@@ -128,18 +128,27 @@ Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menil
 
 ${rubricInstruction}
 
-Berikan penilaian yang objektif. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) yang mendetail mengapa skor tersebut diberikan berdasarkan tulisan siswa di gambar.
+INSTRUKSI PENILAIAN:
+1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir.
+2. Berikan penilaian yang objektif untuk setiap kriteria rubrik.
+3. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) yang mendetail mengapa skor tersebut diberikan berdasarkan tulisan siswa di gambar.
+
+ATURAN BAHASA (WAJIB DIPATUHI):
+- Seluruh umpan balik ('generalFeedback' dan 'reasoning') WAJIB menggunakan bahasa Indonesia yang baik dan benar sesuai ejaan baku Kamus Besar Bahasa Indonesia (KBBI).
+- Gunakan kata-kata baku, bukan kata tidak baku. Contoh: gunakan "apotek" (bukan "apotik"), "risiko" (bukan "resiko"), "aktivitas" (bukan "aktifitas"), "efektif" (bukan "efektip"), "analisis" (bukan "analisa").
+- Jika menemukan kesalahan ejaan pada tulisan siswa, sebutkan koreksinya sesuai KBBI di dalam 'reasoning' atau 'generalFeedback'. Contoh: "Siswa menulis 'aktifitas', seharusnya 'aktivitas' sesuai KBBI."
+- Gunakan kalimat yang jelas, sopan, dan konstruktif agar siswa dapat belajar dari umpan balik yang diberikan.
 
 Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
   "totalScore": number,
-  "generalFeedback": "Umpan balik keseluruhan untuk siswa",
+  "generalFeedback": "Umpan balik keseluruhan untuk siswa, menggunakan bahasa Indonesia baku sesuai KBBI",
   "rubricScores": [
     {
       "rubricCriterionId": "ID Kriteria",
       "score": number,
       "maxScore": number,
-      "reasoning": "Alasan penilaian..."
+      "reasoning": "Alasan penilaian dengan bahasa baku KBBI..."
     }
   ]
 }`;
