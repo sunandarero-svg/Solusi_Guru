@@ -32,10 +32,17 @@ export async function GET(
     );
 
     if (submission) {
-      const { AIAssessment, TeacherReview } = require("@/models/Submission");
-      const aiAssessment = await AIAssessment.findOne({ submissionId: submission.id }).lean();
+      const { AIAssessment, TeacherReview, AssessmentCriterion } = require("@/models/Submission");
+      const { mapId } = require("@/lib/mapId");
+      let aiAssessment = await AIAssessment.findOne({ submissionId: submission.id }).lean();
       const teacherReview = await TeacherReview.findOne({ submissionId: submission.id }).lean();
-      return NextResponse.json({ ...submission, aiAssessment, teacherReview });
+      
+      if (aiAssessment) {
+        const criteria = await AssessmentCriterion.find({ assessmentId: aiAssessment._id }).lean();
+        aiAssessment.criteria = criteria;
+      }
+      
+      return NextResponse.json(mapId({ ...submission, aiAssessment, teacherReview }));
     }
 
     return NextResponse.json(null);
