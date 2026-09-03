@@ -87,6 +87,67 @@ export class AIService {
       });
     }
 
+    // 5. Process error highlights (Stabilo) if any
+    if (assessmentResult.errorHighlights && assessmentResult.errorHighlights.length > 0) {
+      const { drawHighlights } = await import("./imageEditor");
+      const path = await import("path");
+      const fs = await import("fs/promises");
+
+      // Group highlights by page index
+      const highlightsByPage: Record<number, any[]> = {};
+      for (const hl of assessmentResult.errorHighlights) {
+        if (!highlightsByPage[hl.pageIndex]) {
+          highlightsByPage[hl.pageIndex] = [];
+        }
+        highlightsByPage[hl.pageIndex].push(hl);
+      }
+
+      // Process each page that has highlights
+      for (const pageIndexStr of Object.keys(highlightsByPage)) {
+        const pageIndex = parseInt(pageIndexStr);
+        if (pageIndex >= 0 && pageIndex < pages.length) {
+          const page = pages[pageIndex] as any;
+          const highlights = highlightsByPage[pageIndex];
+          
+          try {
+            // Read original image
+            let imageBuffer: Buffer;
+            if (page.storageKey.startsWith("http")) {
+              const res = await fetch(page.storageKey);
+              const arrayBuffer = await res.arrayBuffer();
+              imageBuffer = Buffer.from(arrayBuffer);
+            } else {
+              const localPath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ''));
+              imageBuffer = await fs.readFile(localPath);
+            }
+
+            // Draw highlights
+            const highlightedBuffer = await drawHighlights(imageBuffer, highlights);
+
+            // Save new image
+            const originalFilename = path.basename(page.storageKey);
+            const ext = path.extname(originalFilename);
+            const newFilename = originalFilename.replace(ext, `_highlighted${ext}`);
+            const newStorageKey = page.storageKey.replace(originalFilename, newFilename);
+            
+            if (!page.storageKey.startsWith("http")) {
+              const newLocalPath = path.join(process.cwd(), "public", newStorageKey.replace(/^\//, ''));
+              await fs.writeFile(newLocalPath, highlightedBuffer);
+              
+              // Update SubmissionPage record
+              const { SubmissionPage } = await import("@/models/Submission");
+              await SubmissionPage.updateOne(
+                { _id: page._id },
+                { $set: { highlightedStorageKey: newStorageKey } }
+              );
+            }
+          } catch (err) {
+            console.error(`Failed to process highlights for page ${pageIndex}:`, err);
+          }
+        }
+      }
+    }
+
     return assessmentRecord.toObject();
   }
 }

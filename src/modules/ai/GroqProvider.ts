@@ -144,6 +144,11 @@ ATURAN BAHASA DAN FEEDBACK (WAJIB DIPATUHI):
 - Jika ada hal yang perlu diperbaiki, sampaikan dengan cara yang membangun dan menyemangati (contoh: "Wah, jawabanmu sudah bagus! Akan lebih sempurna kalau kata 'apotik' ditulis menjadi 'apotek', ya.").
 - Gunakan kalimat yang singkat, padat, dan jelas.
 
+DETEKSI KESALAHAN EJAAN (BOUNDING BOX):
+Jika ada kata yang benar-benar salah ejaannya, Anda WAJIB memberikan koordinat kotak penanda (bounding box) untuk kata tersebut di dalam gambar, agar guru dapat melihat bagian mana yang perlu diperbaiki (seperti stabilo merah).
+Koordinat menggunakan rentang 0 hingga 1000, dengan format [ymin, xmin, ymax, xmax]. (ymin = batas atas, xmin = batas kiri, ymax = batas bawah, xmax = batas kanan).
+Jika tidak ada kata yang salah, kosongkan array \`errorHighlights\`.
+
 Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
   "totalScore": number,
@@ -155,12 +160,21 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       "maxScore": number,
       "reasoning": "Alasan penilaian singkat..."
     }
+  ],
+  "errorHighlights": [
+    {
+      "word": "kata yang salah",
+      "correction": "perbaikan kata sesuai KBBI",
+      "box": [ymin, xmin, ymax, xmax],
+      "pageIndex": 0 // 0 untuk halaman pertama, 1 untuk kedua, dst
+    }
   ]
 }`;
 
     const contentParts: any[] = [{ type: "text", text: promptText }];
 
-    for (const page of pages) {
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
       let buffer: Buffer;
       if (page.storageKey.startsWith("http")) {
         const res = await fetch(page.storageKey);

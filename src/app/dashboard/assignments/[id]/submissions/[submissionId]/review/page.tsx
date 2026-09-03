@@ -131,11 +131,16 @@ export default function TeacherReviewPage({
                   <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-3 py-1 rounded-lg z-10 shadow">
                     Hal {page.pageNumber || index + 1}
                   </div>
+                  {page.highlightedStorageKey && (
+                    <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded-full z-10 font-bold shadow-sm">
+                      Koreksi AI (Stabilo)
+                    </div>
+                  )}
                   <img 
-                    src={page.storageKey} 
+                    src={page.highlightedStorageKey || page.storageKey} 
                     alt={`Halaman ${page.pageNumber || index + 1}`} 
                     className="w-full h-auto object-contain cursor-zoom-in"
-                    onClick={() => window.open(page.storageKey, '_blank')}
+                    onClick={() => window.open(page.highlightedStorageKey || page.storageKey, '_blank')}
                   />
                   <div className="p-2 border-t border-gray-100 bg-gray-50 flex justify-end">
                     <a 

@@ -14,7 +14,7 @@ export default function StudentReviewPage({
   const [submission, setSubmission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  const [viewMode, setViewMode] = useState<"PDF" | "OCR">("PDF");
+  const [viewMode, setViewMode] = useState<"PDF" | "OCR" | "HIGHLIGHTS">("PDF");
 
   const [isProcessingAI, setIsProcessingAI] = useState(false);
 
@@ -111,6 +111,14 @@ export default function StudentReviewPage({
             >
               Teks Terbaca
             </button>
+            {submission?.pages?.some((p: any) => p.highlightedStorageKey) && (
+              <button 
+                onClick={() => setViewMode("HIGHLIGHTS")}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "HIGHLIGHTS" ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                Koreksi AI
+              </button>
+            )}
           </div>
 
           {submission.document?.storageKey && viewMode === "PDF" && (
@@ -141,11 +149,24 @@ export default function StudentReviewPage({
                   PDF tidak tersedia
                 </div>
               )
-            ) : (
+            ) : viewMode === "OCR" ? (
               <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-300 min-h-full whitespace-pre-wrap font-mono text-sm text-gray-800">
                 {ocrText}
               </div>
-            )}
+            ) : viewMode === "HIGHLIGHTS" ? (
+              <div className="space-y-4 pb-12">
+                {submission?.pages?.filter((p: any) => p.highlightedStorageKey).map((p: any) => (
+                  <div key={p._id || p.id} className="border border-red-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                    <div className="bg-red-50 border-b border-red-100 text-red-800 text-xs font-bold p-3 flex justify-between items-center">
+                      <span>Halaman {p.pageNumber}</span>
+                      <span className="bg-red-600 text-white px-2 py-0.5 rounded-full text-[10px]">Ada Koreksi</span>
+                    </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.highlightedStorageKey} alt={`Koreksi Halaman ${p.pageNumber}`} className="w-full h-auto object-contain" />
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 

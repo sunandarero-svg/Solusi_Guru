@@ -5,10 +5,18 @@ export interface RubricScore {
   reasoning: string;
 }
 
+export interface AIErrorHighlight {
+  word: string;
+  correction: string;
+  box: [number, number, number, number]; // [ymin, xmin, ymax, xmax]
+  pageIndex: number;
+}
+
 export interface AIAssessmentResult {
   totalScore: number;
   generalFeedback: string;
   rubricScores: RubricScore[];
+  errorHighlights?: AIErrorHighlight[];
 }
 
 export interface AIProvider {

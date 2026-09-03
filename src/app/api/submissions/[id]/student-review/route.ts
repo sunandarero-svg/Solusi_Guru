@@ -34,13 +34,15 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [ocrResults, aiAssessment, teacherReview, assignment, rubrics, document] = await Promise.all([
+    const { SubmissionPage } = require("@/models/Submission");
+    const [ocrResults, aiAssessment, teacherReview, assignment, rubrics, document, pages] = await Promise.all([
       OCRResult.find({ submissionId: submission._id }).sort({ processedAt: -1 }).limit(1).lean(),
       AIAssessment.findOne({ submissionId: submission._id }).lean(),
       TeacherReview.findOne({ submissionId: submission._id }).lean(),
       Assignment.findById(submission.assignmentId).lean(),
       Rubric.find({ assignmentId: submission.assignmentId }).lean(),
-      SubmissionDocument.findOne({ submissionId: submission._id }).lean()
+      SubmissionDocument.findOne({ submissionId: submission._id }).lean(),
+      SubmissionPage.find({ submissionId: submission._id }).sort({ pageNumber: 1 }).lean()
     ]);
 
     let aiAssessmentCriteria: any[] = [];
@@ -66,6 +68,7 @@ export async function GET(
       aiAssessment,
       teacherReview,
       document,
+      pages,
       assignment: {
         ...assignment,
         rubrics: rubricsWithCriteria

@@ -42,6 +42,7 @@ export interface ISubmissionPage extends Document {
   submissionId: mongoose.Types.ObjectId;
   pageNumber: number;
   storageKey: string;
+  highlightedStorageKey?: string; // [NEW] For AI highlighted version
   originalFileName: string;
   mimeType: string;
   fileSize: number;
@@ -51,6 +52,7 @@ const SubmissionPageSchema: Schema = new Schema({
   submissionId: { type: Schema.Types.ObjectId, ref: 'Submission', required: true },
   pageNumber: { type: Number, required: true },
   storageKey: { type: String, required: true },
+  highlightedStorageKey: { type: String }, // [NEW]
   originalFileName: { type: String, required: true },
   mimeType: { type: String, required: true },
   fileSize: { type: Number, required: true }
