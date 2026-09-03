@@ -19,13 +19,11 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
   if (!res.ok) {
     console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
     return [
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
       "llama-4-scout-17b-16e-instruct",
-      "llama-4-maverick-17b-128e-instruct",
-      "llama-3.2-11b-vision-instruct",
-      "llama-3.2-90b-vision-instruct",
-      "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant"
-    ]; // Ultimate fallback defaults if fetch fails
+      "llama-4-maverick-17b-128e-instruct"
+    ]; // Ultimate fallback defaults - Llama 4 models are natively multimodal
   }
   
   const data = await res.json();
@@ -91,11 +89,21 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
 
   const availableModels = await getDynamicModels(apiKey);
   
-  // Sort models: Vision models first, then general Llama models
-  const visionModels = availableModels.filter(m => m.toLowerCase().includes("vision") || m.toLowerCase().includes("llava") || m.toLowerCase().includes("pixtral"));
+  // Filter for multimodal models that can process images
+  // Llama 4 Scout/Maverick are natively multimodal (no "vision" in name)
+  const multimodalModels = availableModels.filter(m => {
+    const lower = m.toLowerCase();
+    return lower.includes("vision") || lower.includes("llava") || lower.includes("pixtral")
+      || lower.includes("scout") || lower.includes("maverick");
+  });
   
-  // Since we are verifying images, we MUST use a vision model. Do not fallback to text models.
-  let modelsToTry = visionModels.length > 0 ? visionModels : ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"];
+  // Since we are verifying images, we MUST use a multimodal model.
+  let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "llama-4-scout-17b-16e-instruct",
+    "llama-4-maverick-17b-128e-instruct"
+  ];
   
   const customModel = process.env.GROQ_MODEL?.trim();
   if (customModel) {
