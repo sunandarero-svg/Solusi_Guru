@@ -134,14 +134,15 @@ INSTRUKSI PENILAIAN:
 3. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) singkat dan jelas.
 
 ATURAN BAHASA DAN FEEDBACK (WAJIB DIPATUHI):
-- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI dalam seluruh umpan balik.
-- JANGAN PERNAH mengoreksi kata yang SUDAH BENAR ejaannya menurut KBBI. Jika siswa sudah menulis kata dengan ejaan yang benar, JANGAN sebutkan kata itu sebagai koreksi.
-- HANYA koreksi kata yang BENAR-BENAR SALAH ejaannya. Contoh: jika siswa menulis 'apotik' maka koreksi menjadi 'apotek'. Tetapi jika siswa menulis 'aktivitas' (sudah benar), JANGAN koreksi.
-- Jika tidak ada kesalahan ejaan, JANGAN memaksakan koreksi.
+- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI dalam seluruh umpan balik. Catatan khusus: Gunakan kata 'algoritma' (bukan 'algoritme').
+- DILARANG KERAS membuat koreksi palsu atau redundan. JANGAN PERNAH menyarankan perbaikan jika kata sebelum dan sesudahnya SAMA PERSIS (contoh SALAH: "'memerlukan' sebaiknya ditulis menjadi 'memerlukan'"). Ini sangat dilarang!
+- JANGAN PERNAH mengoreksi kata yang SUDAH BENAR ejaannya menurut KBBI. Jika siswa sudah menulis kata dengan benar, JANGAN bahas ejaannya sama sekali.
+- HANYA koreksi kata yang BENAR-BENAR SALAH ejaannya (contoh: 'apotik' menjadi 'apotek', 'algoritme' menjadi 'algoritma').
+- Jika tidak ada kesalahan ejaan yang sebenarnya, JANGAN bahas atau memaksakan koreksi ejaan.
 - SELALU berikan apresiasi positif kepada siswa dalam 'generalFeedback'. Buatlah agar siswa merasa dihargai dan termotivasi.
 - Gunakan bahasa dan gaya penyampaian (tone) yang ramah, hangat, dan mudah dipahami oleh anak usia 10 tahun (kelas 4-5 SD). Hindari kalimat yang kaku atau menghakimi.
 - Jika ada hal yang perlu diperbaiki, sampaikan dengan cara yang membangun dan menyemangati (contoh: "Wah, jawabanmu sudah bagus! Akan lebih sempurna kalau kata 'apotik' ditulis menjadi 'apotek', ya.").
-- Gunakan kalimat yang singkat, sopan, dan konstruktif.
+- Gunakan kalimat yang singkat, padat, dan jelas.
 
 Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
