@@ -67,23 +67,19 @@ function isMultimodalModel(modelId: string): boolean {
 
 export async function verifyPageReadability(pages: any[]): Promise<VerifyResult> {
   const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Anda menerima ${pages.length} halaman foto sekaligus. Tugas Anda:
-1. Baca SELURUH teks di setiap halaman dari awal hingga akhir.
-2. Cek apakah tulisan tangan di SEMUA halaman dapat dibaca, tidak terpotong, dan pencahayaannya memadai.
-3. Berikan skor keterbacaan keseluruhan (readabilityScore) dari 0-100.
+1. Cek apakah tulisan tangan di SEMUA halaman dapat dibaca, tidak terpotong, dan pencahayaannya memadai.
+2. Berikan skor keterbacaan keseluruhan (readabilityScore) dari 0-100.
 
 ATURAN 'feasible':
 - Jika Anda BISA MEMBACA seluruh tulisan di semua halaman, set 'feasible' ke TRUE.
 - HANYA set 'feasible' ke FALSE jika ada halaman yang BENAR-BENAR TIDAK TERBACA (buram total, gelap, terpotong parah).
 
 ATURAN 'reason' (feedback untuk siswa):
-- Berikan feedback SINGKAT (maksimal 2-3 kalimat) dengan bahasa yang sangat ramah, hangat, dan bersahabat (cocok untuk anak usia 10 tahun / kelas 4-5 SD).
-- SELALU awali dengan apresiasi positif untuk siswa (contoh: "Wah, tulisanmu sudah rapi dan mudah dibaca lho, hebat!").
-- HANYA koreksi kata yang BENAR-BENAR SALAH ejaan menurut KBBI. JANGAN PERNAH mengoreksi kata yang sudah benar. Jika siswa menulis kata dengan ejaan yang sudah sesuai KBBI, JANGAN sebutkan kata itu sebagai koreksi.
-- Jika ada hal yang perlu diperbaiki (seperti salah ejaan atau kurang rapi), sampaikan dengan cara yang menyemangati (contoh: "Supaya makin keren, kata 'apotik' bisa kamu perbaiki jadi 'apotek' ya.").
-- Jika tidak ada kesalahan ejaan, cukup berikan apresiasi singkat saja, JANGAN memaksakan koreksi.
+- Jika feasible = TRUE (tugas bisa dibaca): Berikan pesan SINGKAT (1 kalimat) yang menyatakan tugas bisa dibaca dengan baik dan layak dikumpul. JANGAN berikan komentar apapun tentang ejaan atau typo. (Contoh: "Wah, tulisanmu sudah terlihat jelas dan bisa dibaca, silakan kumpulkan ya!")
+- Jika feasible = FALSE (tugas tidak terbaca): Beri tahu siswa bagian mana yang buram/terpotong dan minta mereka memfoto ulang dengan bahasa yang ramah.
 
 WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
-{"feasible": true/false, "readabilityScore": 0-100, "reason": "feedback singkat untuk siswa"}`;
+{"feasible": true/false, "readabilityScore": 0-100, "reason": "pesan singkat untuk siswa"}`;
 
   const imageBuffers: { buffer: Buffer; mimeType: string }[] = [];
   for (const page of pages) {
