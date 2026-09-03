@@ -19,15 +19,16 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
   if (!res.ok) {
     console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
     return [
+      "qwen/qwen3.6-27b",
+      "qwen/qwen3.8-27b",
       "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "llama-4-scout-17b-16e-instruct",
-      "llama-4-maverick-17b-128e-instruct"
-    ]; // Ultimate fallback defaults - Llama 4 models are natively multimodal
+      "llama-4-scout-17b-16e-instruct"
+    ]; // Fallback defaults: Qwen3 (free tier multimodal) + Llama 4 (paid tier)
   }
   
   const data = await res.json();
   const availableModels = data.data.map((m: any) => m.id);
+  console.log(`[Groq] Available models for key prefix ${apiKey.substring(0, 8)}:`, availableModels.join(", "));
   modelCache[apiKey] = availableModels;
   return availableModels;
 }
@@ -45,6 +46,23 @@ function parseKeys(envValue?: string): string[] {
     .split(",")
     .map((k) => k.replace(/['"` ]/g, "").trim())
     .filter((k) => k.length > 5);
+}
+
+/**
+ * Check if a model supports multimodal (image) input.
+ * Covers: vision models, Llama 4 Scout/Maverick, Qwen3 VL series
+ */
+function isMultimodalModel(modelId: string): boolean {
+  const lower = modelId.toLowerCase();
+  return (
+    lower.includes("vision") ||
+    lower.includes("llava") ||
+    lower.includes("pixtral") ||
+    lower.includes("scout") ||
+    lower.includes("maverick") ||
+    lower.includes("qwen3") ||
+    lower.includes("qwen-vl")
+  );
 }
 
 export async function verifyPageReadability(pages: any[]): Promise<VerifyResult> {
@@ -90,19 +108,16 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
   const availableModels = await getDynamicModels(apiKey);
   
   // Filter for multimodal models that can process images
-  // Llama 4 Scout/Maverick are natively multimodal (no "vision" in name)
-  const multimodalModels = availableModels.filter(m => {
-    const lower = m.toLowerCase();
-    return lower.includes("vision") || lower.includes("llava") || lower.includes("pixtral")
-      || lower.includes("scout") || lower.includes("maverick");
-  });
+  const multimodalModels = availableModels.filter(isMultimodalModel);
   
-  // Since we are verifying images, we MUST use a multimodal model.
+  console.log(`[Verify-Groq] Detected multimodal models: ${multimodalModels.length > 0 ? multimodalModels.join(", ") : "NONE"}`);
+
+  // Use detected multimodal models, or fallback to known free-tier multimodal models
   let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
+    "qwen/qwen3.6-27b",
+    "qwen/qwen3.8-27b",
     "meta-llama/llama-4-scout-17b-16e-instruct",
-    "meta-llama/llama-4-maverick-17b-128e-instruct",
-    "llama-4-scout-17b-16e-instruct",
-    "llama-4-maverick-17b-128e-instruct"
+    "llama-4-scout-17b-16e-instruct"
   ];
   
   const customModel = process.env.GROQ_MODEL?.trim();
@@ -163,6 +178,7 @@ async function runGroqVerify(
         },
       ],
       temperature: 0.2,
+      max_tokens: 2048,
       response_format: { type: "json_object" },
     }),
   });

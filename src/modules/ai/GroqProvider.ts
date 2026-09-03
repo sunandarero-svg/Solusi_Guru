@@ -20,15 +20,16 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
   if (!res.ok) {
     console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
     return [
+      "qwen/qwen3.6-27b",
+      "qwen/qwen3.8-27b",
       "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "llama-4-scout-17b-16e-instruct",
-      "llama-4-maverick-17b-128e-instruct"
-    ]; // Ultimate fallback defaults - Llama 4 models are natively multimodal
+      "llama-4-scout-17b-16e-instruct"
+    ]; // Fallback defaults: Qwen3 (free tier multimodal) + Llama 4 (paid tier)
   }
   
   const data = await res.json();
   const availableModels = data.data.map((m: any) => m.id);
+  console.log(`[Groq] Available models for key prefix ${apiKey.substring(0, 8)}:`, availableModels.join(", "));
   modelCache[apiKey] = availableModels;
   return availableModels;
 }
@@ -61,18 +62,22 @@ export class GroqProvider implements AIProvider {
     const availableModels = await getDynamicModels(apiKey);
     
     // Filter for multimodal models that can process images
-    // Llama 4 Scout/Maverick are natively multimodal (no "vision" in name)
+    // Covers: vision models, Llama 4 Scout/Maverick, Qwen3 VL series
     const multimodalModels = availableModels.filter(m => {
       const lower = m.toLowerCase();
       return lower.includes("vision") || lower.includes("llava") || lower.includes("pixtral")
-        || lower.includes("scout") || lower.includes("maverick");
+        || lower.includes("scout") || lower.includes("maverick")
+        || lower.includes("qwen3") || lower.includes("qwen-vl");
     });
+    
+    console.log(`[Groq] Detected multimodal models: ${multimodalModels.length > 0 ? multimodalModels.join(", ") : "NONE"}`);
+    
     // Since we are assessing images, we MUST use a multimodal model.
     let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
+      "qwen/qwen3.6-27b",
+      "qwen/qwen3.8-27b",
       "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "llama-4-scout-17b-16e-instruct",
-      "llama-4-maverick-17b-128e-instruct"
+      "llama-4-scout-17b-16e-instruct"
     ];
     
     const customModel = process.env.GROQ_MODEL?.trim();
@@ -178,6 +183,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
           },
         ],
         temperature: 0.2,
+        max_tokens: 4096,
         response_format: { type: "json_object" },
       }),
     });
