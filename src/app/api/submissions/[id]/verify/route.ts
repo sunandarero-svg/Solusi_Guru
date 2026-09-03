@@ -28,7 +28,8 @@ export async function POST(
     try {
       const parsed = await verifyPageReadability(submission.pages);
 
-      if (parsed.feasible === false || parsed.readabilityScore < 80) {
+      if (parsed.feasible === false) {
+        // Only reject if pages are truly unreadable
         return NextResponse.json(
           {
             error: "AI_REJECTION",
@@ -39,9 +40,11 @@ export async function POST(
         );
       }
 
+      // Submission accepted — always include feedback for the student
       return NextResponse.json({
         success: true,
         aiResult: parsed,
+        feedback: parsed.reason,
       });
     } catch (aiError: any) {
       console.error("AI Verify check error:", aiError);

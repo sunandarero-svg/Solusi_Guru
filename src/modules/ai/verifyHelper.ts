@@ -67,15 +67,24 @@ function isMultimodalModel(modelId: string): boolean {
 
 export async function verifyPageReadability(pages: any[]): Promise<VerifyResult> {
   const prompt = `Anda adalah AI pemeriksa kelayakan foto tugas sekolah. Anda menerima ${pages.length} halaman foto sekaligus. Tugas Anda:
-1. Pastikan Anda membaca SELURUH teks di setiap halaman dari awal hingga akhir.
-2. Mengecek apakah tulisan tangan di SEMUA halaman dapat dibaca jelas, tidak terpotong, dan pencahayaannya baik.
+1. Pastikan Anda membaca SELURUH teks di setiap halaman dari awal hingga akhir, tanpa ada yang terlewat.
+2. Mengecek apakah tulisan tangan di SEMUA halaman dapat dibaca, tidak terpotong, dan pencahayaannya memadai.
 3. Memberikan skor keterbacaan keseluruhan (readabilityScore) dari 0-100.
-4. Hitung kesalahan (typo, salah tulis, kata buram, kata terpotong) di semua halaman. DILARANG KERAS menebak kata yang buram. Jika terdapat kesalahan ejaan atau salah tulis, Anda WAJIB mencocokkan dan memberikan perbaikan ejaan yang benar sesuai dengan ejaan baku Kamus Besar Bahasa Indonesia (KBBI).
-5. ATURAN KETAT: Jika terdapat >= 5 kesalahan SECARA KESELURUHAN atau JIKA ADA SATU SAJA HALAMAN YANG BURAM/TIDAK TERBACA, Anda WAJIB memberikan skor di bawah 80 (misal 79 atau lebih rendah) dan set 'feasible' ke false. Berikan rekomendasi spesifik pada 'reason' (misal: "Kata 'apotik' salah, seharusnya 'apotek' sesuai KBBI. Tulisan di Halaman 2 buram, mohon tulis ulang/foto kembali.").
-6. Jika semua halaman jelas dan kesalahan total < 5, berikan skor 80 atau lebih tinggi dan set 'feasible' ke true. Tugas ini layak diperiksa. Jika ada minor typo, Anda tetap boleh menyertakan masukan perbaikan sesuai KBBI pada 'reason'.
+4. Hitung kesalahan ejaan (typo, salah tulis, kata terpotong) di semua halaman. Jika terdapat kesalahan ejaan atau salah tulis, Anda WAJIB memberikan koreksi ejaan yang benar sesuai Kamus Besar Bahasa Indonesia (KBBI). Contoh: "Kata 'apotik' seharusnya 'apotek' sesuai KBBI."
+
+ATURAN PENTING untuk menentukan 'feasible':
+- Jika Anda BISA MEMBACA SELURUH tulisan di semua halaman (meskipun ada typo, tulisan kurang rapi, atau kesalahan ejaan), maka set 'feasible' ke TRUE. Tugas boleh dikumpulkan.
+- HANYA set 'feasible' ke FALSE jika ada halaman yang BENAR-BENAR TIDAK TERBACA (buram total, gelap, terpotong parah, atau tidak bisa dibaca sama sekali).
+
+ATURAN PENTING untuk 'reason' (WAJIB diisi dengan detail):
+- SELALU berikan feedback yang membangun pada 'reason', baik ketika feasible true MAUPUN false.
+- Jika ada kesalahan ejaan, sebutkan satu per satu beserta koreksinya sesuai KBBI.
+- Jika tulisan kurang rapi, sampaikan saran agar siswa menulis lebih rapi dan teliti.
+- Jika pencahayaan foto kurang baik, sarankan agar siswa memfoto ulang dengan pencahayaan lebih baik.
+- Jika semua bagus, tetap berikan apresiasi singkat dan motivasi agar siswa terus menulis dengan rapi.
 
 WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
-{"feasible": true/false, "readabilityScore": 0-100, "reason": "alasan spesifik"}`;
+{"feasible": true/false, "readabilityScore": 0-100, "reason": "feedback detail untuk siswa"}`;
 
   const imageBuffers: { buffer: Buffer; mimeType: string }[] = [];
   for (const page of pages) {
