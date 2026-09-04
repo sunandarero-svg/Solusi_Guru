@@ -3,7 +3,7 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 export class MockAIProvider implements AIProvider {
   readonly providerName = "MockAI";
 
-  async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
+  async assessSubmission(pages: any[], rubrics: any[], answerKey?: string): Promise<AIAssessmentResult> {
     // Simulate API processing delay (3 seconds)
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
@@ -24,7 +24,7 @@ export class MockAIProvider implements AIProvider {
           rubricCriterionId: criterion.id,
           score: score,
           maxScore: criterion.maxScore,
-          reasoning: `Jawaban siswa menunjukkan pemahaman yang memadai terhadap kriteria "${criterion.name}", namun masih ada ruang untuk penjelasan yang lebih mendalam.`
+          reasoning: `Jawaban siswa menunjukkan pemahaman yang memadai terhadap kriteria "${criterion.name}", namun masih ada ruang untuk penjelasan yang lebih mendalam.${answerKey ? " (Dinilai berdasarkan kunci jawaban referensi)" : ""}`
         });
       }
     }
@@ -36,6 +36,11 @@ export class MockAIProvider implements AIProvider {
       generalFeedback,
       rubricScores,
     };
+  }
+
+  async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<string> {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return `[MOCK ANSWER KEY]\n\nBerdasarkan soal yang diberikan:\n${taskText.substring(0, 200)}...\n\n1. Jawaban soal 1: [Mock jawaban]\n2. Jawaban soal 2: [Mock jawaban]\n3. Jawaban soal 3: [Mock jawaban]`;
   }
 }
 

@@ -18,6 +18,8 @@ export default function TeacherReviewPage({
   const [finalScore, setFinalScore] = useState<number>(0);
   const [finalFeedback, setFinalFeedback] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [answerKey, setAnswerKey] = useState<string | null>(null);
+  const [showAnswerKey, setShowAnswerKey] = useState(false);
   
   const [viewMode, setViewMode] = useState<"IMAGE" | "AI">("IMAGE");
 
@@ -39,7 +41,17 @@ export default function TeacherReviewPage({
         }
         setLoading(false);
       });
-  }, [resolvedParams.submissionId]);
+
+    // Fetch answer key for this assignment
+    fetch(`/api/assignments/${resolvedParams.id}/attachments`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.answerKey) {
+          setAnswerKey(data.answerKey);
+        }
+      })
+      .catch(() => {});
+  }, [resolvedParams.submissionId, resolvedParams.id]);
 
   const handleSave = async (publish: boolean) => {
     setSaving(true);
@@ -210,6 +222,37 @@ export default function TeacherReviewPage({
                   placeholder="Tambahkan umpan balik tambahan atau edit saran dari AI di sini..."
                 />
               </div>
+
+              {/* AI Answer Key Reference */}
+              {answerKey && (
+                <div>
+                  <button
+                    onClick={() => setShowAnswerKey(!showAnswerKey)}
+                    className="flex items-center gap-2 w-full text-left font-bold text-gray-800 mb-3 pb-2 border-b border-gray-100 hover:text-purple-700 transition"
+                  >
+                    <span className={`transform transition-transform text-xs ${showAnswerKey ? "rotate-90" : ""}`}>
+                      ▶
+                    </span>
+                    🔑 Kunci Jawaban Referensi (AI)
+                    <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-normal ml-auto">
+                      Referensi Guru
+                    </span>
+                  </button>
+
+                  {showAnswerKey && (
+                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 max-h-64 overflow-y-auto mb-2">
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {answerKey}
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-purple-100">
+                        <p className="text-xs text-purple-500 italic">
+                          ⚠️ Ini adalah referensi. Jawaban siswa dinilai berdasarkan kesesuaian konsep, bukan kesamaan kata per kata.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* AI Details Breakdown */}
               <div>

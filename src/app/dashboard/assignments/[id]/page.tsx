@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RubricEditor from "@/components/RubricEditor";
 import SubmissionsTable from "@/components/SubmissionsTable";
+import AttachmentUploader from "@/components/AttachmentUploader";
 
 interface Assignment {
   id: string;
@@ -139,6 +140,8 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       <RubricEditor assignmentId={assignment.id} isPublished={isPublished} initialRubric={assignment.rubrics && assignment.rubrics[0]} onSaved={fetchAssignment} />
+
+      <AttachmentUploader assignmentId={assignment.id} isPublished={isPublished} />
 
       {isPublished && (
         <SubmissionsTable assignmentId={assignment.id} assignmentClassName={assignment.class?.name || "-"} />

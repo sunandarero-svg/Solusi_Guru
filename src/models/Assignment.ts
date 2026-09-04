@@ -69,3 +69,37 @@ const RubricCriterionSchema: Schema = new Schema({
 
 export const RubricCriterion = mongoose.models.RubricCriterion || mongoose.model<IRubricCriterion>('RubricCriterion', RubricCriterionSchema);
 
+// === Assignment Attachment (Lampiran Tugas Guru) ===
+
+export interface IAssignmentAttachment extends Document {
+  assignmentId: mongoose.Types.ObjectId;
+  storageKey: string;
+  originalFileName: string;
+  mimeType: string;
+  fileSize: number;
+  extractedText?: string;
+  aiAnswerKey?: string;
+  description?: string;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const AssignmentAttachmentSchema: Schema = new Schema({
+  assignmentId: { type: Schema.Types.ObjectId, ref: 'Assignment', required: true },
+  storageKey: { type: String, required: true },
+  originalFileName: { type: String, required: true },
+  mimeType: { type: String, required: true },
+  fileSize: { type: Number, required: true },
+  extractedText: { type: String },
+  aiAnswerKey: { type: String },
+  description: { type: String },
+  order: { type: Number, default: 0 }
+}, {
+  timestamps: true
+});
+
+AssignmentAttachmentSchema.index({ assignmentId: 1, order: 1 });
+
+export const AssignmentAttachment = mongoose.models.AssignmentAttachment || mongoose.model<IAssignmentAttachment>('AssignmentAttachment', AssignmentAttachmentSchema);
+

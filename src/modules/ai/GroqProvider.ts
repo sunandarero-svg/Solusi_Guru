@@ -47,7 +47,7 @@ export class GroqProvider implements AIProvider {
       .filter((k) => k.length > 5);
   }
 
-  async assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult> {
+  async assessSubmission(pages: any[], rubrics: any[], answerKey?: string): Promise<AIAssessmentResult> {
     const keys = this.getApiKeys();
     if (keys.length === 0) {
       throw new Error("GROQ_API_KEY / GROQ_API_KEYS is not configured.");
@@ -90,7 +90,7 @@ export class GroqProvider implements AIProvider {
     for (const modelName of modelsToTry) {
       try {
         console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${keys.length})`);
-        const result = await this._doAssessment(apiKey, modelName, pages, rubrics);
+        const result = await this._doAssessment(apiKey, modelName, pages, rubrics, answerKey);
         return result;
       } catch (error: any) {
         lastError = error;
@@ -109,7 +109,8 @@ export class GroqProvider implements AIProvider {
     apiKey: string,
     modelName: string,
     pages: any[],
-    rubrics: any[]
+    rubrics: any[],
+    answerKey?: string
   ): Promise<AIAssessmentResult> {
     const firstRubric = rubrics[0];
     let rubricInstruction = "";
@@ -123,15 +124,35 @@ export class GroqProvider implements AIProvider {
       });
     }
 
+    // Build answer key context if available
+    let answerKeyInstruction = "";
+    if (answerKey && answerKey.trim().length > 0) {
+      answerKeyInstruction = `
+KUNCI JAWABAN REFERENSI (dari soal yang dilampirkan guru):
+${answerKey}
+
+PENTING — ATURAN PENILAIAN BERDASARKAN KUNCI JAWABAN:
+- Bandingkan jawaban siswa dengan kunci jawaban di atas.
+- Jawaban siswa TIDAK HARUS sama persis kata per kata dengan kunci jawaban.
+- Yang dinilai adalah KESESUAIAN KONSEP: apakah jawaban siswa menunjukkan pemahaman yang benar terhadap konsep yang ditanyakan.
+- Jika siswa menjawab dengan kata-kata berbeda tetapi konsepnya benar dan tepat, berikan skor penuh untuk kriteria tersebut.
+- Jika siswa menjawab dengan konsep yang sebagian benar, berikan skor proporsional.
+- Jika jawaban siswa sama sekali tidak sesuai dengan konsep yang ditanyakan, berikan skor rendah.
+- Dalam 'reasoning', jelaskan secara singkat bagaimana jawaban siswa dibandingkan dengan konsep kunci jawaban.
+`;
+    }
+
     const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa. 
 Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya berdasarkan kriteria rubrik berikut.
 
 ${rubricInstruction}
+${answerKeyInstruction}
 
 INSTRUKSI PENILAIAN:
 1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir.
 2. Berikan penilaian yang objektif untuk setiap kriteria rubrik.
 3. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) singkat dan jelas.
+${answerKey ? "4. Gunakan KUNCI JAWABAN REFERENSI di atas sebagai acuan utama untuk menilai kebenaran jawaban siswa.\n" : ""}
 
 ATURAN BAHASA DAN FEEDBACK (WAJIB DIPATUHI):
 - Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI dalam seluruh umpan balik. Catatan khusus: Gunakan kata 'algoritma' (bukan 'algoritme').
@@ -229,5 +250,151 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
 
     const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
     return JSON.parse(cleanText) as AIAssessmentResult;
+  }
+
+  /**
+   * Generate an answer key from teacher-uploaded task documents.
+   * Analyzes the extracted text (and optionally images) from attachments
+   * and produces reference answers.
+   */
+  async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<string> {
+    const keys = this.getApiKeys();
+    if (keys.length === 0) {
+      throw new Error("GROQ_API_KEY / GROQ_API_KEYS is not configured.");
+    }
+
+    const apiKey = keys[currentKeyIndex % keys.length];
+    currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+
+    const availableModels = await getDynamicModels(apiKey);
+    
+    // Determine if we need multimodal (have images) or text-only
+    const hasImages = imageAttachments && imageAttachments.length > 0;
+    
+    let modelsToTry: string[];
+    if (hasImages) {
+      const multimodalModels = availableModels.filter(m => {
+        const lower = m.toLowerCase();
+        return lower.includes("vision") || lower.includes("llava") || lower.includes("pixtral")
+          || lower.includes("scout") || lower.includes("maverick")
+          || lower.includes("qwen3") || lower.includes("qwen-vl");
+      });
+      modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
+        "qwen/qwen3.6-27b",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+      ];
+    } else {
+      // For text-only, prefer larger text models
+      modelsToTry = availableModels.length > 0 ? availableModels : [
+        "qwen/qwen3.6-27b",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+      ];
+    }
+
+    const customModel = process.env.GROQ_MODEL?.trim();
+    if (customModel) {
+      modelsToTry = [customModel, ...modelsToTry];
+    }
+
+    let rubricContext = "";
+    const firstRubric = rubrics[0];
+    if (firstRubric && firstRubric.criteria) {
+      rubricContext = "\nKriteria rubrik yang digunakan:\n";
+      firstRubric.criteria.forEach((c: any) => {
+        rubricContext += `- ${c.name}: ${c.description || ""} (Maks skor: ${c.maxScore})\n`;
+      });
+    }
+
+    const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
+
+SOAL/TUGAS DARI GURU:
+${taskText}
+${rubricContext}
+
+INSTRUKSI:
+1. Baca dan pahami seluruh soal/tugas di atas dengan cermat.
+2. Buat kunci jawaban yang lengkap dan benar untuk setiap pertanyaan atau bagian tugas.
+3. Jawaban harus akurat, sesuai fakta, dan sesuai dengan tingkat pendidikan siswa (SD/SMP).
+4. Untuk soal esai, berikan jawaban yang mencakup poin-poin utama yang harus ada.
+5. Untuk soal pilihan ganda, sebutkan jawaban yang benar beserta penjelasan singkat.
+6. Untuk soal isian, berikan jawaban yang tepat.
+7. Gunakan bahasa Indonesia yang baik dan benar.
+8. Strukturkan jawaban dengan jelas, gunakan penomoran yang sesuai dengan soal.
+
+Berikan kunci jawaban dalam format teks terstruktur (bukan JSON). Gunakan penomoran yang sesuai dengan soal.`;
+
+    const contentParts: any[] = [{ type: "text", text: prompt }];
+
+    // Add image attachments if any
+    if (hasImages) {
+      for (const attachment of imageAttachments!) {
+        try {
+          let buffer: Buffer;
+          if (attachment.storageKey.startsWith("http")) {
+            const res = await fetch(attachment.storageKey);
+            buffer = Buffer.from(await res.arrayBuffer());
+          } else {
+            const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
+            buffer = await readFile(filePath);
+          }
+          const mimeType = attachment.mimeType || "image/jpeg";
+          
+          if (attachment.description) {
+            contentParts.push({
+              type: "text",
+              text: `[Berikut adalah gambar untuk: ${attachment.description}]`
+            });
+          }
+          
+          contentParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${buffer.toString("base64")}`,
+            },
+          });
+        } catch (err) {
+          console.warn(`[Groq] Failed to load image attachment: ${attachment.originalFileName}`, err);
+        }
+      }
+    }
+
+    let lastError: any = null;
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`[Groq] Generating answer key with model ${modelName}...`);
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [{ role: "user", content: contentParts }],
+            temperature: 0.3,
+            max_tokens: 4096,
+          }),
+        });
+
+        if (!response.ok) {
+          const errBody = await response.text();
+          throw new Error(`Groq API returned ${response.status}: ${errBody}`);
+        }
+
+        const data = await response.json();
+        const answerKey = data.choices?.[0]?.message?.content;
+        if (!answerKey) {
+          throw new Error("Groq API returned empty response for answer key.");
+        }
+
+        console.log(`[Groq] Answer key generated successfully with ${modelName}.`);
+        return answerKey.trim();
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[Groq] Answer key generation failed with ${modelName}:`, error?.message);
+      }
+    }
+
+    throw lastError || new Error("Failed to generate answer key with all available models.");
   }
 }

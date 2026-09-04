@@ -26,7 +26,17 @@ export interface AIProvider {
    * Assesses a student's submission based on uploaded images and rubrics.
    * @param pages The images (SubmissionPages) uploaded by the student
    * @param rubrics The rubrics defined for the assignment
+   * @param answerKey Optional AI-generated answer key for concept-based comparison
    */
-  assessSubmission(pages: any[], rubrics: any[]): Promise<AIAssessmentResult>;
+  assessSubmission(pages: any[], rubrics: any[], answerKey?: string): Promise<AIAssessmentResult>;
+
+  /**
+   * Generates an answer key from the task text extracted from teacher attachments.
+   * @param taskText Combined extracted text from all teacher attachments
+   * @param rubrics The rubrics for context
+   * @param imageAttachments Optional image attachments for visual analysis
+   * @returns The generated answer key as a string
+   */
+  generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<string>;
 }
 
