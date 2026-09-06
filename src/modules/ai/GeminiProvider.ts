@@ -18,8 +18,8 @@ export class GeminiProvider implements AIProvider {
     const apiKey = this.getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // We use gemini-1.5-flash as the default for fast multimodal tasks
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    // We use gemini-2.5-flash as the default for fast multimodal tasks
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     const model = genAI.getGenerativeModel({ model: modelName });
 
     const firstRubric = rubrics[0];
@@ -154,7 +154,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     const genAI = new GoogleGenerativeAI(apiKey);
     
     // Default to flash for standard tasks, or pro if configured
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     const model = genAI.getGenerativeModel({ model: modelName });
 
     let rubricContext = "";
