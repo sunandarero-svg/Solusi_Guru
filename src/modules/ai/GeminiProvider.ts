@@ -179,10 +179,11 @@ INSTRUKSI:
 4. Untuk soal esai, berikan jawaban yang mencakup poin-poin utama yang harus ada.
 5. Untuk soal pilihan ganda, sebutkan jawaban yang benar beserta penjelasan singkat.
 6. Untuk soal isian, berikan jawaban yang tepat.
-7. Gunakan bahasa Indonesia yang baik dan benar.
+7. Tuliskan jawaban dalam bahasa Indonesia yang baik, benar, dan mudah dibaca, serta pastikan penggunaan tanda baca yang jelas.
 8. Strukturkan jawaban dengan jelas, gunakan penomoran yang sesuai dengan soal.
 9. DILARANG KERAS memberikan komentar, alasan, pembukaan, atau keluhan tentang kondisi atau kualitas gambar (misalnya resolusi rendah, gelap, buram, dll). Jika gambar kurang jelas, kerjakan saja sebaik mungkin tanpa memberikan catatan atau komentar apapun tentang kondisi gambar tersebut.
 10. DILARANG KERAS menggunakan kalimat pengantar atau penutup. Langsung berikan isi kunci jawaban saja.
+11. Jika jawaban mengandung rumus matematika atau perhitungan, Anda WAJIB menuliskan simbol-simbol matematikanya secara lengkap, jelas, dan akurat.
 
 Berikan kunci jawaban dalam format teks terstruktur (bukan JSON). Gunakan penomoran yang sesuai dengan soal.`;
 
