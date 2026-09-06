@@ -79,12 +79,17 @@ export const attachmentService = {
 
     await writeFile(filePath, processedBuffer);
 
-    // Extract text from document
+    // Extract text and images from document
     let extractedText = "";
+    let extractedImages: { buffer: Buffer, mimeType: string, extension: string }[] = [];
     try {
-      extractedText = await extractTextFromFile(filePath, mimeType);
+      const extractionResult = await extractTextFromFile(filePath, mimeType);
+      extractedText = extractionResult.text;
+      if (extractionResult.extractedImages) {
+        extractedImages = extractionResult.extractedImages;
+      }
     } catch (err) {
-      console.warn(`[Attachment] Failed to extract text from ${originalFileName}:`, err);
+      console.warn(`[Attachment] Failed to extract text/images from ${originalFileName}:`, err);
     }
 
     // Determine order
@@ -103,6 +108,27 @@ export const attachmentService = {
       extractedText,
       order: nextOrder,
     });
+    
+    // Save extracted images from DOCX as new attachments recursively
+    if (extractedImages.length > 0) {
+      console.log(`[Attachment] Found ${extractedImages.length} images in DOCX. Creating separate attachments...`);
+      for (let i = 0; i < extractedImages.length; i++) {
+        const img = extractedImages[i];
+        const imgFileName = `${originalFileName.replace(/\.[^/.]+$/, "")}_image_${i + 1}${img.extension}`;
+        try {
+          // Await to ensure order is preserved sequentially
+          await attachmentService.createAttachment(
+            assignmentId,
+            teacherId,
+            img.buffer,
+            imgFileName,
+            img.mimeType
+          );
+        } catch (imgErr) {
+          console.warn(`[Attachment] Failed to save extracted image ${imgFileName}:`, imgErr);
+        }
+      }
+    }
 
     return mapId(attachment.toObject());
   },
@@ -228,21 +254,19 @@ async function compressImage(buffer: Buffer): Promise<Buffer> {
 }
 
 /**
- * Extract text from a file based on its MIME type
+ * Extract text (and optionally images) from a file based on its MIME type
  */
-async function extractTextFromFile(filePath: string, mimeType: string): Promise<string> {
+async function extractTextFromFile(filePath: string, mimeType: string): Promise<{ text: string, extractedImages?: { buffer: Buffer, mimeType: string, extension: string }[] }> {
   if (mimeType === "application/pdf") {
-    return extractTextFromPDF(filePath);
+    return { text: await extractTextFromPDF(filePath) };
   } else if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-    return extractTextFromDOCX(filePath);
+    return await extractTextFromDOCXWithImages(filePath);
   } else if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-    return extractTextFromXLSX(filePath);
+    return { text: await extractTextFromXLSX(filePath) };
   } else if (mimeType.startsWith("image/")) {
-    // For images, we'll use OCR later or return empty
-    // For now, return a note that this is an image
-    return "[Lampiran berupa gambar - teks akan diproses oleh AI secara visual]";
+    return { text: "[Lampiran berupa gambar - teks akan diproses oleh AI secara visual]" };
   }
-  return "";
+  return { text: "" };
 }
 
 async function extractTextFromPDF(filePath: string): Promise<string> {
@@ -258,15 +282,47 @@ async function extractTextFromPDF(filePath: string): Promise<string> {
   }
 }
 
-async function extractTextFromDOCX(filePath: string): Promise<string> {
+async function extractTextFromDOCXWithImages(filePath: string): Promise<{ text: string, extractedImages: { buffer: Buffer, mimeType: string, extension: string }[] }> {
   try {
     const mammoth = await import("mammoth");
     const buffer = await readFile(filePath);
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value || "";
+    
+    const extractedImages: { buffer: Buffer, mimeType: string, extension: string }[] = [];
+    
+    const options = {
+      convertImage: mammoth.images.imgElement((image) => {
+        return image.read("base64").then((imageBuffer) => {
+          const mimeType = image.contentType;
+          let extension = ".jpg";
+          if (mimeType === "image/png") extension = ".png";
+          else if (mimeType === "image/gif") extension = ".gif";
+          else if (mimeType === "image/svg+xml") extension = ".svg";
+          
+          extractedImages.push({
+            buffer: Buffer.from(imageBuffer, "base64"),
+            mimeType,
+            extension
+          });
+          
+          return { src: `data:${mimeType};base64,${imageBuffer}` };
+        });
+      })
+    };
+    
+    // We use convertToHtml to trigger the image extraction hook, 
+    // but we can also get raw text if we just need the text.
+    // Actually, extractRawText doesn't trigger the image converter.
+    // We must use convertToHtml to extract images, then we can strip HTML tags for the text.
+    const result = await mammoth.convertToHtml({ buffer }, options);
+    const html = result.value || "";
+    
+    // Simple HTML strip to get text
+    const text = html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+    
+    return { text, extractedImages };
   } catch (err) {
-    console.warn("[Attachment] DOCX text extraction failed:", err);
-    return "";
+    console.warn("[Attachment] DOCX text and image extraction failed:", err);
+    return { text: "", extractedImages: [] };
   }
 }
 
