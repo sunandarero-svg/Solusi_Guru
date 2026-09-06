@@ -136,12 +136,11 @@ export default function StudentsManagementPage() {
       skipEmptyLines: true,
       complete: async function(results) {
         const parsedStudents = results.data.map((row: any) => ({
-          fullName: row.NamaLengkap || row.Nama || row.name || Object.values(row)[0],
-          studentNumber: row.NIS || row.nis || row.studentNumber || Object.values(row)[1]
-        })).filter(s => s.fullName && s.studentNumber);
+          fullName: row.NamaLengkap || row.Nama || row.name || Object.values(row)[0]
+        })).filter(s => s.fullName);
 
         if (parsedStudents.length === 0) {
-          setMessage({ type: "error", text: "Format CSV tidak sesuai. Pastikan ada kolom NamaLengkap dan NIS." });
+          setMessage({ type: "error", text: "Format CSV tidak sesuai. Pastikan ada kolom NamaLengkap." });
           setSubmitting(false);
           return;
         }
@@ -171,7 +170,7 @@ export default function StudentsManagementPage() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap,NIS,Username,Password\nBudi Santoso,1001,1001@siswa.com,siswa123\nSiti Aminah,1002,1002@siswa.com,siswa123";
+    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap\nBudi Santoso\nSiti Aminah";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -390,7 +389,8 @@ export default function StudentsManagementPage() {
                   <div className="bg-emerald-50/50 rounded-xl p-5 border border-emerald-100 text-center">
                     <p className="text-sm text-emerald-800 font-bold mb-2">Panduan Upload CSV</p>
                     <p className="text-xs text-emerald-600 mb-4 leading-relaxed">
-                      Format CSV (Comma delimited) dengan 2 kolom: <strong>NamaLengkap</strong> dan <strong>NIS</strong>.<br/>
+                      Format CSV (Comma delimited) dengan 1 kolom: <strong>NamaLengkap</strong>.<br/>
+                      Username akan otomatis di-generate (4 digit).<br/>
                       Password default: <strong className="font-mono">siswa123</strong>
                     </p>
                     <button 
