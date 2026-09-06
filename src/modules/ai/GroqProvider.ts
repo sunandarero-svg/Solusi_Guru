@@ -20,11 +20,10 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
   if (!res.ok) {
     console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
     return [
-      "qwen/qwen3.6-27b",
-      "qwen/qwen3.8-27b",
-      "meta-llama/llama-4-scout-17b-16e-instruct",
-      "llama-4-scout-17b-16e-instruct"
-    ]; // Fallback defaults: Qwen3 (free tier multimodal) + Llama 4 (paid tier)
+      "llama-3.2-90b-vision-preview",
+      "llama-3.2-11b-vision-preview",
+      "llama-3.3-70b-versatile"
+    ]; // Fallback defaults: Llama 3.2 Vision (multimodal) + Llama 3.3 (text)
   }
   
   const data = await res.json();
@@ -74,10 +73,9 @@ export class GroqProvider implements AIProvider {
     
     // Since we are assessing images, we MUST use a multimodal model.
     let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
-      "qwen/qwen3.6-27b",
-      "qwen/qwen3.8-27b",
-      "meta-llama/llama-4-scout-17b-16e-instruct",
-      "llama-4-scout-17b-16e-instruct"
+      "llama-3.2-90b-vision-preview",
+      "llama-3.2-11b-vision-preview",
+      "llama-3.2-11b-vision-preview"
     ];
     
     const customModel = process.env.GROQ_MODEL?.trim();
@@ -280,14 +278,14 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
           || lower.includes("qwen3") || lower.includes("qwen-vl");
       });
       modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
-        "qwen/qwen3.6-27b",
-        "meta-llama/llama-4-scout-17b-16e-instruct"
+        "llama-3.2-90b-vision-preview",
+        "llama-3.2-11b-vision-preview"
       ];
     } else {
       // For text-only, prefer larger text models
       modelsToTry = availableModels.length > 0 ? availableModels : [
-        "qwen/qwen3.6-27b",
-        "meta-llama/llama-4-scout-17b-16e-instruct"
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant"
       ];
     }
 
@@ -320,6 +318,8 @@ INSTRUKSI:
 6. Untuk soal isian, berikan jawaban yang tepat.
 7. Gunakan bahasa Indonesia yang baik dan benar.
 8. Strukturkan jawaban dengan jelas, gunakan penomoran yang sesuai dengan soal.
+9. DILARANG KERAS memberikan komentar, alasan, pembukaan, atau keluhan tentang kondisi atau kualitas gambar (misalnya resolusi rendah, gelap, buram, dll). Jika gambar kurang jelas, kerjakan saja sebaik mungkin tanpa memberikan catatan atau komentar apapun tentang kondisi gambar tersebut.
+10. DILARANG KERAS menggunakan kalimat pengantar atau penutup. Langsung berikan isi kunci jawaban saja.
 
 Berikan kunci jawaban dalam format teks terstruktur (bukan JSON). Gunakan penomoran yang sesuai dengan soal.`;
 
