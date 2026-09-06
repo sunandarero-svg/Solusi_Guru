@@ -5,7 +5,7 @@ import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
-import { GroqProvider } from "@/modules/ai/GroqProvider";
+import { GeminiProvider } from "@/modules/ai/GeminiProvider";
 
 export async function POST(
   req: NextRequest,
@@ -55,7 +55,7 @@ export async function POST(
     const imageAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("image/"));
 
     // Generate answer key using AI
-    const provider = new GroqProvider();
+    const provider = new GeminiProvider();
     const answerKey = await provider.generateAnswerKey(combinedText, rubricsWithCriteria, imageAttachments);
 
     // Save answer key
