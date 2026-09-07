@@ -147,7 +147,71 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     }
   }
 
-  throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key.");
+  console.log("[Verify-Groq] All dynamically fetched Groq API models failed. Attempting Qwen fallback...");
+  const qwenKey = process.env.QWEN_API_KEY?.trim();
+  if (qwenKey) {
+    try {
+      console.log("[Verify-Qwen] Trying Qwen fallback model qwen-vl-plus...");
+      const result = await runQwenVerify(qwenKey, "qwen-vl-plus", prompt, imageBuffers);
+      console.log("[Verify-Qwen] Success with Qwen fallback model.");
+      return result;
+    } catch (qwenErr: any) {
+      console.error("[Verify-Qwen] Qwen fallback also failed:", qwenErr?.message || qwenErr);
+      throw new Error(`Both Groq and Qwen API failed. Last Groq Error: ${lastError?.message}. Qwen Error: ${qwenErr?.message}`);
+    }
+  }
+
+  throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key, and QWEN_API_KEY is not configured.");
+}
+
+async function runQwenVerify(
+  apiKey: string,
+  modelName: string,
+  prompt: string,
+  imageBuffers: { buffer: Buffer; mimeType: string }[]
+): Promise<VerifyResult> {
+  const contentParts: any[] = [{ type: "text", text: prompt }];
+
+  for (const img of imageBuffers) {
+    contentParts.push({
+      type: "image_url",
+      image_url: {
+        url: `data:${img.mimeType};base64,${img.buffer.toString("base64")}`,
+      },
+    });
+  }
+
+  const response = await fetch("https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: [
+        {
+          role: "user",
+          content: contentParts,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 2048,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Qwen API returned ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Qwen API returned empty response");
+
+  const cleanText = content.replace(/```json/gi, "").replace(/```/g, "").trim();
+  return JSON.parse(cleanText) as VerifyResult;
 }
 
 async function runGroqVerify(

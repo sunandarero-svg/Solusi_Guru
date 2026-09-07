@@ -59,6 +59,7 @@ export class AIService {
     let assessmentResult;
     let attempt = 0;
     const maxRetries = 2;
+    let primaryFailed = false;
 
     while (attempt <= maxRetries) {
       try {
@@ -69,14 +70,35 @@ export class AIService {
         );
         break; // Success, exit loop
       } catch (error) {
-
         attempt++;
         console.warn(`[AI] Attempt ${attempt} failed:`, error);
         if (attempt > maxRetries) {
-          throw new Error(`AI assessment failed after ${maxRetries} retries: ${error}`);
+          primaryFailed = true;
+          console.error(`[AI] Primary provider failed after ${maxRetries} retries: ${error}`);
+          break;
         }
         // Wait before retrying (exponential backoff: 1s, 2s, ...)
         await new Promise(res => setTimeout(res, attempt * 1000));
+      }
+    }
+
+    // Fallback to Qwen if primary provider failed completely
+    if (primaryFailed) {
+      console.log(`[AI] Falling back to QwenProvider...`);
+      try {
+        const { QwenProvider } = await import("./QwenProvider");
+        const fallbackProvider = new QwenProvider();
+        assessmentResult = await fallbackProvider.assessSubmission(
+          pages as any,
+          rubricsWithCriteria,
+          answerKey
+        );
+        console.log(`[AI] QwenProvider fallback succeeded!`);
+        
+        // Temporarily change the provider name so the DB records Qwen-VL as the provider used
+        Object.defineProperty(this.provider, "providerName", { value: fallbackProvider.providerName, configurable: true });
+      } catch (fallbackError) {
+        throw new Error(`AI assessment failed on primary and fallback providers. Fallback error: ${fallbackError}`);
       }
     }
 
