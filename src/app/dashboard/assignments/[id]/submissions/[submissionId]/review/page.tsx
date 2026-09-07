@@ -93,32 +93,32 @@ export default function TeacherReviewPage({
   const isPublished = submission.teacherReview?.status === "PUBLISHED";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-64px)] min-h-screen lg:min-h-0">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shrink-0 shadow-sm z-10">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 shadow-sm z-10">
         <div>
           <div className="text-xs text-gray-500 mb-1 flex items-center space-x-2">
             <Link href={`/dashboard/assignments/${resolvedParams.id}`} className="hover:text-emerald-600">
               ← Kembali ke Daftar Pengumpulan
             </Link>
           </div>
-          <h1 className="text-xl font-bold text-gray-800">
-            Review: {submission.student.fullName} ({submission.student.studentNumber})
+          <h1 className="text-lg md:text-xl font-bold text-gray-800">
+            Review: {submission.student.fullName} <span className="text-gray-500 text-sm md:text-base font-normal">({submission.student.studentNumber})</span>
           </h1>
         </div>
         
-        <div className="flex space-x-3">
+        <div className="flex space-x-2 md:space-x-3 w-full md:w-auto">
           <button 
             onClick={() => handleSave(false)}
             disabled={saving || isPublished}
-            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+            className="flex-1 md:flex-none px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
           >
             {saving ? "Menyimpan..." : "Simpan Draft"}
           </button>
           <button 
             onClick={() => handleSave(true)}
             disabled={saving || isPublished}
-            className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
+            className="flex-1 md:flex-none px-4 md:px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-sm whitespace-nowrap"
           >
             {isPublished ? "Telah di-Publish" : "Publish Nilai Akhir"}
           </button>
@@ -126,9 +126,9 @@ export default function TeacherReviewPage({
       </div>
 
       {/* Split Screen Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden">
         {/* Left Pane: Document Viewer */}
-        <div className="w-1/2 border-r border-gray-200 bg-gray-100 flex flex-col relative">
+        <div className="w-full lg:w-1/2 border-b lg:border-b-0 lg:border-r border-gray-200 bg-gray-100 flex flex-col relative h-[60vh] lg:h-auto">
           <div className="bg-white px-4 py-3 border-b border-gray-200 flex justify-between items-center shadow-sm z-10">
             <h3 className="font-bold text-gray-700">Foto Tugas Siswa</h3>
             <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-md">
@@ -177,21 +177,21 @@ export default function TeacherReviewPage({
         </div>
 
         {/* Right Pane: AI Assessment & Grading */}
-        <div className="w-1/2 bg-white flex flex-col overflow-y-auto">
+        <div className="w-full lg:w-1/2 bg-white flex flex-col lg:overflow-y-auto">
           {ai ? (
             <div className="p-8 space-y-8">
               
               {/* Grading Input */}
               <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 shadow-sm">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 mb-4">
                   <h3 className="font-bold text-gray-800">Penilaian Akhir</h3>
                   <div className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-medium">
                     Rekomendasi AI: {ai.suggestedScore}
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-4">
-                  <div className="w-1/3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="w-full sm:w-1/3">
                     <label className="block text-xs font-medium text-gray-600 mb-1">Skor Akhir (0-100)</label>
                     <input 
                       type="number" 
