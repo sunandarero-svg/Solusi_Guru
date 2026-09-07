@@ -26,6 +26,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [regradingId, setRegradingId] = useState<string | null>(null);
   
   // Bulk actions state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -69,6 +70,31 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
       alert(err.message);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleRegrade = async (submissionId: string, studentName: string) => {
+    if (!confirm(`Apakah Anda yakin ingin AI mengkoreksi ulang tugas dari ${studentName}?`)) {
+      return;
+    }
+    
+    setRegradingId(submissionId);
+    try {
+      const res = await fetch(`/api/submissions/${submissionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "PROCESS_AI" })
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Gagal memulai koreksi ulang");
+      }
+      alert(`Koreksi ulang untuk ${studentName} sedang diproses oleh AI. Silakan muat ulang halaman setelah beberapa saat.`);
+      fetchSubmissions();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setRegradingId(null);
     }
   };
 
@@ -260,6 +286,16 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     )}
                   </td>
                   <td className="px-6 py-4 text-right flex items-center justify-end space-x-3">
+                    {sub.status === "FAILED" && (
+                      <button
+                        onClick={() => handleRegrade(sub.id, sub.student.fullName)}
+                        disabled={regradingId === sub.id}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
+                        title="Koreksi Ulang dengan AI"
+                      >
+                        {regradingId === sub.id ? "⏳" : "🔄 Koreksi Ulang"}
+                      </button>
+                    )}
                     <Link 
                       href={`/dashboard/assignments/${assignmentId}/submissions/${sub.id}/review`}
                       className="px-3 py-1.5 bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
