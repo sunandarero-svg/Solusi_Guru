@@ -91,6 +91,12 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
 
           {isPublished ? (
             <div className="flex space-x-3">
+              <Link
+                href={`/dashboard/assignments/${assignment.id}/scan-student`}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition shadow-sm flex items-center"
+              >
+                📸 Foto Kertas Siswa
+              </Link>
               <span className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow-sm">
                 ✅ Sudah Dipublish
               </span>

@@ -2,12 +2,12 @@ import dbConnect from "@/lib/mongoose";
 import { Submission, OCRResult, AIAssessment, AssessmentCriterion } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion, AssignmentAttachment } from "@/models/Assignment";
 import { AIProvider } from "./AIProvider";
-import { GeminiProvider } from "./GeminiProvider";
+import { GroqProvider } from "./GroqProvider";
 
 export class AIService {
   private provider: AIProvider;
 
-  constructor(provider: AIProvider = new GeminiProvider()) {
+  constructor(provider: AIProvider = new GroqProvider()) {
     this.provider = provider;
   }
 
@@ -169,7 +169,7 @@ export class AIService {
   }
 }
 
-// Instantiate with GeminiProvider
-export const aiService = new AIService(new GeminiProvider());
+// Instantiate with GroqProvider
+export const aiService = new AIService(new GroqProvider());
 
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireStudentSession } from "@/modules/auth/session";
+import { requireAuth } from "@/modules/auth/session";
 import { submissionService } from "@/modules/submission/submissionService";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
@@ -10,7 +10,7 @@ export async function POST(
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireStudentSession();
+    const session = await requireAuth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

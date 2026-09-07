@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireStudentSession, requireTeacherSession } from "@/modules/auth/session";
+import { requireAuth, requireTeacherSession } from "@/modules/auth/session";
 import { submissionService } from "@/modules/submission/submissionService";
 import { aiService } from "@/modules/ai/aiService";
 import { processingWorker } from "@/modules/queue/processingWorker";
@@ -9,7 +9,7 @@ export async function GET(
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireStudentSession();
+    const session = await requireAuth();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const resolvedParams = await props.params;
@@ -27,7 +27,7 @@ export async function PATCH(
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireStudentSession();
+    const session = await requireAuth();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const resolvedParams = await props.params;
