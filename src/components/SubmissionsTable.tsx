@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { CheckSquare, Trash2 } from "lucide-react";
+import { CheckSquare, Trash2, Download } from "lucide-react";
+import * as xlsx from "xlsx";
 
 interface Submission {
   id: string;
@@ -112,6 +113,36 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
     );
   };
 
+  const handleExportExcel = () => {
+    if (submissions.length === 0) {
+      alert("Tidak ada data untuk didownload.");
+      return;
+    }
+
+    const dataToExport = submissions.map((sub, index) => ({
+      "No": index + 1,
+      "Nama Siswa": sub.student.fullName,
+      "NIS": sub.student.studentNumber,
+      "Kelas": assignmentClassName || "-",
+      "Status": sub.status === "NEEDS_TEACHER_REVIEW" ? "Perlu Diulas" :
+                sub.status === "APPROVED" ? "Disetujui" :
+                sub.status === "PUBLISHED" ? "Selesai" : sub.status,
+      "Rekomendasi AI": sub.aiAssessment?.suggestedScore ?? "-",
+      "Nilai Akhir": sub.teacherReview?.finalScore ?? "-"
+    }));
+
+    const worksheet = xlsx.utils.json_to_sheet(dataToExport);
+    
+    // Auto adjust column widths
+    const maxWidths = [5, 30, 15, 15, 15, 15, 15];
+    worksheet["!cols"] = maxWidths.map(w => ({ wch: w }));
+
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Nilai Siswa");
+
+    xlsx.writeFile(workbook, `Nilai_Tugas_${assignmentClassName || "Semua_Kelas"}.xlsx`);
+  };
+
   if (loading) return <div className="text-sm text-slate-500 p-6">Memuat daftar pengumpulan...</div>;
 
   return (
@@ -123,6 +154,13 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-3">
+          <button
+            onClick={handleExportExcel}
+            className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold shadow-sm transition-colors flex items-center gap-2"
+          >
+            <Download size={16} /> Download Excel
+          </button>
+          
           {/* Mock Dropdown for Class Filtering as requested */}
           <select 
             value={selectedClassId}

@@ -3,7 +3,18 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Copy, X } from "lucide-react";
+
+interface Subject {
+  id: string;
+  name: string;
+}
+
+interface Class {
+  id: string;
+  name: string;
+  subjects: Subject[];
+}
 
 interface Assignment {
   id: string;
@@ -18,6 +29,15 @@ export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Duplicate Modal State
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [selectedAssignmentForDuplicate, setSelectedAssignmentForDuplicate] = useState<Assignment | null>(null);
+  const [teacherClasses, setTeacherClasses] = useState<Class[]>([]);
+  const [duplicateForm, setDuplicateForm] = useState({ classId: "", subjectId: "" });
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicateError, setDuplicateError] = useState("");
 
   const fetchAssignments = () => {
     fetch("/api/assignments")
@@ -46,6 +66,63 @@ export default function AssignmentsPage() {
       }
     } catch (err) {
       alert("Terjadi kesalahan sistem.");
+    }
+  };
+
+  const handleOpenDuplicateModal = (assignment: Assignment) => {
+    setSelectedAssignmentForDuplicate(assignment);
+    setIsDuplicateModalOpen(true);
+    setDuplicateForm({ classId: "", subjectId: "" });
+    setAvailableSubjects([]);
+    setDuplicateError("");
+    if (teacherClasses.length === 0) {
+      fetch("/api/teacher/classes")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setTeacherClasses(data);
+        });
+    }
+  };
+
+  const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedClassId = e.target.value;
+    const selectedClass = teacherClasses.find(c => c.id === selectedClassId);
+    
+    if (selectedClass) {
+      setAvailableSubjects(selectedClass.subjects);
+      if (selectedClass.subjects.length === 1) {
+        setDuplicateForm({ classId: selectedClassId, subjectId: selectedClass.subjects[0].id });
+      } else {
+        setDuplicateForm({ classId: selectedClassId, subjectId: "" });
+      }
+    } else {
+      setAvailableSubjects([]);
+      setDuplicateForm({ classId: selectedClassId, subjectId: "" });
+    }
+  };
+
+  const submitDuplicate = async () => {
+    if (!selectedAssignmentForDuplicate || !duplicateForm.classId || !duplicateForm.subjectId) return;
+    setIsDuplicating(true);
+    setDuplicateError("");
+
+    try {
+      const res = await fetch(`/api/assignments/${selectedAssignmentForDuplicate.id}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(duplicateForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsDuplicateModalOpen(false);
+        fetchAssignments();
+      } else {
+        setDuplicateError(data.error || "Gagal menduplikasi tugas");
+      }
+    } catch (err) {
+      setDuplicateError("Terjadi kesalahan sistem");
+    } finally {
+      setIsDuplicating(false);
     }
   };
 
@@ -112,6 +189,13 @@ export default function AssignmentsPage() {
                         Detail →
                       </Link>
                       <button 
+                        onClick={() => handleOpenDuplicateModal(a)}
+                        className="text-blue-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition"
+                        title="Duplikasi Tugas"
+                      >
+                        <Copy size={16} />
+                      </button>
+                      <button 
                         onClick={() => handleDeleteAssignment(a.id)}
                         className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition"
                         title="Hapus Tugas"
@@ -126,6 +210,76 @@ export default function AssignmentsPage() {
           </table>
         )}
       </div>
+
+      {isDuplicateModalOpen && selectedAssignmentForDuplicate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-800">Duplikasi Tugas</h3>
+              <button onClick={() => setIsDuplicateModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-gray-600">
+                Duplikasi tugas <strong>"{selectedAssignmentForDuplicate.title}"</strong> ke kelas lain. Tugas baru akan bersatus DRAFT.
+              </p>
+
+              {duplicateError && (
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+                  {duplicateError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kelas Tujuan *</label>
+                <select 
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
+                  value={duplicateForm.classId}
+                  onChange={handleClassChange}
+                >
+                  <option value="">-- Pilih Kelas --</option>
+                  {teacherClasses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran *</label>
+                <select 
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
+                  value={duplicateForm.subjectId}
+                  onChange={e => setDuplicateForm(prev => ({...prev, subjectId: e.target.value}))}
+                  disabled={!duplicateForm.classId || availableSubjects.length === 0}
+                >
+                  <option value="">-- Pilih Mata Pelajaran --</option>
+                  {availableSubjects.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50">
+              <button 
+                onClick={() => setIsDuplicateModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={submitDuplicate}
+                disabled={isDuplicating || !duplicateForm.classId || !duplicateForm.subjectId}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50"
+              >
+                {isDuplicating ? "Menduplikasi..." : "Duplikasi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import dbConnect from "@/lib/mongoose";
 import { Assignment, AssignmentAttachment } from "@/models/Assignment";
 import { mapId } from "@/lib/mapId";
 import path from "path";
-import { readFile, writeFile, mkdir, unlink } from "fs/promises";
+import { readFile, writeFile, mkdir, unlink, copyFile } from "fs/promises";
 
 // Maximum file size: 300KB
 export const MAX_ATTACHMENT_SIZE = 300 * 1024;
@@ -221,6 +221,53 @@ export const attachmentService = {
       .select("aiAnswerKey")
       .lean();
     return attachment?.aiAnswerKey || null;
+  },
+
+  /**
+   * Copy attachments from one assignment to another
+   */
+  async copyAttachments(originalAssignmentId: string, newAssignmentId: string, teacherId: string) {
+    await dbConnect();
+    
+    // Check ownership of new assignment
+    const newAssignment = await Assignment.findById(newAssignmentId).select("teacherId").lean();
+    if (!newAssignment || newAssignment.teacherId.toString() !== teacherId.toString()) {
+      throw new Error("Unauthorized to add attachments to new assignment");
+    }
+
+    const attachments = await AssignmentAttachment.find({ assignmentId: originalAssignmentId }).sort({ order: 1 }).lean();
+    if (attachments.length === 0) return;
+
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "attachments", newAssignmentId);
+    await mkdir(uploadDir, { recursive: true });
+
+    for (const attachment of attachments) {
+      const ext = path.extname(attachment.originalFileName);
+      const safeFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}${ext}`;
+      const newFilePath = path.join(uploadDir, safeFileName);
+      const newStorageKey = `/uploads/attachments/${newAssignmentId}/${safeFileName}`;
+
+      const oldFilePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
+
+      try {
+        await copyFile(oldFilePath, newFilePath);
+
+        await AssignmentAttachment.create({
+          assignmentId: newAssignmentId,
+          storageKey: newStorageKey,
+          originalFileName: attachment.originalFileName,
+          mimeType: attachment.mimeType,
+          fileSize: attachment.fileSize,
+          extractedText: attachment.extractedText,
+          aiAnswerKey: attachment.aiAnswerKey,
+          description: attachment.description,
+          order: attachment.order,
+        });
+      } catch (err) {
+        console.warn(`[Attachment] Failed to copy attachment file: ${attachment.storageKey}`, err);
+        // Continue copying others
+      }
+    }
   },
 };
 

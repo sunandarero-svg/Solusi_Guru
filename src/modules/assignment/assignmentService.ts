@@ -3,6 +3,7 @@ import { Assignment, AssignmentStatus, Rubric, RubricCriterion } from "@/models/
 import { Submission } from "@/models/Submission";
 import { Class } from "@/models/Class";
 import { mapId } from "@/lib/mapId";
+import { attachmentService } from "@/modules/attachment/attachmentService";
 
 export const assignmentService = {
   async getAllAssignments(teacherId: string) {
@@ -105,6 +106,55 @@ export const assignmentService = {
 
     await Assignment.findByIdAndDelete(id);
     return true;
+  },
+
+  async duplicateAssignment(id: string, teacherId: string, newClassId: string, newSubjectId: string) {
+    await dbConnect();
+
+    // 1. Fetch original assignment
+    const originalAssignment = await Assignment.findById(id).lean();
+    if (!originalAssignment || originalAssignment.teacherId.toString() !== teacherId.toString()) {
+      throw new Error("Unauthorized or Assignment not found");
+    }
+
+    // 2. Create new assignment
+    const newAssignment = await Assignment.create({
+      teacherId: originalAssignment.teacherId,
+      classId: newClassId,
+      subjectId: newSubjectId,
+      title: originalAssignment.title,
+      description: originalAssignment.description,
+      instructions: originalAssignment.instructions,
+      deadline: originalAssignment.deadline,
+      maxPages: originalAssignment.maxPages,
+      status: AssignmentStatus.DRAFT, // Always start as draft
+    });
+
+    // 3. Duplicate rubrics and criteria
+    const originalRubrics = await Rubric.find({ assignmentId: originalAssignment._id }).lean();
+    for (const rubric of originalRubrics) {
+      const newRubric = await Rubric.create({
+        assignmentId: newAssignment._id,
+        title: rubric.title,
+        totalScore: rubric.totalScore,
+      });
+
+      const originalCriteria = await RubricCriterion.find({ rubricId: rubric._id }).lean();
+      for (const criterion of originalCriteria) {
+        await RubricCriterion.create({
+          rubricId: newRubric._id,
+          name: criterion.name,
+          description: criterion.description,
+          maxScore: criterion.maxScore,
+          order: criterion.order,
+        });
+      }
+    }
+
+    // 4. Duplicate attachments
+    await attachmentService.copyAttachments(originalAssignment._id.toString(), newAssignment._id.toString(), teacherId);
+
+    return mapId(newAssignment.toObject());
   }
 };
 
