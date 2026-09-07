@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         
         // Auto-generate studentNumber if not provided or if we want to enforce the rule
         if (!studentNumber) {
-          const order = currentCount + results.success + 1;
+          const order = i + 1;
           studentNumber = `${classPrefix}${String(order).padStart(2, '0')}`;
         }
 
