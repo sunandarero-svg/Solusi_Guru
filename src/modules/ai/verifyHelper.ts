@@ -216,7 +216,12 @@ async function runQwenVerify(
       const content = data.choices?.[0]?.message?.content;
       if (!content) throw new Error("API returned empty response");
 
-      const cleanText = content.replace(/```json/gi, "").replace(/```/g, "").trim();
+      let cleanText = content.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const firstBrace = cleanText.indexOf('{');
+      const lastBrace = cleanText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+      }
       return JSON.parse(cleanText) as VerifyResult;
     } catch (err: any) {
       console.warn(`[Verify-Qwen] Model ${currentModel} failed:`, err.message);

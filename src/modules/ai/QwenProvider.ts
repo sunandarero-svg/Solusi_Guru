@@ -162,7 +162,12 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
           throw new Error("API returned empty response.");
         }
 
-        const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        }
         return JSON.parse(cleanText) as AIAssessmentResult;
       } catch (err: any) {
         console.warn(`[QwenProvider] Model ${modelName} failed:`, err.message);
