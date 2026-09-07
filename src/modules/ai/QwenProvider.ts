@@ -125,42 +125,52 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       });
     }
 
-    console.log(`[Qwen] Trying model ${modelName} as fallback...`);
-    
-    // Call DashScope OpenAI-compatible endpoint
-    const response = await fetch("https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [
-          {
-            role: "user",
-            content: contentParts,
+    const modelsToTry = ["deepseek-v4-flash-vision-exp", "claude-sonnet-5", "gpt-5.6", "auto"];
+    let lastError: any = null;
+
+    for (const modelName of modelsToTry) {
+      console.log(`[QwenProvider] Trying model ${modelName} as fallback via bandelbanget...`);
+      try {
+        const response = await fetch("https://bandelbanget.xyz/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
           },
-        ],
-        temperature: 0.2,
-        max_tokens: 4096,
-        response_format: { type: "json_object" },
-      }),
-    });
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              {
+                role: "user",
+                content: contentParts,
+              },
+            ],
+            temperature: 0.2,
+            max_tokens: 4096,
+            response_format: { type: "json_object" },
+          }),
+        });
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Qwen API returned ${response.status}: ${errBody}`);
+        if (!response.ok) {
+          const errBody = await response.text();
+          throw new Error(`API returned ${response.status}: ${errBody}`);
+        }
+
+        const data = await response.json();
+        const responseText = data.choices?.[0]?.message?.content;
+        if (!responseText) {
+          throw new Error("API returned empty response.");
+        }
+
+        const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        return JSON.parse(cleanText) as AIAssessmentResult;
+      } catch (err: any) {
+        console.warn(`[QwenProvider] Model ${modelName} failed:`, err.message);
+        lastError = err;
+      }
     }
 
-    const data = await response.json();
-    const responseText = data.choices?.[0]?.message?.content;
-    if (!responseText) {
-      throw new Error("Qwen API returned empty response.");
-    }
-
-    const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-    return JSON.parse(cleanText) as AIAssessmentResult;
+    throw lastError || new Error("All fallback models failed.");
   }
 
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<string> {

@@ -181,37 +181,50 @@ async function runQwenVerify(
     });
   }
 
-  const response = await fetch("https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: modelName,
-      messages: [
-        {
-          role: "user",
-          content: contentParts,
-        },
-      ],
-      temperature: 0.2,
-      max_tokens: 2048,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const modelsToTry = ["deepseek-v4-flash-vision-exp", "claude-sonnet-5", "gpt-5.6", "auto"];
+  let lastError: any = null;
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Qwen API returned ${response.status}: ${errText}`);
+  for (const currentModel of modelsToTry) {
+    console.log(`[Verify-Qwen] Trying model ${currentModel} via bandelbanget...`);
+    try {
+      const response = await fetch("https://bandelbanget.xyz/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: currentModel,
+          messages: [
+            {
+              role: "user",
+              content: contentParts,
+            },
+          ],
+          temperature: 0.2,
+          max_tokens: 2048,
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`API returned ${response.status}: ${errText}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error("API returned empty response");
+
+      const cleanText = content.replace(/```json/gi, "").replace(/```/g, "").trim();
+      return JSON.parse(cleanText) as VerifyResult;
+    } catch (err: any) {
+      console.warn(`[Verify-Qwen] Model ${currentModel} failed:`, err.message);
+      lastError = err;
+    }
   }
 
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Qwen API returned empty response");
-
-  const cleanText = content.replace(/```json/gi, "").replace(/```/g, "").trim();
-  return JSON.parse(cleanText) as VerifyResult;
+  throw lastError || new Error("All bandelbanget fallback models failed");
 }
 
 async function runGroqVerify(
