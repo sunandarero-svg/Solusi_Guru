@@ -14,7 +14,7 @@ export class AIService {
   /**
    * Execute AI Assessment on a submission
    */
-  async assessSubmission(submissionId: string) {
+  async assessSubmission(submissionId: string, options?: { forceProvider?: string }) {
     await dbConnect();
     
     // 1. Fetch submission with assignment and rubrics
@@ -61,9 +61,17 @@ export class AIService {
     const maxRetries = 2;
     let primaryFailed = false;
 
+    let primaryProvider = this.provider;
+    let isGeminiForced = options?.forceProvider === "gemini";
+    if (isGeminiForced) {
+      console.log(`[AI] Forcing GeminiProvider as primary per options...`);
+      const { GeminiProvider } = await import("./GeminiProvider");
+      primaryProvider = new GeminiProvider();
+    }
+
     while (attempt <= maxRetries) {
       try {
-        assessmentResult = await this.provider.assessSubmission(
+        assessmentResult = await primaryProvider.assessSubmission(
           pages as any, // Passed to provider which should handle array of pages/images
           rubricsWithCriteria,
           answerKey
@@ -82,23 +90,40 @@ export class AIService {
       }
     }
 
-    // Fallback to Qwen if primary provider failed completely
+    // Fallback logic
     if (primaryFailed) {
-      console.log(`[AI] Falling back to QwenProvider...`);
-      try {
-        const { QwenProvider } = await import("./QwenProvider");
-        const fallbackProvider = new QwenProvider();
-        assessmentResult = await fallbackProvider.assessSubmission(
-          pages as any,
-          rubricsWithCriteria,
-          answerKey
-        );
-        console.log(`[AI] QwenProvider fallback succeeded!`);
-        
-        // Temporarily change the provider name so the DB records Qwen-VL as the provider used
-        Object.defineProperty(this.provider, "providerName", { value: fallbackProvider.providerName, configurable: true });
-      } catch (fallbackError) {
-        throw new Error(`AI assessment failed on primary and fallback providers. Fallback error: ${fallbackError}`);
+      if (isGeminiForced) {
+        console.log(`[AI] Falling back to GroqProvider because Gemini was forced and failed...`);
+        try {
+          const { GroqProvider } = await import("./GroqProvider");
+          const fallbackProvider = new GroqProvider();
+          assessmentResult = await fallbackProvider.assessSubmission(
+            pages as any,
+            rubricsWithCriteria,
+            answerKey
+          );
+          console.log(`[AI] GroqProvider fallback succeeded!`);
+          Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
+        } catch (fallbackError) {
+          throw new Error(`AI assessment failed on Gemini and Groq fallback. Fallback error: ${fallbackError}`);
+        }
+      } else {
+        console.log(`[AI] Falling back to QwenProvider...`);
+        try {
+          const { QwenProvider } = await import("./QwenProvider");
+          const fallbackProvider = new QwenProvider();
+          assessmentResult = await fallbackProvider.assessSubmission(
+            pages as any,
+            rubricsWithCriteria,
+            answerKey
+          );
+          console.log(`[AI] QwenProvider fallback succeeded!`);
+          
+          // Temporarily change the provider name so the DB records Qwen-VL as the provider used
+          Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
+        } catch (fallbackError) {
+          throw new Error(`AI assessment failed on primary and fallback providers. Fallback error: ${fallbackError}`);
+        }
       }
     }
 

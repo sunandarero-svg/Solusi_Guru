@@ -83,7 +83,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
       const res = await fetch(`/api/submissions/${submissionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "PROCESS_AI" })
+        body: JSON.stringify({ action: "REGRADE_GEMINI" })
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));

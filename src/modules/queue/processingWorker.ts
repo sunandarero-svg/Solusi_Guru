@@ -6,13 +6,13 @@ import { aiService } from "@/modules/ai/aiService";
  * It catches any errors and prevents the API from timing out.
  */
 export const processingWorker = {
-  async processSubmissionPipeline(submissionId: string) {
+  async processSubmissionPipeline(submissionId: string, options?: { forceProvider?: string }) {
     try {
       // 1. Mark as processing
       await submissionService.updateStatus(submissionId, "PROCESSING");
       
       // 2. Process AI Assessment directly with Multimodal (Gemini)
-      await aiService.assessSubmission(submissionId);
+      await aiService.assessSubmission(submissionId, options);
       
       // 3. Mark as ready for teacher
       await submissionService.updateStatus(submissionId, "NEEDS_TEACHER_REVIEW");
