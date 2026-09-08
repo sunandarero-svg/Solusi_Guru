@@ -230,7 +230,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
           },
         ],
         temperature: 0.2,
-        max_tokens: 4096,
+        max_tokens: 800,
         response_format: { type: "json_object" },
       }),
     });
@@ -374,7 +374,7 @@ Berikan kunci jawaban dalam format teks terstruktur (bukan JSON). Gunakan penomo
             model: modelName,
             messages: [{ role: "user", content: contentParts }],
             temperature: 0.3,
-            max_tokens: 4096,
+            max_tokens: 800,
           }),
         });
 
