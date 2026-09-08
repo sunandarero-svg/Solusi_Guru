@@ -140,54 +140,32 @@ PENTING — ATURAN PENILAIAN BERDASARKAN KUNCI JAWABAN:
 `;
     }
 
-    const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa. 
-Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya berdasarkan kriteria rubrik berikut.
+    const promptText = `Tugas Anda adalah menilai tugas siswa berdasarkan rubrik berikut.
 
 ${rubricInstruction}
 ${answerKeyInstruction}
 
-INSTRUKSI PENILAIAN:
-1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir.
-2. Berikan penilaian yang objektif untuk setiap kriteria rubrik.
-3. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) singkat dan jelas.
-${answerKey ? "4. Gunakan KUNCI JAWABAN REFERENSI di atas sebagai acuan utama untuk menilai kebenaran jawaban siswa.\n" : ""}
+INSTRUKSI:
+1. Baca tulisan siswa di setiap halaman.
+2. Berikan penilaian objektif untuk tiap kriteria.
+3. Tentukan skor & berikan penjelasan singkat (reasoning).
+${answerKey ? "4. Gunakan KUNCI JAWABAN sebagai acuan utama.\n" : ""}
 
-ATURAN BAHASA DAN FEEDBACK (WAJIB DIPATUHI):
-- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI dalam seluruh umpan balik. Catatan khusus: Gunakan kata 'algoritma' (bukan 'algoritme').
-- DILARANG KERAS membuat koreksi palsu atau redundan. JANGAN PERNAH menyarankan perbaikan jika kata sebelum dan sesudahnya SAMA PERSIS (contoh SALAH: "'memerlukan' sebaiknya ditulis menjadi 'memerlukan'"). Ini sangat dilarang!
-- JANGAN PERNAH mengoreksi kata yang SUDAH BENAR ejaannya menurut KBBI. Jika siswa sudah menulis kata dengan benar, JANGAN bahas ejaannya sama sekali.
-- HANYA koreksi kata yang BENAR-BENAR SALAH ejaannya (contoh: 'apotik' menjadi 'apotek', 'algoritme' menjadi 'algoritma').
-- Jika tidak ada kesalahan ejaan yang sebenarnya, JANGAN bahas atau memaksakan koreksi ejaan.
-- SELALU berikan apresiasi positif kepada siswa dalam 'generalFeedback'. Buatlah agar siswa merasa dihargai dan termotivasi.
-- Gunakan bahasa dan gaya penyampaian (tone) yang ramah, hangat, dan mudah dipahami oleh anak usia 10 tahun (kelas 4-5 SD). Hindari kalimat yang kaku atau menghakimi.
-- Jika ada hal yang perlu diperbaiki, sampaikan dengan cara yang membangun dan menyemangati (contoh: "Wah, jawabanmu sudah bagus! Akan lebih sempurna kalau kata 'apotik' ditulis menjadi 'apotek', ya.").
-- Gunakan kalimat yang singkat, padat, dan jelas.
+ATURAN (WAJIB):
+- Gunakan bahasa Indonesia baku (KBBI).
+- HANYA koreksi ejaan jika SALAH MUTLAK (contoh: 'apotik' jadi 'apotek'). JANGAN perbaiki kata yang sudah benar atau ejaannya sama.
+- Beri apresiasi di 'generalFeedback' dgn bahasa ramah.
+- Kalimat singkat dan jelas.
 
-DETEKSI KESALAHAN EJAAN (BOUNDING BOX):
-Jika ada kata yang benar-benar salah ejaannya, Anda WAJIB memberikan koordinat kotak penanda (bounding box) untuk kata tersebut di dalam gambar, agar guru dapat melihat bagian mana yang perlu diperbaiki (seperti stabilo merah).
-Koordinat menggunakan rentang 0 hingga 1000, dengan format [ymin, xmin, ymax, xmax]. (ymin = batas atas, xmin = batas kiri, ymax = batas bawah, xmax = batas kanan).
-Jika tidak ada kata yang salah, kosongkan array \`errorHighlights\`.
+DETEKSI KESALAHAN EJAAN:
+Jika ada ejaan salah, WAJIB beri koordinat (bounding box) format [ymin, xmin, ymax, xmax] (skala 0-1000). Jika tidak ada, kosongkan array.
 
-Output Anda HARUS berupa JSON murni dengan struktur berikut:
+Output WAJIB berupa JSON:
 {
   "totalScore": number,
-  "generalFeedback": "Apresiasi dan umpan balik singkat untuk siswa",
-  "rubricScores": [
-    {
-      "rubricCriterionId": "ID Kriteria",
-      "score": number,
-      "maxScore": number,
-      "reasoning": "Alasan penilaian singkat..."
-    }
-  ],
-  "errorHighlights": [
-    {
-      "word": "kata yang salah",
-      "correction": "perbaikan kata sesuai KBBI",
-      "box": [ymin, xmin, ymax, xmax],
-      "pageIndex": 0 // 0 untuk halaman pertama, 1 untuk kedua, dst
-    }
-  ]
+  "generalFeedback": "string",
+  "rubricScores": [{"rubricCriterionId":"string","score":number,"maxScore":number,"reasoning":"string"}],
+  "errorHighlights": [{"word":"string","correction":"string","box":[0,0,0,0],"pageIndex":0}]
 }`;
 
     const contentParts: any[] = [{ type: "text", text: promptText }];
