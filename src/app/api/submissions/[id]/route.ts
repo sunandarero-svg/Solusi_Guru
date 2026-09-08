@@ -49,14 +49,14 @@ export async function PATCH(
       processingWorker.processSubmissionPipeline(resolvedParams.id);
 
       return NextResponse.json({ status: "PROCESSING_QUEUED", message: "Submission is being processed by AI." });
-    } else if (body.action === "REGRADE_GEMINI") {
+    } else if (body.action === "REGRADE_GROQ") {
       // 1. Change status to PROCESSING
       await submissionService.updateStatus(resolvedParams.id, "PROCESSING");
       
-      // 2. Trigger background processing with Gemini force flag
-      processingWorker.processSubmissionPipeline(resolvedParams.id, { forceProvider: "gemini" });
+      // 2. Trigger background processing with Groq force flag
+      processingWorker.processSubmissionPipeline(resolvedParams.id, { forceProvider: "groq" });
 
-      return NextResponse.json({ status: "PROCESSING_QUEUED", message: "Submission is being processed by Gemini AI." });
+      return NextResponse.json({ status: "PROCESSING_QUEUED", message: "Submission is being processed by Groq AI." });
     } else if (body.action === "REORDER_PAGES") {
       const { pageIdsInOrder } = body;
       if (!Array.isArray(pageIdsInOrder)) {
