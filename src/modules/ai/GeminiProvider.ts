@@ -11,7 +11,7 @@ export class GeminiProvider implements AIProvider {
     if (!key) {
       throw new Error("GEMINI_API_KEY is not configured.");
     }
-    return key;
+    return key.trim().replace(/^["']|["']$/g, '');
   }
 
   async assessSubmission(pages: any[], rubrics: any[], answerKey?: string): Promise<AIAssessmentResult> {
