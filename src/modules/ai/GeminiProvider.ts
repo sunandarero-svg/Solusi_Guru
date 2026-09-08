@@ -188,21 +188,23 @@ SOAL/TUGAS DARI GURU:
 ${taskText}
 ${rubricContext}
 
-INSTRUKSI:
+INSTRUKSI UMUM:
 1. Baca dan pahami seluruh soal/tugas di atas dengan cermat.
-2. Buat kunci jawaban yang lengkap dan benar untuk setiap pertanyaan atau bagian tugas.
-3. Jawaban harus akurat, sesuai fakta, dan sesuai dengan tingkat pendidikan siswa (SD/SMP).
-4. Untuk soal esai, berikan jawaban yang mencakup poin-poin utama yang harus ada.
-5. Untuk soal pilihan ganda, sebutkan jawaban yang benar beserta penjelasan singkat.
-6. Untuk soal isian, berikan jawaban yang tepat.
-7. Gunakan tata bahasa Indonesia yang baku, efektif, dan natural (sesuai EYD/PUEBI), serta pastikan penggunaan tanda baca yang tepat.
-8. Pertahankan struktur poin-poin agar tetap rapi dan terstruktur dengan jelas, serta gunakan penomoran yang sesuai dengan soal.
-9. DILARANG KERAS memberikan komentar, alasan, pembukaan, atau keluhan tentang kondisi atau kualitas gambar (misalnya resolusi rendah, gelap, buram, dll). Jika gambar kurang jelas, kerjakan saja sebaik mungkin tanpa memberikan catatan atau komentar apapun tentang kondisi gambar tersebut.
-10. DILARANG KERAS menggunakan kalimat pengantar atau penutup. Langsung berikan isi kunci jawaban saja.
-11. Jika jawaban mengandung rumus matematika, satuan, atau konversi, WAJIB dituliskan menggunakan format LaTeX yang rapi, konsisten, dan mudah dipahami oleh siswa (contoh: gunakan pecahan $\\frac{a}{b}$ daripada a/b).
-12. Pastikan alur penjelasan pada kalimat matematis maupun analisis soal terasa mengalir, jelas, komunikatif, dan runut langkah demi langkah.
+2. Buat kunci jawaban yang lengkap dan akurat untuk setiap pertanyaan, disesuaikan dengan tingkat pendidikan siswa (SD/SMP/SMA).
+3. Untuk soal esai, berikan jawaban yang mencakup poin-poin utama yang harus ada.
+4. Untuk soal pilihan ganda, sebutkan jawaban yang benar beserta penjelasan singkat.
+5. Gunakan tata bahasa Indonesia yang baku, efektif, dan natural (sesuai EYD/PUEBI).
+6. DILARANG KERAS memberikan komentar tentang kondisi gambar (misal: buram/gelap). Kerjakan sebaik mungkin tanpa keluhan.
+7. DILARANG KERAS menggunakan kalimat pengantar atau penutup. Langsung berikan isi kunci jawaban saja.
 
-Berikan kunci jawaban dalam format teks terstruktur (bukan JSON). Gunakan penomoran yang sesuai dengan soal.`;
+INSTRUKSI FORMAT TULISAN (SANGAT PENTING):
+1. Hasil teks harus persis seperti format ketikan standar pada Microsoft Word (teks biasa/plain text).
+2. DILARANG KERAS menggunakan simbol Markdown untuk menebalkan teks (seperti **teks**) atau memiringkan teks (seperti *teks*).
+3. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural. 
+4. PASTIKAN rumus ditulis BERSIH tanpa ada simbol tambahan seperti menebalkan (**rumus**) atau pemformatan lain di sekitarnya. 
+5. Pertahankan struktur poin-poin agar tetap rapi, gunakan spasi baris yang jelas, dan penomoran standar yang sesuai dengan soal.
+
+Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebihan).`;
 
     const contentParts: any[] = [{ text: prompt }];
 
