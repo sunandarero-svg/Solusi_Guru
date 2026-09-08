@@ -92,6 +92,8 @@ export class AIService {
 
     // Fallback logic
     if (primaryFailed) {
+      let secondarySuccess = false;
+
       if (isGeminiForced) {
         console.log(`[AI] Falling back to GroqProvider because Gemini was forced and failed...`);
         try {
@@ -104,11 +106,30 @@ export class AIService {
           );
           console.log(`[AI] GroqProvider fallback succeeded!`);
           Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
+          secondarySuccess = true;
         } catch (fallbackError) {
-          throw new Error(`AI assessment failed on Gemini and Groq fallback. Fallback error: ${fallbackError}`);
+          console.warn(`[AI] GroqProvider fallback also failed: ${fallbackError}`);
         }
       } else {
-        console.log(`[AI] Falling back to QwenProvider...`);
+        console.log(`[AI] Falling back to GeminiProvider because Groq was primary and failed...`);
+        try {
+          const { GeminiProvider } = await import("./GeminiProvider");
+          const fallbackProvider = new GeminiProvider();
+          assessmentResult = await fallbackProvider.assessSubmission(
+            pages as any,
+            rubricsWithCriteria,
+            answerKey
+          );
+          console.log(`[AI] GeminiProvider fallback succeeded!`);
+          Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
+          secondarySuccess = true;
+        } catch (fallbackError) {
+          console.warn(`[AI] GeminiProvider fallback also failed: ${fallbackError}`);
+        }
+      }
+
+      if (!secondarySuccess) {
+        console.log(`[AI] Falling back to QwenProvider as final backup...`);
         try {
           const { QwenProvider } = await import("./QwenProvider");
           const fallbackProvider = new QwenProvider();
@@ -117,12 +138,12 @@ export class AIService {
             rubricsWithCriteria,
             answerKey
           );
-          console.log(`[AI] QwenProvider fallback succeeded!`);
+          console.log(`[AI] QwenProvider final fallback succeeded!`);
           
           // Temporarily change the provider name so the DB records Qwen-VL as the provider used
           Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
         } catch (fallbackError) {
-          throw new Error(`AI assessment failed on primary and fallback providers. Fallback error: ${fallbackError}`);
+          throw new Error(`AI assessment failed on all providers (Primary, Secondary, and Qwen). Final error: ${fallbackError}`);
         }
       }
     }

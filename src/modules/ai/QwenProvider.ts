@@ -18,7 +18,7 @@ export class QwenProvider implements AIProvider {
     }
 
     // Default Qwen Vision model via DashScope compatible mode
-    const modelName = "qwen-vl-plus";
+    const modelName = "gpt-5.6";
 
     const firstRubric = rubrics[0];
     let rubricInstruction = "";
@@ -125,7 +125,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       });
     }
 
-    const modelsToTry = ["deepseek-v4-flash-vision-exp", "claude-sonnet-5", "gpt-5.6", "auto"];
+    const modelsToTry = ["gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra"];
     let lastError: any = null;
 
     for (const modelName of modelsToTry) {
