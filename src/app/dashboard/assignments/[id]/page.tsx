@@ -76,10 +76,10 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden mb-6">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-          <div>
-            <div className="flex items-center space-x-3 mb-2">
-              <h1 className="text-2xl font-bold text-gray-800">{assignment.title}</h1>
+        <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="w-full md:w-auto">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-800">{assignment.title}</h1>
               {isPublished ? (
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">PUBLISHED</span>
               ) : (
@@ -90,29 +90,29 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
           </div>
 
           {isPublished ? (
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full md:w-auto">
               <Link
                 href={`/dashboard/assignments/${assignment.id}/scan-student`}
-                className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition shadow-sm flex items-center"
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition shadow-sm flex items-center justify-center w-full sm:w-auto"
               >
                 📸 Foto Kertas Siswa
               </Link>
-              <span className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow-sm">
+              <span className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center shadow-sm w-full sm:w-auto">
                 ✅ Sudah Dipublish
               </span>
             </div>
           ) : (
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full md:w-auto">
               <Link
                 href={`/dashboard/assignments/${assignment.id}/edit`}
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition shadow-sm"
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition shadow-sm flex items-center justify-center w-full sm:w-auto"
               >
                 ✏️ Edit Info Tugas
               </Link>
               <button 
                 onClick={handlePublish}
                 disabled={publishing}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 shadow-sm"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 shadow-sm flex items-center justify-center w-full sm:w-auto"
               >
                 {publishing ? "Mempublikasikan..." : "🚀 Publish Tugas"}
               </button>
