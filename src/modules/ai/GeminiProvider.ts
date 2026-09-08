@@ -18,9 +18,13 @@ export class GeminiProvider implements AIProvider {
     const apiKey = this.getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // We use gemini-1.5-flash as the default for fast multimodal tasks
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-    const model = genAI.getGenerativeModel({ model: modelName });
+    // Fallback models for Gemini
+    const fallbackModels = [
+      process.env.GEMINI_MODEL || "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-1.5-pro"
+    ];
+    const uniqueModels = Array.from(new Set(fallbackModels));
 
     const firstRubric = rubrics[0];
     let rubricInstruction = "";
@@ -126,36 +130,48 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       });
     }
 
-    try {
-      console.log(`[Gemini] Assessing submission with model ${modelName}...`);
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: contentParts }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
+    let lastError: any = null;
+
+    for (const modelName of uniqueModels) {
+      try {
+        console.log(`[Gemini] Assessing submission with model ${modelName}...`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent({
+          contents: [{ role: "user", parts: contentParts }],
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json",
+          }
+        });
+
+        const responseText = result.response.text();
+        if (!responseText) {
+          throw new Error("Gemini API returned empty response.");
         }
-      });
 
-      const responseText = result.response.text();
-      if (!responseText) {
-        throw new Error("Gemini API returned empty response.");
+        const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        return JSON.parse(cleanText) as AIAssessmentResult;
+      } catch (error: any) {
+        console.warn(`[Gemini] Error assessing submission with ${modelName}:`, error.message || error);
+        lastError = error;
       }
-
-      const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      return JSON.parse(cleanText) as AIAssessmentResult;
-    } catch (error: any) {
-      console.error("[Gemini] Error assessing submission:", error);
-      throw error;
     }
+
+    throw lastError || new Error("All Gemini fallback models failed.");
   }
 
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<string> {
     const apiKey = this.getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Default to flash for standard tasks, or pro if configured
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-    const model = genAI.getGenerativeModel({ model: modelName });
+    // Fallback models for Gemini
+    const fallbackModels = [
+      process.env.GEMINI_MODEL || "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-1.5-pro",
+      "gemini-1.0-pro"
+    ];
+    const uniqueModels = Array.from(new Set(fallbackModels));
 
     let rubricContext = "";
     const firstRubric = rubrics[0];
@@ -226,25 +242,32 @@ Berikan kunci jawaban dalam format teks terstruktur (bukan JSON). Gunakan penomo
       }
     }
 
-    try {
-      console.log(`[Gemini] Generating answer key with model ${modelName}...`);
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: contentParts }],
-        generationConfig: {
-          temperature: 0.3,
+    let lastError: any = null;
+
+    for (const modelName of uniqueModels) {
+      try {
+        console.log(`[Gemini] Generating answer key with model ${modelName}...`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent({
+          contents: [{ role: "user", parts: contentParts }],
+          generationConfig: {
+            temperature: 0.3,
+          }
+        });
+
+        const responseText = result.response.text();
+        if (!responseText) {
+          throw new Error("Gemini API returned empty response for answer key.");
         }
-      });
 
-      const responseText = result.response.text();
-      if (!responseText) {
-        throw new Error("Gemini API returned empty response for answer key.");
+        console.log(`[Gemini] Answer key generated successfully with ${modelName}.`);
+        return responseText.trim();
+      } catch (error: any) {
+        console.warn(`[Gemini] Answer key generation failed with ${modelName}:`, error.message || error);
+        lastError = error;
       }
-
-      console.log(`[Gemini] Answer key generated successfully with ${modelName}.`);
-      return responseText.trim();
-    } catch (error: any) {
-      console.error(`[Gemini] Answer key generation failed with ${modelName}:`, error);
-      throw error;
     }
+
+    throw lastError || new Error("All Gemini fallback models failed for answer key generation.");
   }
 }
