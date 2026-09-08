@@ -164,12 +164,12 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     const apiKey = this.getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Fallback models for Gemini
+    // Fokus ke gemini-3.5-flash atau yang terbaru (fallback ke versi sebelumnya yang stabil)
     const fallbackModels = [
-      process.env.GEMINI_MODEL || "gemini-1.5-flash",
-      "gemini-1.5-flash-8b",
-      "gemini-1.5-pro",
-      "gemini-1.0-pro"
+      process.env.GEMINI_MODEL || "gemini-3.5-flash",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash"
     ];
     const uniqueModels = Array.from(new Set(fallbackModels));
 
