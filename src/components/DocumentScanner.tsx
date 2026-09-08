@@ -47,7 +47,7 @@ export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload
   // Load jscanify dynamically after cv is loaded to avoid SSR issues
   useEffect(() => {
     if (cvLoaded && typeof window !== "undefined") {
-      import("jscanify").then((module) => {
+      import("jscanify/client").then((module) => {
         window.jscanify = module.default;
         const jscanifyInstance = new module.default();
         setScanner(jscanifyInstance);
