@@ -18,6 +18,7 @@
     "bcryptjs": "^3.0.3",
     "browser-image-compression": "^2.0.2",
     "googleapis": "^176.0.0",
+    "jscanify": "^1.4.3",
     "lucide-react": "^1.34.0",
     "mammoth": "^1.12.2",
     "mongodb": "^6.21.0",
@@ -29,6 +30,8 @@
     "pdf-parse": "^2.4.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-image-crop": "^11.1.2",
+    "react-webcam": "^7.2.0",
     "sharp": "^0.35.4",
     "tesseract.js": "^7.0.0",
     "xlsx": "^0.18.5"
