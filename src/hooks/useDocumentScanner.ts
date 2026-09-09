@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { CornerPoints } from '@/components/ManualCropper';
 
 export function useDocumentScanner() {
   const [isReady, setIsReady] = useState(false);
@@ -48,96 +49,113 @@ export function useDocumentScanner() {
     }
   };
 
-  const processImage = useCallback(async (file: File): Promise<File> => {
+  const detectCorners = useCallback(async (imageSrc: string): Promise<CornerPoints | null> => {
     return new Promise((resolve) => {
-      if (!isReady || !scanner || !(window as any).cv) {
-        return resolve(file); // Fallback ke file asli jika OpenCV belum siap
-      }
+      if (!isReady || !scanner || !(window as any).cv) return resolve(null);
+      const img = new Image();
+      img.onload = () => {
+         try {
+           const cv = (window as any).cv;
+           const cvMat = cv.imread(img);
+           const contour = scanner.findPaperContour(cvMat);
+           if (contour) {
+             const cornerPoints = scanner.getCornerPoints(contour);
+             
+             // Tambahkan sedikit margin secara default agar tidak terpotong
+             const margin = 20; 
+             const w = cvMat.cols;
+             const h = cvMat.rows;
+             
+             if (cornerPoints.topLeftCorner && cornerPoints.topRightCorner && cornerPoints.bottomLeftCorner && cornerPoints.bottomRightCorner) {
+                cornerPoints.topLeftCorner.x = Math.max(0, cornerPoints.topLeftCorner.x - margin);
+                cornerPoints.topLeftCorner.y = Math.max(0, cornerPoints.topLeftCorner.y - margin);
+                
+                cornerPoints.topRightCorner.x = Math.min(w, cornerPoints.topRightCorner.x + margin);
+                cornerPoints.topRightCorner.y = Math.max(0, cornerPoints.topRightCorner.y - margin);
+                
+                cornerPoints.bottomLeftCorner.x = Math.max(0, cornerPoints.bottomLeftCorner.x - margin);
+                cornerPoints.bottomLeftCorner.y = Math.min(h, cornerPoints.bottomLeftCorner.y + margin);
+                
+                cornerPoints.bottomRightCorner.x = Math.min(w, cornerPoints.bottomRightCorner.x + margin);
+                cornerPoints.bottomRightCorner.y = Math.min(h, cornerPoints.bottomRightCorner.y + margin);
+                
+                cvMat.delete();
+                contour.delete();
+                resolve(cornerPoints);
+             } else {
+                cvMat.delete();
+                contour.delete();
+                resolve(null);
+             }
+           } else {
+             cvMat.delete();
+             resolve(null);
+           }
+         } catch (e) {
+           console.error("OpenCV detection failed", e);
+           resolve(null);
+         }
+      };
+      img.onerror = () => resolve(null);
+      img.src = imageSrc;
+    });
+  }, [isReady, scanner]);
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageSrc = e.target?.result as string;
-        const img = new Image();
-        img.onload = () => {
-           try {
+  const processImage = useCallback(async (imageSrc: string, corners: CornerPoints | null, originalFilename: string): Promise<File> => {
+     return new Promise((resolve) => {
+       if (!isReady || !scanner || !(window as any).cv) {
+          // Fallback tanpa OpenCV
+          fetch(imageSrc).then(r => r.blob()).then(blob => {
+             resolve(new File([blob], originalFilename, { type: "image/jpeg" }));
+          });
+          return;
+       }
+
+       const img = new Image();
+       img.onload = () => {
+          try {
              const cv = (window as any).cv;
-             // 1. Auto crop dengan margin luar 2cm
-             const cvMat = cv.imread(img);
-             const contour = scanner.findPaperContour(cvMat);
              
              let extractedCanvas = null;
-             if (contour) {
-               const cornerPoints = scanner.getCornerPoints(contour);
-               if (cornerPoints.topLeftCorner && cornerPoints.topRightCorner && cornerPoints.bottomLeftCorner && cornerPoints.bottomRightCorner) {
-                 const margin = 50; // Lebar margin tambahan (sekitar 2cm di ukuran asli)
-                 const w = cvMat.cols;
-                 const h = cvMat.rows;
-                 
-                 cornerPoints.topLeftCorner.x = Math.max(0, cornerPoints.topLeftCorner.x - margin);
-                 cornerPoints.topLeftCorner.y = Math.max(0, cornerPoints.topLeftCorner.y - margin);
-                 
-                 cornerPoints.topRightCorner.x = Math.min(w, cornerPoints.topRightCorner.x + margin);
-                 cornerPoints.topRightCorner.y = Math.max(0, cornerPoints.topRightCorner.y - margin);
-                 
-                 cornerPoints.bottomLeftCorner.x = Math.max(0, cornerPoints.bottomLeftCorner.x - margin);
-                 cornerPoints.bottomLeftCorner.y = Math.min(h, cornerPoints.bottomLeftCorner.y + margin);
-                 
-                 cornerPoints.bottomRightCorner.x = Math.min(w, cornerPoints.bottomRightCorner.x + margin);
-                 cornerPoints.bottomRightCorner.y = Math.min(h, cornerPoints.bottomRightCorner.y + margin);
-                 
-                 extractedCanvas = scanner.extractPaper(img, 1080, 1920, cornerPoints);
-               }
-               contour.delete();
+             if (corners) {
+                extractedCanvas = scanner.extractPaper(img, 1080, 1920, corners);
+             } else {
+                extractedCanvas = scanner.extractPaper(img, 1080, 1920); // Fallback auto-crop
              }
              
-             if (!extractedCanvas) {
-               extractedCanvas = scanner.extractPaper(img, 1080, 1920); // Fallback
-             }
-             cvMat.delete();
-             
-             // Pastikan hasil ekstraksi masuk akal, jika tidak gunakan gambar asli
              const sourceImage = (extractedCanvas && extractedCanvas.width > 100) ? extractedCanvas : img;
 
-             // 2. Black and white filter with Adaptive Thresholding
              const mat = cv.imread(sourceImage);
-             
-             // Convert to grayscale
              cv.cvtColor(mat, mat, cv.COLOR_RGBA2GRAY, 0);
-
-             // Apply adaptive thresholding to remove shadow and keep text sharp
-             // blockSize=21, C=10 are typical good values for document scanning
              cv.adaptiveThreshold(mat, mat, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 10);
 
-             // Tulis kembali ke canvas
              const resultCanvas = document.createElement('canvas');
              cv.imshow(resultCanvas, mat);
              mat.delete();
 
-             // Konversi kembali ke File
              resultCanvas.toBlob((blob) => {
                if (blob) {
-                 const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + "_scanned.jpg", {
+                 const newFile = new File([blob], originalFilename.replace(/\.[^/.]+$/, "") + "_scanned.jpg", {
                    type: "image/jpeg",
                    lastModified: Date.now(),
                  });
                  resolve(newFile);
                } else {
-                 resolve(file);
+                 fetch(imageSrc).then(r => r.blob()).then(b => resolve(new File([b], originalFilename, { type: "image/jpeg" })));
                }
              }, "image/jpeg", 0.85);
 
-           } catch(error) {
-             console.error("OpenCV processing failed", error);
-             resolve(file); // fallback
-           }
-        };
-        img.onerror = () => resolve(file);
-        img.src = imageSrc;
-      };
-      reader.onerror = () => resolve(file);
-      reader.readAsDataURL(file);
-    });
+          } catch(e) {
+             console.error("OpenCV processing failed", e);
+             fetch(imageSrc).then(r => r.blob()).then(b => resolve(new File([b], originalFilename, { type: "image/jpeg" })));
+          }
+       };
+       img.onerror = () => {
+         fetch(imageSrc).then(r => r.blob()).then(b => resolve(new File([b], originalFilename, { type: "image/jpeg" })));
+       };
+       img.src = imageSrc;
+     });
   }, [isReady, scanner]);
 
-  return { isReady, processImage };
+  return { isReady, detectCorners, processImage };
 }

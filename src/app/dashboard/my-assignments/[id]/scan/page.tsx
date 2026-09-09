@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, use } from "react";
+import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { PDFDocument } from "pdf-lib";
 import imageCompression from "browser-image-compression";
 import { useDocumentScanner } from "@/hooks/useDocumentScanner";
+import ManualCropper, { CornerPoints } from "@/components/ManualCropper";
 
 interface PageImage {
   id: string; // temp client id
@@ -25,53 +26,70 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [elapsedTime, setElapsedTime] = useState(0);
   const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
   
-  const { isReady, processImage } = useDocumentScanner();
+  const { isReady, detectCorners, processImage } = useDocumentScanner();
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  
+  const [fileQueue, setFileQueue] = useState<File[]>([]);
+  const [pendingCrop, setPendingCrop] = useState<{ file: File, dataUrl: string, corners: CornerPoints | null } | null>(null);
+
+  // Proses antrean file
+  useEffect(() => {
+    if (!pendingCrop && fileQueue.length > 0) {
+      const nextFile = fileQueue[0];
+      const dataUrl = URL.createObjectURL(nextFile);
+      setIsProcessingImage(true);
+      detectCorners(dataUrl).then(corners => {
+        setIsProcessingImage(false);
+        setPendingCrop({ file: nextFile, dataUrl, corners });
+      });
+    }
+  }, [fileQueue, pendingCrop, detectCorners]);
 
   // Handle file capture
-  const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    
     const filesArray = Array.from(e.target.files);
-    
-    setIsProcessingImage(true);
-    for (const file of filesArray) {
-      try {
-        // Proses image: crop dan hitam putih via OpenCV (jika siap)
-        const processedFile = await processImage(file);
+    setFileQueue(prev => [...prev, ...filesArray]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
-        const options = {
-          maxSizeMB: 0.5,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-        };
-        // Tampilkan loading singkat jika perlu, atau andalkan async
-        const compressedFile = await imageCompression(processedFile, options);
-        
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target && typeof event.target.result === "string") {
-            setImages(prev => [
-              ...prev, 
-              {
-                id: Math.random().toString(36).substring(7),
-                file: compressedFile,
-                dataUrl: event.target!.result as string
-              }
-            ]);
-          }
-        };
-        reader.readAsDataURL(compressedFile);
-      } catch (error) {
-        console.error("Compression error:", error);
-      }
-    }
+  const handleCropComplete = async (corners: CornerPoints) => {
+    if (!pendingCrop) return;
+    setIsProcessingImage(true);
     
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    // Hapus dari antrean
+    setFileQueue(prev => prev.slice(1));
+    const currentCrop = pendingCrop;
+    setPendingCrop(null); // Sembunyikan UI crop
+    
+    try {
+      const processedFile = await processImage(currentCrop.dataUrl, corners, currentCrop.file.name);
+      const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1920, useWebWorker: true };
+      const compressedFile = await imageCompression(processedFile, options);
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target && typeof event.target.result === "string") {
+          setImages(prev => [
+            ...prev, 
+            { id: Math.random().toString(36).substring(7), file: compressedFile, dataUrl: event.target!.result as string }
+          ]);
+        }
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessingImage(false);
+      URL.revokeObjectURL(currentCrop.dataUrl);
     }
-    setIsProcessingImage(false);
+  };
+
+  const handleCropCancel = () => {
+    if (!pendingCrop) return;
+    setFileQueue(prev => prev.slice(1));
+    URL.revokeObjectURL(pendingCrop.dataUrl);
+    setPendingCrop(null);
   };
 
   // Replace rotated image in state
@@ -400,6 +418,15 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         </div>
       )}
 
+      {/* Manual Cropper Modal */}
+      {pendingCrop && (
+        <ManualCropper
+          imageSrc={pendingCrop.dataUrl}
+          initialCorners={pendingCrop.corners}
+          onCrop={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
+      )}
 
     </div>
   );
