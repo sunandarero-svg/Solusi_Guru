@@ -3,7 +3,6 @@
 import { useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
-import DocumentScanner from "@/components/DocumentScanner";
 import { PDFDocument } from "pdf-lib";
 import imageCompression from "browser-image-compression";
 
@@ -24,35 +23,6 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [uploadProgress, setUploadProgress] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
-
-  // Handle scanned document
-  const handleDocumentCapture = async (base64Image: string) => {
-    setShowScanner(false);
-    
-    // Convert base64 to File
-    const arr = base64Image.split(',');
-    const mimeMatch = arr[0].match(/:(.*?);/);
-    if (!mimeMatch) return;
-    
-    const mime = mimeMatch[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    const file = new File([u8arr], `scanned_${Date.now()}.jpg`, { type: mime });
-
-    setImages(prev => [
-      ...prev, 
-      {
-        id: Math.random().toString(36).substring(7),
-        file: file,
-        dataUrl: base64Image
-      }
-    ]);
-  };
 
   // Handle file capture
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -340,11 +310,20 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
       {/* Floating Action Button (Camera) */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
         <button 
-          onClick={() => setShowScanner(true)}
+          onClick={() => fileInputRef.current?.click()}
           className="bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto hover:bg-gray-100 transition transform hover:scale-105 border-4 border-emerald-50"
         >
           <span className="text-3xl">📷</span>
         </button>
+        <input 
+          type="file" 
+          accept="image/*" 
+          capture="environment" 
+          ref={fileInputRef} 
+          onChange={handleCapture} 
+          className="hidden" 
+          multiple 
+        />
       </div>
 
       {/* Preview Modal */}
@@ -402,14 +381,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         </div>
       )}
 
-      {/* Document Scanner Overlay */}
-      {showScanner && (
-        <DocumentScanner 
-          onCapture={handleDocumentCapture}
-          onClose={() => setShowScanner(false)}
-          allowGalleryUpload={false}
-        />
-      )}
+
     </div>
   );
 }

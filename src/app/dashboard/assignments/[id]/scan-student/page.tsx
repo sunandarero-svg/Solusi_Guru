@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
-import DocumentScanner from "@/components/DocumentScanner";
 import imageCompression from "browser-image-compression";
 
 interface PageImage {
@@ -39,35 +38,7 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
   const [uploadProgress, setUploadProgress] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
 
-  // Handle scanned document
-  const handleDocumentCapture = async (base64Image: string) => {
-    setShowScanner(false);
-    
-    // Convert base64 to File
-    const arr = base64Image.split(',');
-    const mimeMatch = arr[0].match(/:(.*?);/);
-    if (!mimeMatch) return;
-    
-    const mime = mimeMatch[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    const file = new File([u8arr], `scanned_${Date.now()}.jpg`, { type: mime });
-
-    setImages(prev => [
-      ...prev, 
-      {
-        id: Math.random().toString(36).substring(7),
-        file: file,
-        dataUrl: base64Image
-      }
-    ]);
-  };
 
   useEffect(() => {
     // Fetch assignment details to get class ID
@@ -400,12 +371,21 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
       {/* Floating Action Button (Camera) */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
         <button 
-          onClick={() => setShowScanner(true)}
+          onClick={() => fileInputRef.current?.click()}
           disabled={!selectedStudentId}
           className={`bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center ${selectedStudentId ? 'cursor-pointer pointer-events-auto hover:bg-gray-100 transition transform hover:scale-105' : 'opacity-50'} border-4 border-emerald-50`}
         >
           <span className="text-3xl">📷</span>
         </button>
+        <input 
+          type="file" 
+          accept="image/*" 
+          capture="environment" 
+          ref={fileInputRef} 
+          onChange={handleCapture} 
+          className="hidden" 
+          multiple 
+        />
       </div>
 
       {/* Preview Modal */}
@@ -462,14 +442,7 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      {/* Document Scanner Overlay */}
-      {showScanner && (
-        <DocumentScanner 
-          onCapture={handleDocumentCapture}
-          onClose={() => setShowScanner(false)}
-          allowGalleryUpload={true}
-        />
-      )}
+
     </div>
   );
 }
