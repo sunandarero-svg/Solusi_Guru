@@ -1,10 +1,22 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import Webcam from "react-webcam";
-import Script from "next/script";
-import ReactCrop, { Crop } from "react-image-crop";
-import "react-image-crop/dist/ReactCrop.css";
+
+interface DocumentScannerProps {
+  onCapture: (base64Image: string) => void;
+  onClose: () => void;
+  allowGalleryUpload?: boolean;
+}
+
+export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload = false }: DocumentScannerProps) {
+  const [mode, setMode] = useState<"camera" | "preview">("camera");
+  const [finalImage, setFinalImage] = useState<string | null>(null);
+  
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const webcamRef = useRef<Webcam>(null);
+
   const handleCapture = useCallback(() => {
     if (!webcamRef.current) return;
     const imageSrc = webcamRef.current.getScreenshot();
@@ -12,7 +24,6 @@ import "react-image-crop/dist/ReactCrop.css";
       processCapturedImage(imageSrc);
     }
   }, [webcamRef]);
-
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -27,9 +38,10 @@ import "react-image-crop/dist/ReactCrop.css";
   };
 
   const processCapturedImage = (base64Str: string) => {
-    setCapturedImage(base64Str);
+    setIsProcessing(true);
     setFinalImage(base64Str);
     setMode("preview");
+    setIsProcessing(false);
   };
 
   const confirmAndSave = () => {
@@ -40,15 +52,13 @@ import "react-image-crop/dist/ReactCrop.css";
 
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-
-
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-gray-900 text-white shadow-md z-10">
         <button onClick={onClose} className="text-gray-400 hover:text-white px-3 py-1 font-medium">
           Batal
         </button>
         <span className="font-bold text-lg">
-          {mode === "camera" ? "Pindai Dokumen" : mode === "manual-crop" ? "Sesuaikan Area" : "Pratinjau Hasil"}
+          {mode === "camera" ? "Ambil Foto" : "Pratinjau Hasil"}
         </span>
         <div className="w-16">
           {/* Spacer */}
@@ -62,14 +72,13 @@ import "react-image-crop/dist/ReactCrop.css";
         {isProcessing && (
           <div className="absolute inset-0 bg-black/60 z-20 flex flex-col items-center justify-center">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-emerald-400 mt-4 font-medium">Memproses Dokumen...</p>
+            <p className="text-emerald-400 mt-4 font-medium">Memproses Foto...</p>
           </div>
         )}
 
         {/* Camera Mode */}
         {mode === "camera" && (
           <div className="relative w-full h-full flex items-center justify-center">
-
             <Webcam
               ref={webcamRef}
               audio={false}
@@ -77,7 +86,6 @@ import "react-image-crop/dist/ReactCrop.css";
               videoConstraints={{ facingMode: "environment", width: 1920, height: 1080 }}
               className="w-full h-full object-cover"
             />
-
             
             {/* Camera Controls */}
             <div className="absolute bottom-0 left-0 right-0 p-8 pb-12 flex justify-center items-center bg-gradient-to-t from-black via-black/80 to-transparent">
@@ -102,8 +110,6 @@ import "react-image-crop/dist/ReactCrop.css";
           </div>
         )}
 
-
-
         {/* Preview Mode */}
         {mode === "preview" && finalImage && (
           <div className="w-full h-full flex flex-col">
@@ -119,7 +125,6 @@ import "react-image-crop/dist/ReactCrop.css";
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
