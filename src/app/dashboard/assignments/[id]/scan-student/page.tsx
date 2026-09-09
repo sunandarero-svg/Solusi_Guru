@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import imageCompression from "browser-image-compression";
+import { useDocumentScanner } from "@/hooks/useDocumentScanner";
 
 interface PageImage {
   id: string;
@@ -39,6 +40,9 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
   const [elapsedTime, setElapsedTime] = useState(0);
   const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
 
+  const { isReady, processImage } = useDocumentScanner();
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+
 
   useEffect(() => {
     // Fetch assignment details to get class ID
@@ -66,14 +70,17 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
     
     const filesArray = Array.from(e.target.files);
     
+    setIsProcessingImage(true);
     for (const file of filesArray) {
       try {
+        const processedFile = await processImage(file);
+
         const options = {
           maxSizeMB: 0.5,
           maxWidthOrHeight: 1920,
           useWebWorker: true,
         };
-        const compressedFile = await imageCompression(file, options);
+        const compressedFile = await imageCompression(processedFile, options);
         
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -97,6 +104,7 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    setIsProcessingImage(false);
   };
 
   const handleRotate = (id: string, newDataUrl: string) => {
@@ -368,12 +376,21 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
+      {/* Processing Image Overlay */}
+      {isProcessingImage && (
+        <div className="absolute inset-0 bg-black bg-opacity-80 z-20 flex flex-col items-center justify-center p-8">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-white font-medium">Memproses Kertas...</p>
+          <p className="text-emerald-400 text-xs mt-2 text-center max-w-xs">Mendeteksi ujung kertas, memotong otomatis, dan mengatur pencahayaan.</p>
+        </div>
+      )}
+
       {/* Floating Action Button (Camera) */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
         <button 
           onClick={() => fileInputRef.current?.click()}
-          disabled={!selectedStudentId}
-          className={`bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center ${selectedStudentId ? 'cursor-pointer pointer-events-auto hover:bg-gray-100 transition transform hover:scale-105' : 'opacity-50'} border-4 border-emerald-50`}
+          disabled={!selectedStudentId || isProcessingImage || !isReady}
+          className={`bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center transition transform border-4 border-emerald-50 ${(!selectedStudentId || isProcessingImage || !isReady) ? 'opacity-50' : 'cursor-pointer pointer-events-auto hover:bg-gray-100 hover:scale-105'}`}
         >
           <span className="text-3xl">📷</span>
         </button>

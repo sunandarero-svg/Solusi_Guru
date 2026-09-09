@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { PDFDocument } from "pdf-lib";
 import imageCompression from "browser-image-compression";
+import { useDocumentScanner } from "@/hooks/useDocumentScanner";
 
 interface PageImage {
   id: string; // temp client id
@@ -23,6 +24,9 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [uploadProgress, setUploadProgress] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
+  
+  const { isReady, processImage } = useDocumentScanner();
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   // Handle file capture
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,15 +34,19 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
     
     const filesArray = Array.from(e.target.files);
     
+    setIsProcessingImage(true);
     for (const file of filesArray) {
       try {
+        // Proses image: crop dan hitam putih via OpenCV (jika siap)
+        const processedFile = await processImage(file);
+
         const options = {
           maxSizeMB: 0.5,
           maxWidthOrHeight: 1920,
           useWebWorker: true,
         };
         // Tampilkan loading singkat jika perlu, atau andalkan async
-        const compressedFile = await imageCompression(file, options);
+        const compressedFile = await imageCompression(processedFile, options);
         
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -63,6 +71,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    setIsProcessingImage(false);
   };
 
   // Replace rotated image in state
@@ -307,11 +316,21 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
         </div>
       )}
 
+      {/* Processing Image Overlay */}
+      {isProcessingImage && (
+        <div className="absolute inset-0 bg-black bg-opacity-80 z-20 flex flex-col items-center justify-center p-8">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-white font-medium">Memproses Kertas...</p>
+          <p className="text-emerald-400 text-xs mt-2 text-center max-w-xs">Mendeteksi ujung kertas, memotong otomatis, dan mengatur pencahayaan.</p>
+        </div>
+      )}
+
       {/* Floating Action Button (Camera) */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
         <button 
           onClick={() => fileInputRef.current?.click()}
-          className="bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto hover:bg-gray-100 transition transform hover:scale-105 border-4 border-emerald-50"
+          disabled={isProcessingImage || !isReady}
+          className={`bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto transition transform border-4 border-emerald-50 ${(isProcessingImage || !isReady) ? 'opacity-50' : 'hover:bg-gray-100 hover:scale-105'}`}
         >
           <span className="text-3xl">📷</span>
         </button>
