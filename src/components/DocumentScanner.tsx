@@ -30,7 +30,6 @@ export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload
   const [finalImage, setFinalImage] = useState<string | null>(null);
   
   const [isProcessing, setIsProcessing] = useState(false);
-  const [filterMode, setFilterMode] = useState<"bw" | "color">("bw");
   
   const webcamRef = useRef<Webcam>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -98,7 +97,7 @@ export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload
         
         if (paperContour) {
           const resultCanvas = scanner.extractPaper(img, 1000, 1414); // Standard A4 aspect ratio 1:1.414
-          applyFilter(resultCanvas, filterMode);
+          finalizeImage(resultCanvas);
         } else {
           // No contour found, fallback to manual crop
           setIsProcessing(false);
@@ -113,34 +112,9 @@ export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload
     img.src = base64Str;
   };
 
-  const applyFilter = (canvas: HTMLCanvasElement, currentFilter: "bw" | "color") => {
-    try {
-      const src = window.cv.imread(canvas);
-      const dst = new window.cv.Mat();
-      
-      if (currentFilter === "bw") {
-        window.cv.cvtColor(src, dst, window.cv.COLOR_RGBA2GRAY, 0);
-        // Adaptive threshold to simulate scanner look
-        window.cv.adaptiveThreshold(dst, dst, 255, window.cv.ADAPTIVE_THRESH_GAUSSIAN_C, window.cv.THRESH_BINARY, 15, 10);
-      } else {
-        // Color enhance: increase contrast/brightness slightly
-        src.convertTo(dst, -1, 1.2, 10);
-      }
-      
-      const outCanvas = document.createElement('canvas');
-      window.cv.imshow(outCanvas, dst);
-      
-      setFinalImage(outCanvas.toDataURL("image/jpeg", 0.9));
-      setIsProcessing(false);
-      
-      src.delete();
-      dst.delete();
-    } catch (err) {
-      console.error("Filter error", err);
-      // Fallback: just use raw canvas
-      setFinalImage(canvas.toDataURL("image/jpeg", 0.9));
-      setIsProcessing(false);
-    }
+  const finalizeImage = (canvas: HTMLCanvasElement) => {
+    setFinalImage(canvas.toDataURL("image/jpeg", 0.9));
+    setIsProcessing(false);
   };
 
   const handleManualCrop = () => {
@@ -170,9 +144,9 @@ export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload
           crop.height * scaleY
         );
         
-        // Pass to filter
+        // Finish processing
         if (scannerReady) {
-           applyFilter(canvas, filterMode);
+           finalizeImage(canvas);
         } else {
            setFinalImage(canvas.toDataURL("image/jpeg", 0.9));
            setIsProcessing(false);
@@ -185,35 +159,6 @@ export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload
     }
   };
 
-  const toggleFilter = () => {
-    const newMode = filterMode === "bw" ? "color" : "bw";
-    setFilterMode(newMode);
-    
-    if (capturedImage && scannerReady) {
-      setIsProcessing(true);
-      // Re-run the extraction from original captured image
-      const img = new Image();
-      img.onload = () => {
-        try {
-           const paperContour = scanner.findPaperContour(window.cv.imread(img));
-           if (paperContour) {
-             const resultCanvas = scanner.extractPaper(img, 1000, 1414);
-             applyFilter(resultCanvas, newMode);
-           } else {
-             // Use full image if contour fails
-             const canvas = document.createElement("canvas");
-             canvas.width = img.width;
-             canvas.height = img.height;
-             canvas.getContext("2d")?.drawImage(img, 0, 0);
-             applyFilter(canvas, newMode);
-           }
-        } catch(e) {
-           setIsProcessing(false);
-        }
-      };
-      img.src = capturedImage;
-    }
-  };
 
   const confirmAndSave = () => {
     if (finalImage) {
@@ -338,14 +283,6 @@ export default function DocumentScanner({ onCapture, onClose, allowGalleryUpload
             <div className="p-4 bg-gray-900 border-t border-gray-800 flex items-center justify-between">
                <button onClick={() => setMode("camera")} className="px-4 py-2 text-gray-300 hover:text-white font-medium">Foto Ulang</button>
                
-               <button 
-                  onClick={toggleFilter} 
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 rounded-full text-sm font-medium text-gray-200 hover:bg-gray-700 transition"
-               >
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-                 {filterMode === "bw" ? "B&W" : "Warna"}
-               </button>
-
                <button onClick={confirmAndSave} className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 transition">
                  Simpan
                </button>
