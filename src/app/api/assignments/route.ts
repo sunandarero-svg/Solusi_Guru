@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, classId, subjectId, description, instructions, deadline, maxPages } = body;
+    const { title, classId, subjectId, sessionName, description, instructions, deadline, maxPages } = body;
 
     if (!title || !classId || !subjectId) {
       return NextResponse.json({ error: "Title, Class, and Subject are required" }, { status: 400 });
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       classId,
       subjectId,
       title,
+      sessionName,
       description,
       instructions,
       deadline: deadline ? new Date(deadline) : undefined,

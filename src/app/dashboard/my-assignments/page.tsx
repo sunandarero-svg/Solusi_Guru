@@ -91,7 +91,10 @@ export default async function MyAssignmentsPage({ searchParams }: { searchParams
                 className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:border-emerald-200 transition group block"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <h2 className="text-lg font-bold text-gray-800 group-hover:text-emerald-600 transition">{assignment.title}</h2>
+                  <h2 className="text-lg font-bold text-gray-800 group-hover:text-emerald-600 transition">
+                    {assignment.title}
+                    {assignment.sessionName && <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{assignment.sessionName}</span>}
+                  </h2>
                   {hasSubmitted ? (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
                       ✅ Dikumpul

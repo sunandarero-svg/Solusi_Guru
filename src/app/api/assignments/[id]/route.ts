@@ -41,7 +41,7 @@ export async function PUT(
 
     const resolvedParams = await params;
     const body = await req.json();
-    const { title, description, instructions, deadline, maxPages, status } = body;
+    const { title, sessionName, description, instructions, deadline, maxPages, status } = body;
 
     await dbConnect();
     const user = await User.findOne({ email: session.user.email! }).lean();
@@ -55,8 +55,18 @@ export async function PUT(
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
+    // Validation: Require rubric before publishing
+    if (status === "PUBLISHED") {
+      const { Rubric } = await import("@/models/Assignment");
+      const rubricCount = await Rubric.countDocuments({ assignmentId: resolvedParams.id });
+      if (rubricCount === 0) {
+        return NextResponse.json({ error: "Rubrik penilaian harus diisi sebelum tugas dapat di-publish" }, { status: 400 });
+      }
+    }
+
     const updated = await assignmentService.updateAssignment(resolvedParams.id, teacherProfile._id.toString(), {
       title,
+      sessionName,
       description,
       instructions,
       deadline: deadline ? new Date(deadline) : undefined,

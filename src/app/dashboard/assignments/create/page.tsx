@@ -19,6 +19,7 @@ export default function CreateAssignmentPage() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [form, setForm] = useState({
     title: "",
+    sessionName: "",
     classId: "",
     subjectId: "",
     description: "",
@@ -104,16 +105,28 @@ export default function CreateAssignmentPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Judul Tugas *</label>
-            <input 
-              required
-              type="text" 
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
-              placeholder="Contoh: Esai Sejarah Kemerdekaan"
-              value={form.title}
-              onChange={e => setForm(prev => ({...prev, title: e.target.value}))}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Judul Tugas *</label>
+              <input 
+                required
+                type="text" 
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
+                placeholder="Contoh: Esai Sejarah Kemerdekaan"
+                value={form.title}
+                onChange={e => setForm(prev => ({...prev, title: e.target.value}))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sesi Tugas (Opsional)</label>
+              <input 
+                type="text" 
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-900 bg-white"
+                placeholder="Contoh: Sesi 1, Pertemuan 2"
+                value={form.sessionName}
+                onChange={e => setForm(prev => ({...prev, sessionName: e.target.value}))}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

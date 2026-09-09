@@ -12,6 +12,7 @@ export interface IAssignment extends Document {
   classId: mongoose.Types.ObjectId;
   subjectId: mongoose.Types.ObjectId;
   title: string;
+  sessionName?: string;
   description?: string;
   instructions?: string;
   deadline?: Date;
@@ -26,6 +27,7 @@ const AssignmentSchema: Schema = new Schema({
   classId: { type: Schema.Types.ObjectId, ref: 'Class', required: true },
   subjectId: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
   title: { type: String, required: true },
+  sessionName: { type: String },
   description: { type: String },
   instructions: { type: String },
   deadline: { type: Date },

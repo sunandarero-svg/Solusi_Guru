@@ -54,6 +54,7 @@ export const assignmentService = {
     classId: string;
     subjectId: string;
     title: string;
+    sessionName?: string;
     description?: string;
     instructions?: string;
     deadline?: Date;
@@ -69,6 +70,7 @@ export const assignmentService = {
 
   async updateAssignment(id: string, teacherId: string, data: {
     title?: string;
+    sessionName?: string;
     description?: string;
     instructions?: string;
     deadline?: Date;
@@ -108,7 +110,7 @@ export const assignmentService = {
     return true;
   },
 
-  async duplicateAssignment(id: string, teacherId: string, newClassId: string, newSubjectId: string) {
+  async duplicateAssignment(id: string, teacherId: string, newClassId: string, newSubjectId: string, sessionName?: string) {
     await dbConnect();
 
     // 1. Fetch original assignment
@@ -123,6 +125,7 @@ export const assignmentService = {
       classId: newClassId,
       subjectId: newSubjectId,
       title: originalAssignment.title,
+      sessionName: sessionName || originalAssignment.sessionName,
       description: originalAssignment.description,
       instructions: originalAssignment.instructions,
       deadline: originalAssignment.deadline,

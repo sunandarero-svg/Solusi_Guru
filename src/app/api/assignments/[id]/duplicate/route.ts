@@ -27,7 +27,7 @@ export async function POST(
 
     const resolvedParams = await params;
     const body = await req.json();
-    const { classId, subjectId } = body;
+    const { classId, subjectId, sessionName } = body;
 
     if (!classId || !subjectId) {
       return NextResponse.json({ error: "Class and Subject are required" }, { status: 400 });
@@ -37,7 +37,8 @@ export async function POST(
       resolvedParams.id,
       teacherProfile._id.toString(),
       classId,
-      subjectId
+      subjectId,
+      sessionName
     );
 
     return NextResponse.json(duplicatedAssignment, { status: 201 });
