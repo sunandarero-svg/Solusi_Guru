@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { CheckSquare, Trash2, Download } from "lucide-react";
+import { CheckSquare, Trash2, Download, Send } from "lucide-react";
 import * as xlsx from "xlsx";
 
 interface Submission {
@@ -207,7 +207,14 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                 disabled={isBulkActioning}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                <CheckSquare size={16} /> Approve Massal
+                <CheckSquare size={16} /> Approve
+              </button>
+              <button
+                onClick={() => handleBulkAction("publish")}
+                disabled={isBulkActioning}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <Send size={16} /> Publish
               </button>
             </div>
           )}
