@@ -11,6 +11,7 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   role: Role;
+  lastActiveAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,7 +19,8 @@ export interface IUser extends Document {
 const UserSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
-  role: { type: String, enum: Object.values(Role), required: true }
+  role: { type: String, enum: Object.values(Role), required: true },
+  lastActiveAt: { type: Date, default: null }
 }, {
   timestamps: true
 });
