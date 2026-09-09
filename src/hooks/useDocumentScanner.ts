@@ -61,8 +61,39 @@ export function useDocumentScanner() {
         img.onload = () => {
            try {
              const cv = (window as any).cv;
-             // 1. Auto crop (Extract paper using jscanify)
-             const extractedCanvas = scanner.extractPaper(img, 1080, 1920);
+             // 1. Auto crop dengan margin luar 2cm
+             const cvMat = cv.imread(img);
+             const contour = scanner.findPaperContour(cvMat);
+             
+             let extractedCanvas = null;
+             if (contour) {
+               const cornerPoints = scanner.getCornerPoints(contour);
+               if (cornerPoints.topLeftCorner && cornerPoints.topRightCorner && cornerPoints.bottomLeftCorner && cornerPoints.bottomRightCorner) {
+                 const margin = 50; // Lebar margin tambahan (sekitar 2cm di ukuran asli)
+                 const w = cvMat.cols;
+                 const h = cvMat.rows;
+                 
+                 cornerPoints.topLeftCorner.x = Math.max(0, cornerPoints.topLeftCorner.x - margin);
+                 cornerPoints.topLeftCorner.y = Math.max(0, cornerPoints.topLeftCorner.y - margin);
+                 
+                 cornerPoints.topRightCorner.x = Math.min(w, cornerPoints.topRightCorner.x + margin);
+                 cornerPoints.topRightCorner.y = Math.max(0, cornerPoints.topRightCorner.y - margin);
+                 
+                 cornerPoints.bottomLeftCorner.x = Math.max(0, cornerPoints.bottomLeftCorner.x - margin);
+                 cornerPoints.bottomLeftCorner.y = Math.min(h, cornerPoints.bottomLeftCorner.y + margin);
+                 
+                 cornerPoints.bottomRightCorner.x = Math.min(w, cornerPoints.bottomRightCorner.x + margin);
+                 cornerPoints.bottomRightCorner.y = Math.min(h, cornerPoints.bottomRightCorner.y + margin);
+                 
+                 extractedCanvas = scanner.extractPaper(img, 1080, 1920, cornerPoints);
+               }
+               contour.delete();
+             }
+             
+             if (!extractedCanvas) {
+               extractedCanvas = scanner.extractPaper(img, 1080, 1920); // Fallback
+             }
+             cvMat.delete();
              
              // Pastikan hasil ekstraksi masuk akal, jika tidak gunakan gambar asli
              const sourceImage = (extractedCanvas && extractedCanvas.width > 100) ? extractedCanvas : img;
