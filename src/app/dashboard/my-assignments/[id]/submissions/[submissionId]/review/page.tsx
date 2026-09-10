@@ -38,6 +38,26 @@ export default function StudentReviewPage({
       });
   }, [resolvedParams.submissionId]);
 
+  // Auto-refresh every 10s while AI is still processing
+  useEffect(() => {
+    if (!submission) return;
+    const isStillProcessing = ["PROCESSING", "OCR_COMPLETED", "AI_COMPLETED"].includes(submission.status);
+    if (!isStillProcessing) return;
+
+    const interval = setInterval(() => {
+      fetch(`/api/submissions/${resolvedParams.submissionId}/student-review`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && (data.id || data._id)) {
+            setSubmission(data);
+          }
+        })
+        .catch(() => {});
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [submission?.status, resolvedParams.submissionId]);
+
   const handleProcessAI = async () => {
     if (!confirm("Pastikan hasil PDF sudah jelas terbaca. Lanjutkan proses pengecekan AI?")) return;
     setIsProcessingAI(true);
@@ -247,10 +267,23 @@ export default function StudentReviewPage({
               </button>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center p-12">
-              <div className="text-5xl mb-4 animate-spin-slow">⚙️</div>
-              <p className="font-medium text-gray-500">Tugas Anda sedang diproses oleh AI...</p>
-              <p className="text-sm mt-2">Silakan tunggu atau kembali lagi nanti untuk melihat hasil analisis otomatis.</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-blue-50 rounded-2xl border border-blue-200">
+              <div className="text-5xl mb-4 animate-bounce">🤖</div>
+              <h3 className="font-bold text-blue-800 text-lg">Silakan tunggu sebentar ya!</h3>
+              <p className="text-sm text-blue-600 mt-2 leading-relaxed max-w-md">
+                Tugas kamu masih dalam proses analisis oleh AI agar penilaian lebih akurat. 
+                Halaman ini akan otomatis memperbarui hasil saat analisis selesai.
+              </p>
+              <div className="mt-6 flex items-center space-x-2 text-blue-500">
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-xs font-medium">Menganalisis jawaban...</span>
+              </div>
+              <p className="text-xs text-blue-400 mt-4">
+                💡 Kamu juga bisa kembali lagi nanti untuk melihat hasilnya.
+              </p>
             </div>
           )}
 

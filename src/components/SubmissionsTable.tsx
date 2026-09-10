@@ -270,7 +270,9 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     {sub.status === "NEEDS_TEACHER_REVIEW" && <span className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold">Perlu Diulas</span>}
                     {sub.status === "APPROVED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Disetujui</span>}
                     {sub.status === "PUBLISHED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Selesai</span>}
-                    {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED"].includes(sub.status) && (
+                    {sub.status === "PROCESSING" && <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse">⏳ AI Menganalisis...</span>}
+                    {sub.status === "FAILED" && <span className="bg-red-100 text-red-800 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">❌ Gagal</span>}
+                    {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED", "PROCESSING", "FAILED"].includes(sub.status) && (
                       <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{sub.status}</span>
                     )}
                   </td>

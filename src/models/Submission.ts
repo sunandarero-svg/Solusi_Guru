@@ -36,6 +36,11 @@ const SubmissionSchema: Schema = new Schema({
   timestamps: true
 });
 
+// Indexes for optimal query performance under concurrent load
+SubmissionSchema.index({ assignmentId: 1, studentId: 1 }, { unique: true });
+SubmissionSchema.index({ assignmentId: 1, status: 1 });
+SubmissionSchema.index({ studentId: 1, status: 1 });
+
 export const Submission = mongoose.models.Submission || mongoose.model<ISubmission>('Submission', SubmissionSchema);
 
 export interface ISubmissionPage extends Document {
@@ -57,6 +62,8 @@ const SubmissionPageSchema: Schema = new Schema({
   mimeType: { type: String, required: true },
   fileSize: { type: Number, required: true }
 });
+
+SubmissionPageSchema.index({ submissionId: 1, pageNumber: 1 });
 
 export const SubmissionPage = mongoose.models.SubmissionPage || mongoose.model<ISubmissionPage>('SubmissionPage', SubmissionPageSchema);
 
