@@ -441,9 +441,11 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
             <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${aiResultModal.type === 'error' ? 'from-red-500 via-orange-500 to-red-500' : 'from-green-400 via-emerald-500 to-green-500'}`}></div>
             
             <div className="flex flex-col items-center text-center">
-              <div className={`relative flex items-center justify-center w-24 h-24 rounded-full bg-gray-800 border-[3px] ${aiResultModal.type === 'error' ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.5)]'} mb-4`}>
-                <span className="text-3xl font-black text-white">{aiResultModal.score}%</span>
-                <span className={`absolute -bottom-2 ${aiResultModal.type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider`}>Score</span>
+              <div className="flex flex-col items-center mb-6 w-full p-4 bg-gray-800/50 border border-gray-700 rounded-2xl">
+                <span className="text-xl font-extrabold text-white mb-2">Skor Keterbacaan</span>
+                <div className={`flex items-center justify-center px-4 py-1.5 rounded-full bg-gray-900 border-2 ${aiResultModal.type === 'error' ? 'border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]'}`}>
+                  <span className="text-sm font-bold">{aiResultModal.score}%</span>
+                </div>
               </div>
               
               <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
