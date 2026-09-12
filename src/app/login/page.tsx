@@ -45,8 +45,8 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-2xl shadow-lg mb-4 text-white">
             <GraduationCap size={40} strokeWidth={1.5} />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">AI Sessajaki</h1>
-          <p className="text-slate-500 mt-2 text-sm font-medium">AI tidak akan pernah menggantikan guru</p>
+          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">Aplikasi Penilaian Tulisan Tangan Siswa</h1>
+          <p className="text-slate-500 mt-2 text-sm font-medium">AI tidak akan menggantikan peran Guru</p>
         </div>
 
         {/* Card */}
