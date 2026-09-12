@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Scan & Assessment",
-  description: "Aplikasi penilaian tugas berbasis AI",
+  title: "3 langkah (Foto, Kumpul, Lihat Nilai)",
+  description: "Aplikasi penilaian tulisan tangan berbasis AI",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { GraduationCap, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -41,9 +42,15 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo / Brand */}
-        <div className="text-center mb-8 transform transition-all duration-500 hover:scale-105">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-2xl shadow-lg mb-4 text-white">
-            <GraduationCap size={40} strokeWidth={1.5} />
+        <div className="text-center mb-8 transform transition-all duration-500 hover:scale-105 flex flex-col items-center">
+          <div className="relative w-32 h-32 mb-4 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/60 bg-white">
+            <Image
+              src="/logo.png"
+              alt="Logo Solusi Guru - Tulisan Tangan"
+              fill
+              className="object-cover hover:scale-110 transition-transform duration-500"
+              priority
+            />
           </div>
           <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">Aplikasi Penilaian Tulisan Tangan Siswa</h1>
           <p className="text-slate-500 mt-2 text-sm font-medium">AI tidak akan menggantikan peran Guru</p>
