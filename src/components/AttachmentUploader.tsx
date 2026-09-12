@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import imageCompression from "browser-image-compression";
 
 interface Attachment {
   id: string;
@@ -46,6 +47,7 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
   const [showAnswerKey, setShowAnswerKey] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAttachments = async () => {
     try {
@@ -77,19 +79,34 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
       return;
     }
 
-    for (const file of fileArray) {
-      if (file.size > MAX_FILE_SIZE_KB * 1024) {
-        setError(`File "${file.name}" melebihi batas ${MAX_FILE_SIZE_KB}KB.`);
-        return;
-      }
-    }
-
     setUploading(true);
 
-    for (const file of fileArray) {
+    for (let i = 0; i < fileArray.length; i++) {
+      let file = fileArray[i];
+
+      // Compress if it's an image
+      if (file.type.startsWith("image/")) {
+        try {
+          const options = {
+            maxSizeMB: MAX_FILE_SIZE_KB / 1024,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          };
+          file = await imageCompression(file, options);
+        } catch (err) {
+          console.error("Image compression error", err);
+        }
+      }
+
+      if (file.size > MAX_FILE_SIZE_KB * 1024) {
+        setError(`File "${file.name}" melebihi batas ${MAX_FILE_SIZE_KB}KB (Setelah dikompres).`);
+        setUploading(false);
+        return;
+      }
+
       try {
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", file, file.name);
 
         const res = await fetch(`/api/assignments/${assignmentId}/attachments`, {
           method: "POST",
@@ -143,7 +160,6 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
       if (!res.ok) {
         console.error("Failed to update description");
       } else {
-        // Update local state without fetching again to avoid UI jump
         setAttachments((prev) =>
           prev.map((att) => (att.id === attachmentId ? { ...att, description } : att))
         );
@@ -220,7 +236,7 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
             📎 Lampiran Soal / Tugas
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Upload dokumen soal (PDF, DOCX, XLSX, gambar). AI akan menganalisis soal dan membuat kunci jawaban referensi.
+            Upload dokumen soal atau foto kertas soal langsung. AI akan menganalisis soal dan membuat kunci jawaban referensi.
           </p>
         </div>
         <div className="text-sm text-gray-400 font-medium">
@@ -242,43 +258,66 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
 
       {/* Drop Zone */}
       {attachments.length < MAX_ATTACHMENTS && (
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`mb-4 border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all
-            ${dragOver
-              ? "border-emerald-500 bg-emerald-50"
-              : "border-gray-200 hover:border-emerald-400 hover:bg-gray-50"
-            }
-            ${uploading ? "opacity-50 pointer-events-none" : ""}
-          `}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ALLOWED_EXTENSIONS}
-            multiple
-            className="hidden"
-            onChange={(e) => e.target.files && handleUpload(e.target.files)}
-          />
-          {uploading ? (
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-2" />
-              <p className="text-sm text-gray-600">Mengupload...</p>
-            </div>
-          ) : (
-            <div>
-              <div className="text-3xl mb-2">📤</div>
-              <p className="text-sm text-gray-600 font-medium">
-                Klik atau seret file ke sini untuk upload
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                PDF, DOCX, XLSX, JPG, PNG • Maks {MAX_FILE_SIZE_KB}KB per file
-              </p>
-            </div>
-          )}
+        <div className="mb-4 flex flex-col sm:flex-row gap-4">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`flex-1 border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all
+              ${dragOver
+                ? "border-emerald-500 bg-emerald-50"
+                : "border-gray-200 hover:border-emerald-400 hover:bg-gray-50"
+              }
+              ${uploading ? "opacity-50 pointer-events-none" : ""}
+            `}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ALLOWED_EXTENSIONS}
+              multiple
+              className="hidden"
+              onChange={(e) => e.target.files && handleUpload(e.target.files)}
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => e.target.files && handleUpload(e.target.files)}
+            />
+            {uploading ? (
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-2" />
+                <p className="text-sm text-gray-600">Mengupload & Kompresi...</p>
+              </div>
+            ) : (
+              <div>
+                <div className="text-3xl mb-2">📤</div>
+                <p className="text-sm text-gray-600 font-medium">
+                  Upload file PDF, DOCX, XLSX
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Maks {MAX_FILE_SIZE_KB}KB per file
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div 
+            onClick={() => cameraInputRef.current?.click()}
+            className={`sm:w-48 border-2 border-emerald-200 bg-emerald-50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-100 hover:border-emerald-300 transition-all ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+          >
+             <div className="text-4xl mb-2">📸</div>
+             <p className="text-sm text-emerald-800 font-bold text-center">
+               Foto Kertas Soal
+             </p>
+             <p className="text-xs text-emerald-600 mt-1 text-center font-medium">
+               Otomatis dikompres
+             </p>
+          </div>
         </div>
       )}
 
