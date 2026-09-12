@@ -43,12 +43,12 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo / Brand */}
         <div className="text-center mb-8 transform transition-all duration-500 hover:scale-105 flex flex-col items-center">
-          <div className="relative w-40 h-40 mb-2">
+          <div className="relative w-20 h-20 mb-4 rounded-2xl overflow-hidden shadow-lg flex items-center justify-center">
             <Image
               src="/logo.png"
               alt="Logo Solusi Guru - Tulisan Tangan"
               fill
-              className="object-contain hover:scale-105 transition-transform duration-500 drop-shadow-2xl"
+              className="object-cover scale-[1.85] hover:scale-[1.95] transition-transform duration-500"
               priority
             />
           </div>
