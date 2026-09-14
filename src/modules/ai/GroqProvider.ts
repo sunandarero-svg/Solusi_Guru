@@ -116,50 +116,55 @@ export class GroqProvider implements AIProvider {
       answerKeyInstruction = `
 KUNCI JAWABAN REFERENSI (dari soal yang dilampirkan guru):
 ${answerKey}
-
-PENTING — ATURAN PENILAIAN BERDASARKAN KUNCI JAWABAN:
-- Bandingkan setiap jawaban siswa (per soal) dengan kunci jawaban di atas.
-- Jawaban siswa TIDAK HARUS sama persis kata per kata dengan kunci jawaban.
-- Yang dinilai adalah KESESUAIAN KONTEKS: apakah jawaban siswa memiliki makna dan konteks yang sama dengan jawaban yang diharapkan.
-- Jika siswa menjawab dengan kata-kata berbeda tetapi konteksnya benar dan tepat, berikan skor penuh untuk soal tersebut.
-- Jika siswa menjawab dengan konteks yang sebagian benar, berikan skor proporsional.
-- Jika jawaban siswa sama sekali tidak sesuai konteks, berikan skor rendah atau 0.
-- Dalam 'analysisText', jelaskan secara detail perbandingan antara jawaban siswa dengan kunci jawaban, dan alasan skor yang diberikan.
 `;
     }
 
-    const promptText = `Tugas Anda adalah menilai hasil pekerjaan/tugas siswa.
+    const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak dan suportif.
+Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya.
+
 ${answerKeyInstruction}
 
-INSTRUKSI:
-1. Baca tulisan siswa di setiap halaman. Ekstrak teks/jawaban siswa sebaik mungkin.
-2. Identifikasi setiap nomor soal yang dijawab siswa.
-3. Berikan penilaian per soal berdasarkan kunci jawaban.
-${answerKey ? "4. Gunakan KUNCI JAWABAN sebagai acuan utama, dengan menitikberatkan pada KESESUAIAN KONTEKS.\n" : ""}
+INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
+1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir. Ekstrak teks/jawaban siswa sebaik mungkin.
+2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
+3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).
+4. PENILAIAN KONTEKSTUAL:
+   - Jika siswa HANYA MENULIS JAWABAN (tanpa pertanyaan): Cocokkan jawaban tersebut dengan Kunci Jawaban Referensi secara berurutan atau berdasarkan konteks.
+   - Jika siswa MENULIS PERTANYAAN DAN JAWABAN di kertasnya: Tugas utama Anda adalah mengecek apakah jawaban siswa tersebut menjawab pertanyaan yang ditulisnya secara tepat dan masuk akal secara konteks. Anda murni mengecek pertanyaan dengan jawaban siswa itu sendiri untuk memberikan nilai.
+5. Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
 
-ATURAN (WAJIB):
-- Gunakan bahasa Indonesia baku (KBBI).
-- HANYA koreksi ejaan jika SALAH MUTLAK (contoh: 'apotik' jadi 'apotek'). JANGAN perbaiki kata yang sudah benar atau ejaannya sama.
-- Beri apresiasi di 'generalFeedback' dgn bahasa ramah.
-- Kalimat singkat dan jelas pada 'analysisText'.
+ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
+- Pada 'analysisText' di setiap soal, WAJIB berikan umpan balik yang MENDIDIK dan TIDAK MENGHAKIMI (non-judgmental).
+- Jika jawaban benar: Berikan pujian spesifik (contoh: "Hebat! Jawabanmu sangat tepat karena...").
+- Jika jawaban salah/kurang tepat: Berikan arahan yang membangun tanpa menyalahkan (contoh: "Jawabanmu sudah hampir tepat, namun mari kita perhatikan kembali bagian...").
+- Gunakan bahasa yang ramah, hangat, dan memotivasi untuk anak sekolah.
+- 'analysisText' harus berisi gabungan antara alasan perolehan skor dan umpan balik edukatif ini.
 
-DETEKSI KESALAHAN EJAAN:
-Jika ada ejaan salah, WAJIB beri koordinat (bounding box) format [ymin, xmin, ymax, xmax] (skala 0-1000). Jika tidak ada, kosongkan array.
+ATURAN BAHASA:
+- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI. Gunakan kata 'algoritma' (bukan 'algoritme').
+- DETEKSI KESALAHAN EJAAN (BOUNDING BOX): Hanya koreksi kata yang BENAR-BENAR SALAH ejaannya (contoh: 'apotik' menjadi 'apotek'). Jika salah ejaan, berikan koordinat [ymin, xmin, ymax, xmax] di array \`errorHighlights\`. Jika tidak ada salah ejaan, JANGAN memaksakan koreksi, kosongkan array.
 
-Output WAJIB berupa JSON:
+Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
-  "totalScore": number,
-  "generalFeedback": "string",
+  "totalScore": number, // jumlah skor yang didapat siswa (maks 100)
+  "generalFeedback": "Apresiasi dan umpan balik singkat keseluruhan untuk siswa",
   "analysis": [
     {
       "questionNumber": "string",
-      "studentAnswer": "string",
-      "score": number,
-      "maxScore": number,
-      "analysisText": "string"
+      "studentAnswer": "string (teks pertanyaan & jawaban siswa yang terbaca, atau jawabannya saja)",
+      "score": number, // skor yang didapat untuk soal ini
+      "maxScore": number, // skor maksimal soal ini (100 / N)
+      "analysisText": "string (Analisis alasan skor + Umpan balik edukatif/pujian)"
     }
   ],
-  "errorHighlights": [{"word":"string","correction":"string","box":[0,0,0,0],"pageIndex":0}]
+  "errorHighlights": [
+    {
+      "word": "kata yang salah",
+      "correction": "perbaikan kata sesuai KBBI",
+      "box": [0, 0, 0, 0],
+      "pageIndex": 0
+    }
+  ]
 }`;
 
     const contentParts: any[] = [{ type: "text", text: promptText }];

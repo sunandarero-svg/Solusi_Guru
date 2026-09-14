@@ -17,10 +17,10 @@ export class MockAIProvider implements AIProvider {
       totalScore += score;
       analysis.push({
         questionNumber: i.toString(),
-        studentAnswer: `Jawaban mock untuk soal ${i}`,
+        studentAnswer: `Ini adalah teks pertanyaan dan jawaban mock dari siswa untuk soal ${i}.`,
         score: score,
         maxScore: 33,
-        analysisText: `Jawaban siswa cukup baik secara konteks.`
+        analysisText: `Jawaban siswa cukup tepat secara konteks. Wah hebat sekali, pertahankan kerjamu ya! Perhatikan juga ejaan pada kata-kata tertentu.`
       });
     }
 
