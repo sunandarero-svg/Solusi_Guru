@@ -130,7 +130,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
 3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).
 4. PENILAIAN KONTEKSTUAL:
    - Jika siswa HANYA MENULIS JAWABAN (tanpa pertanyaan): Cocokkan jawaban tersebut dengan Kunci Jawaban Referensi secara berurutan atau berdasarkan konteks.
-   - Jika siswa MENULIS PERTANYAAN DAN JAWABAN di kertasnya: Anda WAJIB membaca seluruh kata dari pertanyaan yang ditulis siswa secara menyeluruh dan seksama agar analisis jawaban Anda tidak melenceng. Setelah memahami pertanyaan siswa seutuhnya, tugas Anda adalah mengecek apakah jawaban siswa tersebut benar dan tepat. PASTIKAN Anda HANYA memberikan analisis dan nilai untuk bagian JAWABANNYA saja (jangan menilai kualitas pertanyaannya).
+   - Jika siswa MENULIS PERTANYAAN DAN JAWABAN di kertasnya: Anda WAJIB memetakan dan mencocokkan setiap pertanyaan dengan jawabannya berdasarkan NOMOR YANG SAMA (contoh: Pertanyaan nomor 1 dipasangkan dengan Jawaban nomor 1). Baca seluruh kata dari pertanyaan tersebut secara menyeluruh agar tidak salah konteks. Setelah dipasangkan, tugas Anda adalah mengecek apakah JAWABAN siswa tersebut benar dan tepat terhadap PERTANYAAN-nya sendiri. PASTIKAN Anda HANYA memberikan analisis dan nilai untuk bagian JAWABANNYA saja (jangan menilai kualitas pertanyaannya).
 5. Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
 
 ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
