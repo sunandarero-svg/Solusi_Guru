@@ -246,7 +246,7 @@ export default function TeacherReviewPage({
                       </div>
                       <div className="mt-3 pt-2 border-t border-purple-100">
                         <p className="text-xs text-purple-500 italic">
-                          ⚠️ Ini adalah referensi. Jawaban siswa dinilai berdasarkan kesesuaian konsep, bukan kesamaan kata per kata.
+                          ⚠️ Ini adalah referensi. Jawaban siswa dinilai berdasarkan kesesuaian konteks, bukan kesamaan kata per kata.
                         </p>
                       </div>
                     </div>

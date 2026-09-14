@@ -446,7 +446,7 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
                   <div className="mt-3 pt-2 border-t border-purple-100">
                     <p className="text-xs text-purple-500 italic">
                       ⚠️ Kunci jawaban ini adalah referensi yang dihasilkan AI. Jawaban siswa tidak harus sama persis, 
-                      yang dinilai adalah kesesuaian konsep.
+                      yang dinilai adalah kesesuaian konteks.
                     </p>
                   </div>
                 </div>
