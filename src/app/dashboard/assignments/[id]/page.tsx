@@ -3,7 +3,6 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import RubricEditor from "@/components/RubricEditor";
 import SubmissionsTable from "@/components/SubmissionsTable";
 import AttachmentUploader from "@/components/AttachmentUploader";
 
@@ -40,12 +39,7 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
   }, [resolvedParams.id]);
 
   const handlePublish = async () => {
-    if (!assignment?.rubrics || assignment.rubrics.length === 0 || assignment.rubrics[0].totalScore !== 100) {
-      alert("Harap melengkapi Rubrik Penilaian dengan total skor persis 100 sebelum mempublikasikan tugas.");
-      return;
-    }
-
-    if (!confirm("Apakah Anda yakin ingin mempublikasikan tugas ini? Setelah dipublish, rubrik tidak bisa diubah.")) return;
+    if (!confirm("Apakah Anda yakin ingin mempublikasikan tugas ini?")) return;
 
     setPublishing(true);
     const res = await fetch(`/api/assignments/${resolvedParams.id}`, {
@@ -144,8 +138,6 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
       </div>
-
-      <RubricEditor assignmentId={assignment.id} isPublished={isPublished} initialRubric={assignment.rubrics && assignment.rubrics[0]} onSaved={fetchAssignment} />
 
       <AttachmentUploader assignmentId={assignment.id} isPublished={isPublished} />
 

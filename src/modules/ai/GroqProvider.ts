@@ -110,18 +110,6 @@ export class GroqProvider implements AIProvider {
     rubrics: any[],
     answerKey?: string
   ): Promise<AIAssessmentResult> {
-    const firstRubric = rubrics[0];
-    let rubricInstruction = "";
-    if (firstRubric && firstRubric.criteria) {
-      rubricInstruction = "Berikut adalah kriteria penilaian (rubrik):\n";
-      firstRubric.criteria.forEach((c: any) => {
-        rubricInstruction += `- ID Kriteria: ${c._id}\n`;
-        rubricInstruction += `  Nama: ${c.name}\n`;
-        rubricInstruction += `  Deskripsi: ${c.description}\n`;
-        rubricInstruction += `  Skor Maksimal: ${c.maxScore}\n\n`;
-      });
-    }
-
     // Build answer key context if available
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
@@ -130,32 +118,30 @@ KUNCI JAWABAN REFERENSI (dari soal yang dilampirkan guru):
 ${answerKey}
 
 PENTING — ATURAN PENILAIAN BERDASARKAN KUNCI JAWABAN:
-- Bandingkan jawaban siswa dengan kunci jawaban di atas.
+- Bandingkan setiap jawaban siswa (per soal) dengan kunci jawaban di atas.
 - Jawaban siswa TIDAK HARUS sama persis kata per kata dengan kunci jawaban.
-- Yang dinilai adalah KESESUAIAN KONSEP: apakah jawaban siswa menunjukkan pemahaman yang benar terhadap konsep yang ditanyakan.
-- Jika siswa menjawab dengan kata-kata berbeda tetapi konsepnya benar dan tepat, berikan skor penuh untuk kriteria tersebut.
-- Jika siswa menjawab dengan konsep yang sebagian benar, berikan skor proporsional.
-- Jika jawaban siswa sama sekali tidak sesuai dengan konsep yang ditanyakan, berikan skor rendah.
-- Dalam 'reasoning', jelaskan secara singkat bagaimana jawaban siswa dibandingkan dengan konsep kunci jawaban.
+- Yang dinilai adalah KESESUAIAN KONTEKS: apakah jawaban siswa memiliki makna dan konteks yang sama dengan jawaban yang diharapkan.
+- Jika siswa menjawab dengan kata-kata berbeda tetapi konteksnya benar dan tepat, berikan skor penuh untuk soal tersebut.
+- Jika siswa menjawab dengan konteks yang sebagian benar, berikan skor proporsional.
+- Jika jawaban siswa sama sekali tidak sesuai konteks, berikan skor rendah atau 0.
+- Dalam 'analysisText', jelaskan secara detail perbandingan antara jawaban siswa dengan kunci jawaban, dan alasan skor yang diberikan.
 `;
     }
 
-    const promptText = `Tugas Anda adalah menilai tugas siswa berdasarkan rubrik berikut.
-
-${rubricInstruction}
+    const promptText = `Tugas Anda adalah menilai hasil pekerjaan/tugas siswa.
 ${answerKeyInstruction}
 
 INSTRUKSI:
-1. Baca tulisan siswa di setiap halaman.
-2. Berikan penilaian objektif untuk tiap kriteria.
-3. Tentukan skor & berikan penjelasan singkat (reasoning).
-${answerKey ? "4. Gunakan KUNCI JAWABAN sebagai acuan utama.\n" : ""}
+1. Baca tulisan siswa di setiap halaman. Ekstrak teks/jawaban siswa sebaik mungkin.
+2. Identifikasi setiap nomor soal yang dijawab siswa.
+3. Berikan penilaian per soal berdasarkan kunci jawaban.
+${answerKey ? "4. Gunakan KUNCI JAWABAN sebagai acuan utama, dengan menitikberatkan pada KESESUAIAN KONTEKS.\n" : ""}
 
 ATURAN (WAJIB):
 - Gunakan bahasa Indonesia baku (KBBI).
 - HANYA koreksi ejaan jika SALAH MUTLAK (contoh: 'apotik' jadi 'apotek'). JANGAN perbaiki kata yang sudah benar atau ejaannya sama.
 - Beri apresiasi di 'generalFeedback' dgn bahasa ramah.
-- Kalimat singkat dan jelas.
+- Kalimat singkat dan jelas pada 'analysisText'.
 
 DETEKSI KESALAHAN EJAAN:
 Jika ada ejaan salah, WAJIB beri koordinat (bounding box) format [ymin, xmin, ymax, xmax] (skala 0-1000). Jika tidak ada, kosongkan array.
@@ -164,7 +150,15 @@ Output WAJIB berupa JSON:
 {
   "totalScore": number,
   "generalFeedback": "string",
-  "rubricScores": [{"rubricCriterionId":"string","score":number,"maxScore":number,"reasoning":"string"}],
+  "analysis": [
+    {
+      "questionNumber": "string",
+      "studentAnswer": "string",
+      "score": number,
+      "maxScore": number,
+      "analysisText": "string"
+    }
+  ],
   "errorHighlights": [{"word":"string","correction":"string","box":[0,0,0,0],"pageIndex":0}]
 }`;
 
@@ -272,20 +266,10 @@ Output WAJIB berupa JSON:
       modelsToTry = [customModel, ...modelsToTry];
     }
 
-    let rubricContext = "";
-    const firstRubric = rubrics[0];
-    if (firstRubric && firstRubric.criteria) {
-      rubricContext = "\nKriteria rubrik yang digunakan:\n";
-      firstRubric.criteria.forEach((c: any) => {
-        rubricContext += `- ${c.name}: ${c.description || ""} (Maks skor: ${c.maxScore})\n`;
-      });
-    }
-
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
 
 SOAL/TUGAS DARI GURU:
 ${taskText}
-${rubricContext}
 
 INSTRUKSI UMUM:
 1. Baca dan pahami seluruh soal/tugas di atas dengan cermat.

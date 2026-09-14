@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStudentSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
-import { Submission, OCRResult, AIAssessment, TeacherReview, SubmissionDocument, AssessmentCriterion } from "@/models/Submission";
+import { Submission, OCRResult, AIAssessment, TeacherReview, SubmissionDocument } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import User from "@/models/User";
 import { StudentProfile } from "@/models/Profile";
@@ -35,32 +35,21 @@ export async function GET(
     }
 
     const { SubmissionPage } = require("@/models/Submission");
-    const [ocrResults, aiAssessment, teacherReview, assignment, rubrics, document, pages] = await Promise.all([
+    const [ocrResults, aiAssessment, teacherReview, assignment, document, pages] = await Promise.all([
       OCRResult.find({ submissionId: submission._id }).sort({ processedAt: -1 }).limit(1).lean(),
       AIAssessment.findOne({ submissionId: submission._id }).lean(),
       TeacherReview.findOne({ submissionId: submission._id }).lean(),
       Assignment.findById(submission.assignmentId).lean(),
-      Rubric.find({ assignmentId: submission.assignmentId }).lean(),
       SubmissionDocument.findOne({ submissionId: submission._id }).lean(),
       SubmissionPage.find({ submissionId: submission._id }).sort({ pageNumber: 1 }).lean()
     ]);
 
-    let aiAssessmentCriteria: any[] = [];
+    let aiAssessmentAnalysis: any[] = [];
     if (aiAssessment) {
-      aiAssessmentCriteria = await AssessmentCriterion.find({ assessmentId: aiAssessment._id }).lean();
-      (aiAssessment as any).criteria = aiAssessmentCriteria;
+      const { StudentAnswerAnalysis } = require("@/models/Submission");
+      aiAssessmentAnalysis = await StudentAnswerAnalysis.find({ assessmentId: aiAssessment._id }).lean();
+      (aiAssessment as any).analysis = aiAssessmentAnalysis;
     }
-
-    let rubricCriteria: any[] = [];
-    if (rubrics && rubrics.length > 0) {
-      const rubricIds = rubrics.map(r => (r as any)._id);
-      rubricCriteria = await RubricCriterion.find({ rubricId: { $in: rubricIds } }).lean();
-    }
-    
-    const rubricsWithCriteria = rubrics.map(r => ({
-      ...r,
-      criteria: rubricCriteria.filter(c => (c as any).rubricId.toString() === (r as any)._id.toString())
-    }));
 
     const formattedSubmission = {
       ...submission,
@@ -70,8 +59,7 @@ export async function GET(
       document,
       pages,
       assignment: {
-        ...assignment,
-        rubrics: rubricsWithCriteria
+        ...assignment
       }
     };
 

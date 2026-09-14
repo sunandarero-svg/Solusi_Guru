@@ -1,8 +1,9 @@
-export interface RubricScore {
-  rubricCriterionId: string;
+export interface StudentAnswerAnalysisResult {
+  questionNumber: string;
+  studentAnswer: string;
   score: number;
   maxScore: number;
-  reasoning: string;
+  analysisText: string;
 }
 
 export interface AIErrorHighlight {
@@ -15,7 +16,7 @@ export interface AIErrorHighlight {
 export interface AIAssessmentResult {
   totalScore: number;
   generalFeedback: string;
-  rubricScores: RubricScore[];
+  analysis: StudentAnswerAnalysisResult[];
   errorHighlights?: AIErrorHighlight[];
 }
 

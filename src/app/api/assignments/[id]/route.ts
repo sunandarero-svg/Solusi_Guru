@@ -55,14 +55,7 @@ export async function PUT(
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
-    // Validation: Require rubric before publishing
-    if (status === "PUBLISHED") {
-      const { Rubric } = await import("@/models/Assignment");
-      const rubricCount = await Rubric.countDocuments({ assignmentId: resolvedParams.id });
-      if (rubricCount === 0) {
-        return NextResponse.json({ error: "Rubrik penilaian harus diisi sebelum tugas dapat di-publish" }, { status: 400 });
-      }
-    }
+    // Rubric validation has been removed.
 
     const updated = await assignmentService.updateAssignment(resolvedParams.id, teacherProfile._id.toString(), {
       title,

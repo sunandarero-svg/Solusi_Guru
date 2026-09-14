@@ -28,8 +28,9 @@ export async function drawHighlights(imageBuffer: Buffer, highlights: AIErrorHig
     const w = ((xmax - xmin) / 1000) * width;
     const h = ((ymax - ymin) / 1000) * height;
 
-    // A red semi-transparent rectangle (Stabilo effect)
-    svgRects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="rgba(255, 0, 0, 0.3)" stroke="rgba(255, 0, 0, 0.8)" stroke-width="2" />`;
+    // A red underline (Stabilo effect)
+    const underlineY = y + h + 2; // slight offset below the word
+    svgRects += `<line x1="${x}" y1="${underlineY}" x2="${x + w}" y2="${underlineY}" stroke="red" stroke-width="3" />`;
     
     // Add text label for correction (optional, but good for context)
     svgRects += `<text x="${x}" y="${y - 5}" font-family="Arial" font-size="${Math.max(16, h/2)}" fill="red" font-weight="bold">${hl.correction}</text>`;

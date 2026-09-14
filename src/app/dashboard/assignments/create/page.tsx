@@ -221,7 +221,7 @@ export default function CreateAssignmentPage() {
               disabled={loading}
               className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50"
             >
-              {loading ? "Menyimpan..." : "Simpan & Lanjut ke Rubrik"}
+              {loading ? "Menyimpan..." : "Simpan & Lanjut"}
             </button>
           </div>
         </form>

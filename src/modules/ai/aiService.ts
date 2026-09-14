@@ -1,5 +1,5 @@
 import dbConnect from "@/lib/mongoose";
-import { Submission, OCRResult, AIAssessment, AssessmentCriterion } from "@/models/Submission";
+import { Submission, OCRResult, AIAssessment } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion, AssignmentAttachment } from "@/models/Assignment";
 import { AIProvider } from "./AIProvider";
 import { GroqProvider } from "./GroqProvider";
@@ -27,12 +27,6 @@ export class AIService {
     if (!assignment) {
       throw new Error(`Assignment not found for ID ${submission.assignmentId}`);
     }
-
-    const rubrics = await Rubric.find({ assignmentId: assignment._id }).lean();
-    const rubricsWithCriteria = await Promise.all(rubrics.map(async (r) => {
-      const criteria = await RubricCriterion.find({ rubricId: r._id }).sort({ order: 1 }).lean();
-      return { ...r, criteria };
-    }));
 
     // 2. Fetch Submission Pages (Images) instead of OCR Result
     const pages = await import('@/models/Submission').then(m => m.SubmissionPage.find({ submissionId }).sort({ pageNumber: 1 }).lean());
@@ -73,7 +67,7 @@ export class AIService {
       try {
         assessmentResult = await primaryProvider.assessSubmission(
           pages as any, // Passed to provider which should handle array of pages/images
-          rubricsWithCriteria,
+          [], // No longer using rubrics
           answerKey
         );
         break; // Success, exit loop
@@ -101,7 +95,7 @@ export class AIService {
           const fallbackProvider = new GroqProvider();
           assessmentResult = await fallbackProvider.assessSubmission(
             pages as any,
-            rubricsWithCriteria,
+            [],
             answerKey
           );
           console.log(`[AI] GroqProvider fallback succeeded!`);
@@ -117,7 +111,7 @@ export class AIService {
           const fallbackProvider = new GeminiProvider();
           assessmentResult = await fallbackProvider.assessSubmission(
             pages as any,
-            rubricsWithCriteria,
+            [],
             answerKey
           );
           console.log(`[AI] GeminiProvider fallback succeeded!`);
@@ -135,7 +129,7 @@ export class AIService {
           const fallbackProvider = new QwenProvider();
           assessmentResult = await fallbackProvider.assessSubmission(
             pages as any,
-            rubricsWithCriteria,
+            [],
             answerKey
           );
           console.log(`[AI] QwenProvider final fallback succeeded!`);
@@ -161,14 +155,16 @@ export class AIService {
       status: "SUCCESS",
     });
 
-    // Create criteria separately
-    for (const score of assessmentResult.rubricScores) {
-      await AssessmentCriterion.create({
+    // Create analysis records separately
+    const { StudentAnswerAnalysis } = await import("@/models/Submission");
+    for (const analysis of assessmentResult.analysis) {
+      await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
-        rubricCriterionId: (score as any).rubricCriterionId,
-        score: (score as any).score,
-        maxScore: (score as any).maxScore,
-        reason: (score as any).reasoning,
+        questionNumber: (analysis as any).questionNumber,
+        studentAnswer: (analysis as any).studentAnswer,
+        score: (analysis as any).score,
+        maxScore: (analysis as any).maxScore,
+        analysis: (analysis as any).analysisText,
       });
     }
 

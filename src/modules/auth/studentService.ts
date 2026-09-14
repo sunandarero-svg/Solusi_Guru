@@ -93,11 +93,11 @@ export async function deleteStudent(studentId: string) {
     m.SubmissionDocument.init();
     m.OCRResult.init();
     m.AIAssessment.init();
-    m.AssessmentCriterion.init();
+    m.StudentAnswerAnalysis.init();
     m.TeacherReview.init();
   });
 
-  const { Submission, SubmissionPage, SubmissionDocument, OCRResult, AIAssessment, AssessmentCriterion, TeacherReview } = await import('@/models/Submission');
+  const { Submission, SubmissionPage, SubmissionDocument, OCRResult, AIAssessment, StudentAnswerAnalysis, TeacherReview } = await import('@/models/Submission');
 
   // Find all submissions for this student
   const submissions = await Submission.find({ studentId }).lean();
@@ -112,7 +112,7 @@ export async function deleteStudent(studentId: string) {
     const assessments = await AIAssessment.find({ submissionId: { $in: submissionIds } }).lean();
     if (assessments.length > 0) {
       const assessmentIds = assessments.map(a => a._id);
-      await AssessmentCriterion.deleteMany({ assessmentId: { $in: assessmentIds } });
+      await StudentAnswerAnalysis.deleteMany({ assessmentId: { $in: assessmentIds } });
       await AIAssessment.deleteMany({ _id: { $in: assessmentIds } });
     }
 

@@ -256,19 +256,22 @@ export default function TeacherReviewPage({
 
               {/* AI Details Breakdown */}
               <div>
-                <h3 className="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">Rincian Penilaian AI Berdasarkan Rubrik</h3>
+                <h3 className="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">Analisis Jawaban Siswa</h3>
                 <div className="space-y-4">
-                  {ai.criteria?.map((c: any) => {
-                    const rubricTitle = submission.assignment?.rubrics?.[0]?.criteria?.find((rc: any) => rc.id === c.rubricCriterionId)?.name || "Kriteria";
+                  {ai.analysis?.map((a: any, idx: number) => {
                     return (
-                      <div key={c.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <div key={a._id || idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="font-semibold text-sm text-gray-800">{rubricTitle}</span>
+                          <span className="font-semibold text-sm text-gray-800">Soal {a.questionNumber}</span>
                           <span className="text-sm font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
-                            {c.score} <span className="text-gray-400 font-normal">/ {c.maxScore}</span>
+                            {a.score} <span className="text-gray-400 font-normal">/ {a.maxScore}</span>
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 mt-2">{c.reason}</p>
+                        <div className="mt-2 p-3 bg-white border border-gray-200 rounded-lg">
+                          <p className="text-xs text-gray-500 font-medium mb-1">Jawaban Siswa Terbaca:</p>
+                          <p className="text-sm text-gray-800 font-medium">{a.studentAnswer}</p>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap"><span className="font-medium text-gray-700">Analisis:</span> {a.analysis}</p>
                       </div>
                     );
                   })}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import { reviewService } from "@/modules/review/reviewService";
 import dbConnect from "@/lib/mongoose";
-import { Submission, AIAssessment, TeacherReview, AssessmentCriterion, SubmissionPage } from "@/models/Submission";
+import { Submission, AIAssessment, TeacherReview, SubmissionPage } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
@@ -26,33 +26,27 @@ export async function GET(
 
     if (!submission) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const [aiAssessment, teacherReview, assignment, rubrics, pages] = await Promise.all([
+    const [aiAssessment, teacherReview, assignment, pages] = await Promise.all([
       AIAssessment.findOne({ submissionId: submission._id }).lean(),
       TeacherReview.findOne({ submissionId: submission._id }).lean(),
       Assignment.findById(submission.assignmentId).lean(),
-      Rubric.find({ assignmentId: submission.assignmentId }).lean(),
       SubmissionPage.find({ submissionId: submission._id }).sort({ pageNumber: 1 }).lean()
     ]);
 
-    const rubricsWithCriteria = await Promise.all(rubrics.map(async (r: any) => {
-      const criteria = await RubricCriterion.find({ rubricId: r._id }).sort({ order: 1 }).lean();
-      return { ...r, criteria };
-    }));
-
-    let aiCriteria: any[] = [];
+    let aiAnalysis: any[] = [];
     if (aiAssessment) {
-      aiCriteria = await AssessmentCriterion.find({ assessmentId: aiAssessment._id }).lean();
+      const { StudentAnswerAnalysis } = await import("@/models/Submission");
+      aiAnalysis = await StudentAnswerAnalysis.find({ assessmentId: aiAssessment._id }).lean();
     }
 
     const formattedSubmission = {
       ...submission,
       student: submission.studentId,
-      aiAssessment: aiAssessment ? { ...aiAssessment, criteria: aiCriteria } : null,
+      aiAssessment: aiAssessment ? { ...aiAssessment, analysis: aiAnalysis } : null,
       teacherReview,
       pages: pages || [],
       assignment: {
-        ...assignment,
-        rubrics: rubricsWithCriteria
+        ...assignment
       }
     };
 

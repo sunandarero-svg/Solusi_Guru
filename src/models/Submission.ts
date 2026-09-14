@@ -127,23 +127,25 @@ const AIAssessmentSchema: Schema = new Schema({
 
 export const AIAssessment = mongoose.models.AIAssessment || mongoose.model<IAIAssessment>('AIAssessment', AIAssessmentSchema);
 
-export interface IAssessmentCriterion extends Document {
+export interface IStudentAnswerAnalysis extends Document {
   assessmentId: mongoose.Types.ObjectId;
-  rubricCriterionId: mongoose.Types.ObjectId;
+  questionNumber: string;
+  studentAnswer: string;
   score: number;
   maxScore: number;
-  reason?: string;
+  analysis: string;
 }
 
-const AssessmentCriterionSchema: Schema = new Schema({
+const StudentAnswerAnalysisSchema: Schema = new Schema({
   assessmentId: { type: Schema.Types.ObjectId, ref: 'AIAssessment', required: true },
-  rubricCriterionId: { type: Schema.Types.ObjectId, ref: 'RubricCriterion', required: true },
+  questionNumber: { type: String, required: true },
+  studentAnswer: { type: String, required: true },
   score: { type: Number, required: true },
   maxScore: { type: Number, required: true },
-  reason: { type: String }
+  analysis: { type: String, required: true }
 });
 
-export const AssessmentCriterion = mongoose.models.AssessmentCriterion || mongoose.model<IAssessmentCriterion>('AssessmentCriterion', AssessmentCriterionSchema);
+export const StudentAnswerAnalysis = mongoose.models.StudentAnswerAnalysis || mongoose.model<IStudentAnswerAnalysis>('StudentAnswerAnalysis', StudentAnswerAnalysisSchema);
 
 export interface ITeacherReview extends Document {
   submissionId: mongoose.Types.ObjectId;

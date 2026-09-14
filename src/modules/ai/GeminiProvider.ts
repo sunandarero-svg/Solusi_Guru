@@ -26,18 +26,6 @@ export class GeminiProvider implements AIProvider {
     ];
     const uniqueModels = Array.from(new Set(fallbackModels));
 
-    const firstRubric = rubrics[0];
-    let rubricInstruction = "";
-    if (firstRubric && firstRubric.criteria) {
-      rubricInstruction = "Berikut adalah kriteria penilaian (rubrik):\n";
-      firstRubric.criteria.forEach((c: any) => {
-        rubricInstruction += `- ID Kriteria: ${c._id}\n`;
-        rubricInstruction += `  Nama: ${c.name}\n`;
-        rubricInstruction += `  Deskripsi: ${c.description}\n`;
-        rubricInstruction += `  Skor Maksimal: ${c.maxScore}\n\n`;
-      });
-    }
-
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
       answerKeyInstruction = `
@@ -45,38 +33,36 @@ KUNCI JAWABAN REFERENSI (dari soal yang dilampirkan guru):
 ${answerKey}
 
 PENTING — ATURAN PENILAIAN BERDASARKAN KUNCI JAWABAN:
-- Bandingkan jawaban siswa dengan kunci jawaban di atas.
+- Bandingkan setiap jawaban siswa (per soal) dengan kunci jawaban di atas.
 - Jawaban siswa TIDAK HARUS sama persis kata per kata dengan kunci jawaban.
-- Yang dinilai adalah KESESUAIAN KONSEP: apakah jawaban siswa menunjukkan pemahaman yang benar terhadap konsep yang ditanyakan.
-- Jika siswa menjawab dengan kata-kata berbeda tetapi konsepnya benar dan tepat, berikan skor penuh untuk kriteria tersebut.
-- Jika siswa menjawab dengan konsep yang sebagian benar, berikan skor proporsional.
-- Jika jawaban siswa sama sekali tidak sesuai dengan konsep yang ditanyakan, berikan skor rendah.
-- Dalam 'reasoning', jelaskan secara singkat bagaimana jawaban siswa dibandingkan dengan konsep kunci jawaban.
+- Yang dinilai adalah KESESUAIAN KONTEKS: apakah jawaban siswa memiliki makna dan konteks yang sama dengan jawaban yang diharapkan.
+- Jika siswa menjawab dengan kata-kata berbeda tetapi konteksnya benar dan tepat, berikan skor penuh untuk soal tersebut.
+- Jika siswa menjawab dengan konteks yang sebagian benar, berikan skor proporsional.
+- Jika jawaban siswa sama sekali tidak sesuai konteks, berikan skor rendah atau 0.
+- Dalam 'analysisText', jelaskan secara detail perbandingan antara jawaban siswa dengan kunci jawaban, dan alasan skor yang diberikan.
 `;
     }
 
     const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa. 
-Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya berdasarkan kriteria rubrik berikut.
+Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya.
 
-${rubricInstruction}
 ${answerKeyInstruction}
 
 INSTRUKSI PENILAIAN:
-1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir.
-2. Berikan penilaian yang objektif untuk setiap kriteria rubrik.
-3. Untuk setiap kriteria, tentukan skor dan berikan penjelasan (reasoning) singkat dan jelas.
-${answerKey ? "4. Gunakan KUNCI JAWABAN REFERENSI di atas sebagai acuan utama untuk menilai kebenaran jawaban siswa.\n" : ""}
+1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir. Ekstrak teks/jawaban siswa sebaik mungkin.
+2. Identifikasi setiap nomor soal yang dijawab siswa.
+3. Berikan penilaian per soal berdasarkan kunci jawaban.
+${answerKey ? "4. Gunakan KUNCI JAWABAN REFERENSI di atas sebagai acuan utama, dengan menitikberatkan pada KESESUAIAN KONTEKS.\n" : ""}
 
 ATURAN BAHASA DAN FEEDBACK (WAJIB DIPATUHI):
 - Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI dalam seluruh umpan balik. Catatan khusus: Gunakan kata 'algoritma' (bukan 'algoritme').
-- DILARANG KERAS membuat koreksi palsu atau redundan. JANGAN PERNAH menyarankan perbaikan jika kata sebelum dan sesudahnya SAMA PERSIS (contoh SALAH: "'memerlukan' sebaiknya ditulis menjadi 'memerlukan'"). Ini sangat dilarang!
-- JANGAN PERNAH mengoreksi kata yang SUDAH BENAR ejaannya menurut KBBI. Jika siswa sudah menulis kata dengan benar, JANGAN bahas ejaannya sama sekali.
-- HANYA koreksi kata yang BENAR-BENAR SALAH ejaannya (contoh: 'apotik' menjadi 'apotek', 'algoritme' menjadi 'algoritma').
+- DILARANG KERAS membuat koreksi palsu atau redundan. JANGAN PERNAH menyarankan perbaikan jika kata sebelum dan sesudahnya SAMA PERSIS.
+- JANGAN PERNAH mengoreksi kata yang SUDAH BENAR ejaannya menurut KBBI.
+- HANYA koreksi kata yang BENAR-BENAR SALAH ejaannya (contoh: 'apotik' menjadi 'apotek').
 - Jika tidak ada kesalahan ejaan yang sebenarnya, JANGAN bahas atau memaksakan koreksi ejaan.
 - SELALU berikan apresiasi positif kepada siswa dalam 'generalFeedback'. Buatlah agar siswa merasa dihargai dan termotivasi.
-- Gunakan bahasa dan gaya penyampaian (tone) yang ramah, hangat, dan mudah dipahami oleh anak usia 10 tahun (kelas 4-5 SD). Hindari kalimat yang kaku atau menghakimi.
-- Jika ada hal yang perlu diperbaiki, sampaikan dengan cara yang membangun dan menyemangati (contoh: "Wah, jawabanmu sudah bagus! Akan lebih sempurna kalau kata 'apotik' ditulis menjadi 'apotek', ya.").
-- Gunakan kalimat yang singkat, padat, dan jelas.
+- Gunakan bahasa dan gaya penyampaian (tone) yang ramah, hangat, dan mudah dipahami oleh anak usia 10 tahun.
+- Kalimat singkat dan jelas pada 'analysisText'.
 
 DETEKSI KESALAHAN EJAAN (BOUNDING BOX):
 Jika ada kata yang benar-benar salah ejaannya, Anda WAJIB memberikan koordinat kotak penanda (bounding box) untuk kata tersebut di dalam gambar, agar guru dapat melihat bagian mana yang perlu diperbaiki (seperti stabilo merah).
@@ -87,20 +73,21 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
   "totalScore": number,
   "generalFeedback": "Apresiasi dan umpan balik singkat untuk siswa",
-  "rubricScores": [
+  "analysis": [
     {
-      "rubricCriterionId": "ID Kriteria",
+      "questionNumber": "string",
+      "studentAnswer": "string",
       "score": number,
       "maxScore": number,
-      "reasoning": "Alasan penilaian singkat..."
+      "analysisText": "string"
     }
   ],
   "errorHighlights": [
     {
       "word": "kata yang salah",
       "correction": "perbaikan kata sesuai KBBI",
-      "box": [ymin, xmin, ymax, xmax],
-      "pageIndex": 0 // 0 untuk halaman pertama, 1 untuk kedua, dst
+      "box": [0, 0, 0, 0],
+      "pageIndex": 0
     }
   ]
 }`;
@@ -173,20 +160,10 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     ];
     const uniqueModels = Array.from(new Set(fallbackModels));
 
-    let rubricContext = "";
-    const firstRubric = rubrics[0];
-    if (firstRubric && firstRubric.criteria) {
-      rubricContext = "\nKriteria rubrik yang digunakan:\n";
-      firstRubric.criteria.forEach((c: any) => {
-        rubricContext += `- ${c.name}: ${c.description || ""} (Maks skor: ${c.maxScore})\n`;
-      });
-    }
-
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
 
 SOAL/TUGAS DARI GURU:
 ${taskText}
-${rubricContext}
 
 INSTRUKSI UMUM:
 1. Baca dan pahami seluruh soal/tugas di atas dengan cermat.
