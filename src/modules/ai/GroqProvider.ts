@@ -134,11 +134,10 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
 5. Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
 
 ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
-- Pada 'analysisText' di setiap soal, WAJIB berikan umpan balik yang MENDIDIK dan TIDAK MENGHAKIMI (non-judgmental).
-- Jika jawaban benar: Berikan pujian spesifik (contoh: "Hebat! Jawabanmu sangat tepat karena...").
-- Jika jawaban salah/kurang tepat: Berikan arahan yang membangun tanpa menyalahkan (contoh: "Jawabanmu sudah hampir tepat, namun mari kita perhatikan kembali bagian...").
-- Gunakan bahasa yang ramah, hangat, dan memotivasi untuk anak sekolah.
-- 'analysisText' harus berisi gabungan antara alasan perolehan skor dan umpan balik edukatif ini.
+- Pada 'analysisText' di setiap soal:
+- Jika jawaban BENAR: Cukup tuliskan "Benar" tanpa pujian atau analisis tambahan untuk menghemat token.
+- Jika jawaban SALAH/KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi (contoh: "Jawabanmu masih kurang tepat, mari perhatikan kembali bagian... tetap semangat!").
+- Gunakan bahasa yang ramah, hangat, dan memotivasi HANYA pada jawaban yang salah.
 
 ATURAN BAHASA:
 - Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI. Gunakan kata 'algoritma' (bukan 'algoritme').
