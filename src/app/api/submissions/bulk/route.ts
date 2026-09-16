@@ -57,15 +57,13 @@ export async function PATCH(req: NextRequest) {
 
       await TeacherReview.findOneAndUpdate(
         { submissionId: sub._id },
-        [
-          {
-            $set: {
-              ...updateData,
-              finalScore: { $cond: [ { $eq: [{ $type: "$finalScore" }, "missing"] }, aiAssessment?.suggestedScore || 0, "$finalScore" ] },
-              finalFeedback: { $cond: [ { $eq: [{ $type: "$finalFeedback" }, "missing"] }, "Tugas telah dievaluasi.", "$finalFeedback" ] }
-            }
+        {
+          $set: updateData,
+          $setOnInsert: {
+            finalScore: aiAssessment?.suggestedScore || 0,
+            finalFeedback: "Tugas telah dievaluasi."
           }
-        ],
+        },
         { upsert: true, new: true }
       );
     }
