@@ -4,6 +4,7 @@ export interface StudentAnswerAnalysisResult {
   score: number;
   maxScore: number;
   analysisText: string;
+  status?: "OK" | "UNREADABLE";
 }
 
 export interface AIErrorHighlight {

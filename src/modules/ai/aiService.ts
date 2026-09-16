@@ -165,6 +165,7 @@ export class AIService {
         score: (analysis as any).score,
         maxScore: (analysis as any).maxScore,
         analysis: (analysis as any).analysisText,
+        status: (analysis as any).status || "OK",
       });
     }
 

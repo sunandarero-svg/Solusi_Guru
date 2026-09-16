@@ -177,16 +177,28 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
                   <h4 className="text-sm font-bold text-gray-700 mb-3">Rincian Penilaian Berdasarkan Rubrik:</h4>
                   <div className="space-y-3">
                     {submission.aiAssessment.criteria.map((c: any, index: number) => {
-                      const rubricTitle = assignment?.rubrics?.[0]?.criteria?.find((rc: any) => rc.id === c.rubricCriterionId)?.name || `Kriteria ${index + 1}`;
+                      const rubricTitle = assignment?.rubrics?.[0]?.criteria?.find((rc: any) => rc.id === c.rubricCriterionId)?.name || `Soal ${c.questionNumber || index + 1}`;
                       return (
-                        <div key={c.id || index} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <div key={c._id || index} className={`p-3 rounded-lg border ${c.status === 'UNREADABLE' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
                           <div className="flex justify-between items-center mb-1">
-                            <span className="font-semibold text-sm text-gray-800">{rubricTitle}</span>
-                            <span className="text-xs font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-semibold text-sm ${c.status === 'UNREADABLE' ? 'text-red-800' : 'text-gray-800'}`}>{rubricTitle}</span>
+                              {c.status === 'UNREADABLE' && (
+                                <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold uppercase tracking-wider">Tidak Terbaca</span>
+                              )}
+                              {c.status === 'MANUAL_EDIT' && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200 font-bold uppercase tracking-wider">Koreksi Guru</span>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 text-gray-800">
                               {c.score} / {c.maxScore}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{c.reason}</p>
+                          
+                          {c.status === 'UNREADABLE' && (
+                            <p className="text-xs text-red-600 mb-1 font-medium mt-1">Jawaban: {c.studentAnswer}</p>
+                          )}
+                          <p className={`text-sm mt-1 ${c.status === 'UNREADABLE' ? 'text-red-700' : 'text-gray-600'}`}>{c.analysis || c.reason}</p>
                         </div>
                       );
                     })}

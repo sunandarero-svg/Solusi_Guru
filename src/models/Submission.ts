@@ -134,6 +134,7 @@ export interface IStudentAnswerAnalysis extends Document {
   score: number;
   maxScore: number;
   analysis: string;
+  status: "OK" | "UNREADABLE" | "MANUAL_EDIT";
 }
 
 const StudentAnswerAnalysisSchema: Schema = new Schema({
@@ -142,7 +143,8 @@ const StudentAnswerAnalysisSchema: Schema = new Schema({
   studentAnswer: { type: String, required: true },
   score: { type: Number, required: true },
   maxScore: { type: Number, required: true },
-  analysis: { type: String, required: true }
+  analysis: { type: String, required: true },
+  status: { type: String, enum: ["OK", "UNREADABLE", "MANUAL_EDIT"], default: "OK" }
 });
 
 export const StudentAnswerAnalysis = mongoose.models.StudentAnswerAnalysis || mongoose.model<IStudentAnswerAnalysis>('StudentAnswerAnalysis', StudentAnswerAnalysisSchema);

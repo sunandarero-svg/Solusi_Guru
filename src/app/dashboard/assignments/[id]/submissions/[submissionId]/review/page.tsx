@@ -22,12 +22,26 @@ export default function TeacherReviewPage({
   const [showAnswerKey, setShowAnswerKey] = useState(false);
   
   const [viewMode, setViewMode] = useState<"IMAGE" | "AI">("IMAGE");
+  
+  // State for manual edit per question
+  const [editingAnalysisId, setEditingAnalysisId] = useState<string | null>(null);
+  const [editScore, setEditScore] = useState<number>(0);
+  const [editAnalysisText, setEditAnalysisText] = useState<string>("");
+  const [isSavingAnalysis, setIsSavingAnalysis] = useState(false);
 
   useEffect(() => {
     fetch(`/api/submissions/${resolvedParams.submissionId}/review`)
       .then(res => res.json())
       .then(data => {
         if (data.id) {
+          // Sort analysis by questionNumber (assuming it's a number string)
+          if (data.aiAssessment && data.aiAssessment.analysis) {
+            data.aiAssessment.analysis.sort((a: any, b: any) => {
+              const numA = parseInt(a.questionNumber.replace(/\D/g, '')) || 0;
+              const numB = parseInt(b.questionNumber.replace(/\D/g, '')) || 0;
+              return numA - numB;
+            });
+          }
           setSubmission(data);
           
           // Initialize form with teacher review if exists, otherwise AI assessment
@@ -84,6 +98,52 @@ export default function TeacherReviewPage({
       setSaving(false);
     }
   };
+
+  const handleStartEditAnalysis = (analysis: any) => {
+    setEditingAnalysisId(analysis._id);
+    setEditScore(analysis.score);
+    setEditAnalysisText(analysis.analysis);
+  };
+
+  const handleSaveAnalysis = async (analysisId: string) => {
+    setIsSavingAnalysis(true);
+    try {
+      const res = await fetch(`/api/submissions/${resolvedParams.submissionId}/review/analysis/${analysisId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          score: editScore,
+          analysis: editAnalysisText
+        })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Update local state
+        const updatedSubmission = { ...submission };
+        if (updatedSubmission.aiAssessment && updatedSubmission.aiAssessment.analysis) {
+          const index = updatedSubmission.aiAssessment.analysis.findIndex((a: any) => a._id === analysisId);
+          if (index !== -1) {
+            updatedSubmission.aiAssessment.analysis[index] = data.updatedAnalysis;
+          }
+          updatedSubmission.aiAssessment.suggestedScore = data.newTotalScore;
+        }
+        if (updatedSubmission.teacherReview) {
+          updatedSubmission.teacherReview.finalScore = data.newTotalScore;
+        }
+        setSubmission(updatedSubmission);
+        setFinalScore(data.newTotalScore);
+        setEditingAnalysisId(null);
+      } else {
+        alert("Gagal menyimpan perubahan analisis.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsSavingAnalysis(false);
+    }
+  };
+
 
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat data submission...</div>;
   if (!submission) return <div className="p-8 text-center text-red-500">Data tidak ditemukan.</div>;
@@ -259,19 +319,83 @@ export default function TeacherReviewPage({
                 <h3 className="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">Analisis Jawaban Siswa</h3>
                 <div className="space-y-4">
                   {ai.analysis?.map((a: any, idx: number) => {
+                    const isEditing = editingAnalysisId === a._id;
                     return (
-                      <div key={a._id || idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <div key={a._id || idx} className={`p-4 rounded-xl border ${a.status === 'UNREADABLE' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
                         <div className="flex justify-between items-start mb-2">
-                          <span className="font-semibold text-sm text-gray-800">Soal {a.questionNumber}</span>
-                          <span className="text-sm font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
-                            {a.score} <span className="text-gray-400 font-normal">/ {a.maxScore}</span>
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-semibold text-sm ${a.status === 'UNREADABLE' ? 'text-red-800' : 'text-gray-800'}`}>Soal {a.questionNumber}</span>
+                            {a.status === 'UNREADABLE' && (
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200 font-bold">⚠️ Tidak Terbaca AI</span>
+                            )}
+                            {a.status === 'MANUAL_EDIT' && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold">✏️ Diedit Guru</span>
+                            )}
+                          </div>
+                          {!isEditing && (
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 text-gray-800">
+                                {a.score} <span className="text-gray-400 font-normal">/ {a.maxScore}</span>
+                              </span>
+                              {!isPublished && (
+                                <button 
+                                  onClick={() => handleStartEditAnalysis(a)}
+                                  className="text-xs text-blue-600 font-medium hover:text-blue-800 bg-white px-2 py-1 border border-blue-100 rounded shadow-sm"
+                                >
+                                  Koreksi Manual
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-2 p-3 bg-white border border-gray-200 rounded-lg">
-                          <p className="text-xs text-gray-500 font-medium mb-1">Jawaban Siswa Terbaca:</p>
-                          <p className="text-sm text-gray-800 font-medium">{a.studentAnswer}</p>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap"><span className="font-medium text-gray-700">Analisis:</span> {a.analysis}</p>
+                        
+                        {isEditing ? (
+                          <div className="mt-4 bg-white p-4 rounded-lg border border-blue-200 shadow-inner">
+                            <div className="mb-3">
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Skor ({a.maxScore} max)</label>
+                              <input 
+                                type="number" 
+                                min="0" max={a.maxScore}
+                                value={editScore}
+                                onChange={(e) => setEditScore(parseFloat(e.target.value) || 0)}
+                                className="w-24 px-3 py-2 bg-gray-50 border border-gray-300 rounded font-bold text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                              />
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Analisis Guru</label>
+                              <textarea
+                                value={editAnalysisText}
+                                onChange={(e) => setEditAnalysisText(e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <button 
+                                onClick={() => setEditingAnalysisId(null)}
+                                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded"
+                                disabled={isSavingAnalysis}
+                              >
+                                Batal
+                              </button>
+                              <button 
+                                onClick={() => handleSaveAnalysis(a._id)}
+                                className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm"
+                                disabled={isSavingAnalysis}
+                              >
+                                {isSavingAnalysis ? 'Menyimpan...' : 'Simpan Koreksi'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className={`mt-2 p-3 border rounded-lg ${a.status === 'UNREADABLE' ? 'bg-red-50 border-red-100' : 'bg-white border-gray-200'}`}>
+                              <p className="text-xs text-gray-500 font-medium mb-1">Jawaban Siswa Terbaca:</p>
+                              <p className={`text-sm font-medium ${a.status === 'UNREADABLE' ? 'text-red-700' : 'text-gray-800'}`}>{a.studentAnswer}</p>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap"><span className="font-medium text-gray-700">Analisis:</span> {a.analysis}</p>
+                          </>
+                        )}
                       </div>
                     );
                   })}
