@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
-import { Submission, TeacherReview } from "@/models/Submission";
+import { Submission, TeacherReview, AIAssessment } from "@/models/Submission";
+import User from "@/models/User";
+import { TeacherProfile } from "@/models/Profile";
 
 export async function PATCH(req: NextRequest) {
   try {
     const session = await requireTeacherSession();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session || !session.user.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
     const { submissionIds, action } = body;
@@ -16,40 +18,61 @@ export async function PATCH(req: NextRequest) {
     }
 
     await dbConnect();
+    const user = await User.findOne({ email: session.user.email }).lean();
+    if (!user) return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
+    
+    const teacherProfile = await TeacherProfile.findOne({ userId: user._id }).lean();
+    if (!teacherProfile) return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
 
-    if (action === "approve") {
-      // Update submissions to APPROVED
-      await Submission.updateMany(
-        { _id: { $in: submissionIds } },
-        { $set: { status: "APPROVED" } }
-      );
+    const statusMap = {
+      approve: "APPROVED",
+      publish: "PUBLISHED"
+    };
+
+    const targetStatus = statusMap[action as keyof typeof statusMap];
+    if (!targetStatus) {
+      return NextResponse.json({ error: "Aksi tidak valid" }, { status: 400 });
+    }
+
+    // Update submissions
+    await Submission.updateMany(
+      { _id: { $in: submissionIds } },
+      { $set: { status: targetStatus } }
+    );
+    
+    // Process TeacherReview creation/update
+    const submissions = await Submission.find({ _id: { $in: submissionIds } }).lean();
+    
+    for (const sub of submissions) {
+      const aiAssessment = await AIAssessment.findOne({ submissionId: sub._id }).lean();
       
-      // Update or create TeacherReviews
-      const submissions = await Submission.find({ _id: { $in: submissionIds } }).lean();
+      const updateData: any = { 
+        status: targetStatus,
+        teacherId: teacherProfile._id 
+      };
       
-      for (const sub of submissions) {
-        await TeacherReview.findOneAndUpdate(
-          { submissionId: sub._id },
-          { 
-            status: "APPROVED",
-            // We don't overwrite finalScore if it exists, or we could set it to AI score
-          },
-          { upsert: true }
-        );
+      if (targetStatus === "PUBLISHED") {
+        updateData.reviewedAt = new Date();
       }
-      
-      return NextResponse.json({ success: true, message: "Tugas berhasil disetujui secara massal." });
+
+      await TeacherReview.findOneAndUpdate(
+        { submissionId: sub._id },
+        [
+          {
+            $set: {
+              ...updateData,
+              finalScore: { $cond: [ { $eq: [{ $type: "$finalScore" }, "missing"] }, aiAssessment?.suggestedScore || 0, "$finalScore" ] },
+              finalFeedback: { $cond: [ { $eq: [{ $type: "$finalFeedback" }, "missing"] }, "Tugas telah dievaluasi.", "$finalFeedback" ] }
+            }
+          }
+        ],
+        { upsert: true, new: true }
+      );
     }
     
-    if (action === "publish") {
-      await Submission.updateMany(
-        { _id: { $in: submissionIds } },
-        { $set: { status: "PUBLISHED" } }
-      );
-      return NextResponse.json({ success: true, message: "Tugas berhasil dipublish secara massal." });
-    }
+    const message = action === "approve" ? "Tugas berhasil disetujui secara massal." : "Tugas berhasil dipublish secara massal.";
+    return NextResponse.json({ success: true, message });
 
-    return NextResponse.json({ error: "Aksi tidak valid" }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
