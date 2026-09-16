@@ -148,7 +148,7 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
             </div>
             <div className="md:col-span-3 bg-white p-5 rounded-xl shadow-sm border border-emerald-100">
               <h3 className="text-sm font-bold text-gray-700 mb-2">Ulasan Guru:</h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{submission.teacherReview.feedback || "Tugas diterima dengan baik."}</p>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{submission.teacherReview.finalFeedback || "Tugas diterima dengan baik."}</p>
             </div>
           </div>
         </div>
