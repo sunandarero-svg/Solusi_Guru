@@ -235,14 +235,8 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
    * Analyzes the extracted text (and optionally images) from attachments
    * and produces reference answers.
    */
-  async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<string> {
-    const keys = this.getApiKeys();
-    if (keys.length === 0) {
-      throw new Error("GROQ_API_KEY / GROQ_API_KEYS is not configured.");
-    }
-
-    const apiKey = keys[currentKeyIndex % keys.length];
-    currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+  async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
+    const { key: apiKey } = await groqRateLimiter.waitForKey(60000);
 
     const availableModels = await getDynamicModels(apiKey);
     
