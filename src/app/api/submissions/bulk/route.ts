@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest) {
             finalFeedback: "Tugas telah dievaluasi."
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }
     

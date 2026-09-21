@@ -137,7 +137,7 @@ ${!questions || questions.length === 0 ? questionsInstruction : ""}
 
 ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
 - Pada 'analysisText' di setiap soal:
-- Jika jawaban BENAR: Cukup tuliskan "Benar" tanpa pujian atau analisis tambahan untuk menghemat token.
+- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT BENAR ATAU SALAH secara singkat dan padat (maksimal 2 kalimat).
 - Jika jawaban SALAH/KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi (contoh: "Jawabanmu masih kurang tepat, mari perhatikan kembali bagian... tetap semangat!").
 - Gunakan bahasa yang ramah, hangat, dan memotivasi HANYA pada jawaban yang salah.
 - JIKA TULISAN SISWA TIDAK DAPAT DIBACA SAMA SEKALI PADA SOAL TERTENTU: Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".

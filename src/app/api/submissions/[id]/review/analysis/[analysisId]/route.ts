@@ -31,7 +31,7 @@ export async function PATCH(
           status: "MANUAL_EDIT"
         }
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedAnalysis) {
