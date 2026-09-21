@@ -123,22 +123,7 @@ export class AIService {
       }
 
       if (!secondarySuccess) {
-        console.log(`[AI] Falling back to QwenProvider as final backup...`);
-        try {
-          const { QwenProvider } = await import("./QwenProvider");
-          const fallbackProvider = new QwenProvider();
-          assessmentResult = await fallbackProvider.assessSubmission(
-            pages as any,
-            [],
-            answerKey
-          );
-          console.log(`[AI] QwenProvider final fallback succeeded!`);
-          
-          // Temporarily change the provider name so the DB records Qwen-VL as the provider used
-          Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
-        } catch (fallbackError) {
-          throw new Error(`AI assessment failed on all providers (Primary, Secondary, and Qwen). Final error: ${fallbackError}`);
-        }
+        throw new Error(`AI assessment failed on all providers (Groq and Gemini). Both providers exhausted.`);
       }
     }
 

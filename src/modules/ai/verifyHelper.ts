@@ -147,90 +147,10 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     }
   }
 
-  console.log("[Verify-Groq] All dynamically fetched Groq API models failed. Attempting Qwen fallback...");
-  const qwenKey = process.env.QWEN_API_KEY?.trim();
-  if (qwenKey) {
-    try {
-      console.log("[Verify-Qwen] Trying Qwen fallback model qwen-vl-plus...");
-      const result = await runQwenVerify(qwenKey, "qwen-vl-plus", prompt, imageBuffers);
-      console.log("[Verify-Qwen] Success with Qwen fallback model.");
-      return result;
-    } catch (qwenErr: any) {
-      console.error("[Verify-Qwen] Qwen fallback also failed:", qwenErr?.message || qwenErr);
-      throw new Error(`Both Groq and Qwen API failed. Last Groq Error: ${lastError?.message}. Qwen Error: ${qwenErr?.message}`);
-    }
-  }
-
-  throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key, and QWEN_API_KEY is not configured.");
+  throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key.");
 }
 
-async function runQwenVerify(
-  apiKey: string,
-  modelName: string,
-  prompt: string,
-  imageBuffers: { buffer: Buffer; mimeType: string }[]
-): Promise<VerifyResult> {
-  const contentParts: any[] = [{ type: "text", text: prompt }];
 
-  for (const img of imageBuffers) {
-    contentParts.push({
-      type: "image_url",
-      image_url: {
-        url: `data:${img.mimeType};base64,${img.buffer.toString("base64")}`,
-      },
-    });
-  }
-
-  const modelsToTry = ["deepseek-v4-flash-vision-exp", "claude-sonnet-5", "gpt-5.6", "auto"];
-  let lastError: any = null;
-
-  for (const currentModel of modelsToTry) {
-    console.log(`[Verify-Qwen] Trying model ${currentModel} via bandelbanget...`);
-    try {
-      const response = await fetch("https://bandelbanget.xyz/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: currentModel,
-          messages: [
-            {
-              role: "user",
-              content: contentParts,
-            },
-          ],
-          temperature: 0.2,
-          max_tokens: 2048,
-          response_format: { type: "json_object" },
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`API returned ${response.status}: ${errText}`);
-      }
-
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (!content) throw new Error("API returned empty response");
-
-      let cleanText = content.replace(/```json/gi, "").replace(/```/g, "").trim();
-      const firstBrace = cleanText.indexOf('{');
-      const lastBrace = cleanText.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-      }
-      return JSON.parse(cleanText) as VerifyResult;
-    } catch (err: any) {
-      console.warn(`[Verify-Qwen] Model ${currentModel} failed:`, err.message);
-      lastError = err;
-    }
-  }
-
-  throw lastError || new Error("All bandelbanget fallback models failed");
-}
 
 async function runGroqVerify(
   apiKey: string,
