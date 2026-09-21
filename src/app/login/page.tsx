@@ -60,7 +60,7 @@ export default function LoginPage() {
         <div className="glass rounded-3xl p-8 relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-purple-500"></div>
 
-          <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">Selamat Datang 👋</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">Selamat Datang</h2>
 
           {error && (
             <div className="bg-red-50/80 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-6 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
@@ -71,7 +71,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <label className="block text-sm font-semibold text-slate-600">Email atau Username (NIS)</label>
+              <label className="block text-sm font-semibold text-slate-600">Username (NIS)</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                   <Mail size={18} />
@@ -81,7 +81,7 @@ export default function LoginPage() {
                   type="text"
                   required
                   autoComplete="username"
-                  placeholder="contoh: 1001 atau email@sekolah.com"
+                  placeholder="Masukkan Username yang diberikan guru atau admin"
                   className="w-full bg-white/50 border border-slate-200/60 rounded-xl pl-11 pr-4 py-3.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white transition-all duration-200 shadow-sm"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
