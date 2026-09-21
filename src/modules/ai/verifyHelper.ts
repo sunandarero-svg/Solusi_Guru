@@ -1,8 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
-
-// Global counter for round-robin
-let currentKeyIndex = 0;
+import { groqRateLimiter } from "./rateLimiter";
 
 // Cache for dynamically fetched models per API key
 const modelCache: Record<string, string[]> = {};
@@ -39,14 +37,7 @@ export interface VerifyResult {
   reason: string;
 }
 
-function parseKeys(envValue?: string): string[] {
-  if (!envValue) return [];
-  return envValue
-    .replace(/[\r\n]/g, "")
-    .split(",")
-    .map((k) => k.replace(/['"` ]/g, "").trim())
-    .filter((k) => k.length > 5);
-}
+
 
 /**
  * Check if a model supports multimodal (image) input.
@@ -98,16 +89,9 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     });
   }
 
-  const keys = parseKeys(process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY);
-  if (keys.length === 0) {
-    throw new Error("No valid Groq API keys configured.");
-  }
-
-  // Select key using round robin
-  const apiKey = keys[currentKeyIndex % keys.length];
-  const usedIndex = currentKeyIndex % keys.length;
-  // Increment and wrap around
-  currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+  // Select key using rate limiter (waits up to 30 seconds if all keys are busy)
+  const { key: apiKey, index: usedIndex } = await groqRateLimiter.waitForKey(30000);
+  const totalKeys = groqRateLimiter.getKeys().length;
 
   const availableModels = await getDynamicModels(apiKey);
   
@@ -133,16 +117,22 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
 
   for (const modelName of modelsToTry) {
     try {
-      console.log(`[Verify-Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${keys.length})`);
+      console.log(`[Verify-Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${totalKeys})`);
       const result = await runGroqVerify(apiKey, modelName, prompt, imageBuffers);
       console.log(`[Verify-Groq] Success with model: ${modelName}`);
       return result;
     } catch (err: any) {
       lastError = err;
-      console.warn(`[Verify-Groq] Failed with model ${modelName}:`, err?.message || err);
-      // If unauthorized/not found, clear cache so we fetch fresh next time
+      console.warn(`[Verify-Groq] Error with model ${modelName}:`, err?.message || err);
+      
+      // Handle rate limit specifically
+      if (err?.message?.includes("429") || err?.status === 429) {
+        groqRateLimiter.setCooldown(apiKey, 60);
+      }
+
+      // Clear cache so it fetches fresh models list next time if there's permission error
       if (err?.message?.includes("404") || err?.message?.includes("400")) {
-        delete modelCache[apiKey];
+         delete modelCache[apiKey];
       }
     }
   }

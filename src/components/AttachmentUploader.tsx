@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import imageCompression from "browser-image-compression";
+import QuestionConfigurator from "./QuestionConfigurator";
 
 interface Attachment {
   id: string;
@@ -39,6 +40,7 @@ function formatFileSize(bytes: number): string {
 export default function AttachmentUploader({ assignmentId, isPublished }: AttachmentUploaderProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [answerKey, setAnswerKey] = useState<string | null>(null);
+  const [parsedQuestions, setParsedQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -187,6 +189,7 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
       if (res.ok) {
         const data = await res.json();
         setAnswerKey(data.answerKey);
+        setParsedQuestions(data.parsedQuestions || []);
         setShowAnswerKey(true);
         setSuccessMsg("Kunci jawaban AI berhasil di-generate!");
         setTimeout(() => setSuccessMsg(""), 5000);
@@ -453,6 +456,12 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
               )}
             </div>
           )}
+
+          {/* Question Configurator */}
+          <QuestionConfigurator 
+            assignmentId={assignmentId} 
+            initialQuestions={parsedQuestions}
+          />
         </div>
       )}
 

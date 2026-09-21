@@ -1,9 +1,7 @@
 import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
-
-// Global counter for round-robin
-let currentKeyIndex = 0;
+import { groqRateLimiter } from "./rateLimiter";
 
 // Cache for dynamically fetched models per API key
 const modelCache: Record<string, string[]> = {};
@@ -36,27 +34,10 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
 export class GroqProvider implements AIProvider {
   readonly providerName = "Groq-Vision";
 
-  private getApiKeys(): string[] {
-    const keysStr = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY;
-    if (!keysStr) return [];
-    return keysStr
-      .replace(/[\r\n]/g, "")
-      .split(",")
-      .map((k) => k.replace(/['"` ]/g, "").trim())
-      .filter((k) => k.length > 5);
-  }
-
-  async assessSubmission(pages: any[], rubrics: any[], answerKey?: string): Promise<AIAssessmentResult> {
-    const keys = this.getApiKeys();
-    if (keys.length === 0) {
-      throw new Error("GROQ_API_KEY / GROQ_API_KEYS is not configured.");
-    }
-
-    // Select key using round robin
-    const apiKey = keys[currentKeyIndex % keys.length];
-    const usedIndex = currentKeyIndex % keys.length;
-    // Increment and wrap around to prevent overflow
-    currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+  async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
+    // Select key using rate limiter (waits up to 60 seconds if all keys are busy)
+    const { key: apiKey, index: usedIndex } = await groqRateLimiter.waitForKey(60000);
+    const totalKeys = groqRateLimiter.getKeys().length;
     
     const availableModels = await getDynamicModels(apiKey);
     
@@ -87,12 +68,18 @@ export class GroqProvider implements AIProvider {
 
     for (const modelName of modelsToTry) {
       try {
-        console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${keys.length})`);
-        const result = await this._doAssessment(apiKey, modelName, pages, rubrics, answerKey);
+        console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${totalKeys})`);
+        const result = await this._doAssessment(apiKey, modelName, pages, rubrics, answerKey, questions);
         return result;
       } catch (error: any) {
         lastError = error;
         console.warn(`[Groq] Error with model ${modelName}:`, error?.message || error);
+        
+        // Handle rate limit specifically
+        if (error?.message?.includes("429") || error?.status === 429) {
+          groqRateLimiter.setCooldown(apiKey, 60);
+        }
+
         // Clear cache so it fetches fresh models list next time if there's permission error
         if (error?.message?.includes("404") || error?.message?.includes("400")) {
            delete modelCache[apiKey];
@@ -108,7 +95,8 @@ export class GroqProvider implements AIProvider {
     modelName: string,
     pages: any[],
     rubrics: any[],
-    answerKey?: string
+    answerKey?: string,
+    questions?: any[]
   ): Promise<AIAssessmentResult> {
     // Build answer key context if available
     let answerKeyInstruction = "";
@@ -119,15 +107,29 @@ ${answerKey}
 `;
     }
 
+    let questionsInstruction = "";
+    if (questions && questions.length > 0) {
+      const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
+      questionsInstruction = `
+KONFIGURASI SOAL & BOBOT (DARI GURU):
+Berikut adalah struktur dan pedoman bobot maksimal untuk setiap soal:
+${qList}
+Nilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).
+`;
+    } else {
+      questionsInstruction = `2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
+3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
+    }
+
     const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak dan suportif.
 Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya.
 
 ${answerKeyInstruction}
+${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
 1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir. Ekstrak teks/jawaban siswa sebaik mungkin.
-2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
-3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).
+${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. PENILAIAN KONTEKSTUAL:
    - Jika siswa HANYA MENULIS JAWABAN (tanpa pertanyaan): Cocokkan jawaban tersebut dengan Kunci Jawaban Referensi secara berurutan atau berdasarkan konteks.
    - Jika siswa MENULIS PERTANYAAN DAN JAWABAN di kertasnya: Anda WAJIB memetakan dan mencocokkan setiap pertanyaan dengan jawabannya berdasarkan NOMOR YANG SAMA (contoh: Pertanyaan nomor 1 dipasangkan dengan Jawaban nomor 1). Baca seluruh kata dari pertanyaan tersebut secara menyeluruh agar tidak salah konteks. Setelah dipasangkan, tugas Anda adalah mengecek apakah JAWABAN siswa tersebut benar dan tepat terhadap PERTANYAAN-nya sendiri. PASTIKAN Anda HANYA memberikan analisis dan nilai untuk bagian JAWABANNYA saja (jangan menilai kualitas pertanyaannya).

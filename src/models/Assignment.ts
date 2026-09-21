@@ -105,3 +105,27 @@ AssignmentAttachmentSchema.index({ assignmentId: 1, order: 1 });
 
 export const AssignmentAttachment = mongoose.models.AssignmentAttachment || mongoose.model<IAssignmentAttachment>('AssignmentAttachment', AssignmentAttachmentSchema);
 
+// === Assignment Question Config ===
+
+export interface IAssignmentQuestion extends Document {
+  assignmentId: mongoose.Types.ObjectId;
+  order: number;
+  questionType: string;
+  maxScore: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const AssignmentQuestionSchema: Schema = new Schema({
+  assignmentId: { type: Schema.Types.ObjectId, ref: 'Assignment', required: true },
+  order: { type: Number, required: true },
+  questionType: { type: String, required: true },
+  maxScore: { type: Number, required: true, default: 0 }
+}, {
+  timestamps: true
+});
+
+AssignmentQuestionSchema.index({ assignmentId: 1, order: 1 });
+
+export const AssignmentQuestion = mongoose.models.AssignmentQuestion || mongoose.model<IAssignmentQuestion>('AssignmentQuestion', AssignmentQuestionSchema);
+

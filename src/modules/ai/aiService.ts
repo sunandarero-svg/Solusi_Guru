@@ -1,6 +1,6 @@
 import dbConnect from "@/lib/mongoose";
 import { Submission, OCRResult, AIAssessment } from "@/models/Submission";
-import { Assignment, Rubric, RubricCriterion, AssignmentAttachment } from "@/models/Assignment";
+import { Assignment, Rubric, RubricCriterion, AssignmentAttachment, AssignmentQuestion } from "@/models/Assignment";
 import { AIProvider } from "./AIProvider";
 import { GroqProvider } from "./GroqProvider";
 
@@ -49,6 +49,17 @@ export class AIService {
       console.warn("[AI] Failed to fetch answer key, proceeding without it:", err);
     }
 
+    // 2c. Fetch Assignment Questions (teacher configuration)
+    let questions: any[] = [];
+    try {
+      questions = await AssignmentQuestion.find({ assignmentId: assignment._id }).sort({ order: 1 }).lean();
+      if (questions.length > 0) {
+        console.log(`[AI] Found ${questions.length} configured questions for assignment ${assignment._id}`);
+      }
+    } catch (err) {
+      console.warn("[AI] Failed to fetch assignment questions:", err);
+    }
+
     // 3. Request Assessment from AI Provider with Retry Logic (max 2 retries)
     let assessmentResult;
     let attempt = 0;
@@ -68,7 +79,8 @@ export class AIService {
         assessmentResult = await primaryProvider.assessSubmission(
           pages as any, // Passed to provider which should handle array of pages/images
           [], // No longer using rubrics
-          answerKey
+          answerKey,
+          questions
         );
         break; // Success, exit loop
       } catch (error) {
@@ -96,7 +108,8 @@ export class AIService {
           assessmentResult = await fallbackProvider.assessSubmission(
             pages as any,
             [],
-            answerKey
+            answerKey,
+            questions
           );
           console.log(`[AI] GroqProvider fallback succeeded!`);
           Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
@@ -112,7 +125,8 @@ export class AIService {
           assessmentResult = await fallbackProvider.assessSubmission(
             pages as any,
             [],
-            answerKey
+            answerKey,
+            questions
           );
           console.log(`[AI] GeminiProvider fallback succeeded!`);
           Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });

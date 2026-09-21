@@ -14,7 +14,7 @@ export class GeminiProvider implements AIProvider {
     return key.trim().replace(/^["']|["']$/g, '');
   }
 
-  async assessSubmission(pages: any[], rubrics: any[], answerKey?: string): Promise<AIAssessmentResult> {
+  async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
     const apiKey = this.getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     
@@ -26,6 +26,7 @@ export class GeminiProvider implements AIProvider {
     ];
     const uniqueModels = Array.from(new Set(fallbackModels));
 
+    // Build answer key context if available
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
       answerKeyInstruction = `
@@ -34,15 +35,29 @@ ${answerKey}
 `;
     }
 
+    let questionsInstruction = "";
+    if (questions && questions.length > 0) {
+      const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
+      questionsInstruction = `
+KONFIGURASI SOAL & BOBOT (DARI GURU):
+Berikut adalah struktur dan pedoman bobot maksimal untuk setiap soal:
+${qList}
+Nilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).
+`;
+    } else {
+      questionsInstruction = `2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
+3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
+    }
+
     const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak dan suportif.
 Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya.
 
 ${answerKeyInstruction}
+${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
 1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir. Ekstrak teks/jawaban siswa sebaik mungkin.
-2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
-3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).
+${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. PENILAIAN KONTEKSTUAL:
    - Jika siswa HANYA MENULIS JAWABAN (tanpa pertanyaan): Cocokkan jawaban tersebut dengan Kunci Jawaban Referensi secara berurutan atau berdasarkan konteks.
    - Jika siswa MENULIS PERTANYAAN DAN JAWABAN di kertasnya: Anda WAJIB memetakan dan mencocokkan setiap pertanyaan dengan jawabannya berdasarkan NOMOR YANG SAMA (contoh: Pertanyaan nomor 1 dipasangkan dengan Jawaban nomor 1). Baca seluruh kata dari pertanyaan tersebut secara menyeluruh agar tidak salah konteks. Setelah dipasangkan, tugas Anda adalah mengecek apakah JAWABAN siswa tersebut benar dan tepat terhadap PERTANYAAN-nya sendiri. PASTIKAN Anda HANYA memberikan analisis dan nilai untuk bagian JAWABANNYA saja (jangan menilai kualitas pertanyaannya).
@@ -138,7 +153,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     throw lastError || new Error("All Gemini fallback models failed.");
   }
 
-  async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<string> {
+  async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
     const apiKey = this.getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     
@@ -166,13 +181,24 @@ INSTRUKSI UMUM:
 7. DILARANG KERAS menggunakan kalimat pengantar atau penutup. Langsung berikan isi kunci jawaban saja.
 
 INSTRUKSI FORMAT TULISAN (SANGAT PENTING):
-1. Hasil teks harus persis seperti format ketikan standar pada Microsoft Word (teks biasa/plain text).
-2. DILARANG KERAS menggunakan simbol Markdown untuk menebalkan teks (seperti **teks**) atau memiringkan teks (seperti *teks*).
-3. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural. 
-4. PASTIKAN rumus ditulis BERSIH tanpa ada simbol tambahan seperti menebalkan (**rumus**) atau pemformatan lain di sekitarnya. 
-5. Pertahankan struktur poin-poin agar tetap rapi, gunakan spasi baris yang jelas, dan penomoran standar yang sesuai dengan soal.
+1. DILARANG KERAS menggunakan simbol Markdown untuk menebalkan teks (seperti **teks**) atau memiringkan teks (seperti *teks*) pada bagian \`answerKey\`.
+2. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural tanpa markdown khusus. 
+3. Pertahankan struktur poin-poin agar tetap rapi pada \`answerKey\`.
 
-Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebihan).`;
+Anda JUGA harus menebak struktur soal dari lampiran (ada berapa soal, dan tipenya). Tipe soal yang didukung: "PILIHAN_GANDA", "BENAR_SALAH", "ISIAN_SINGKAT", "ESSAY", "PILIHAN_GANDA_KOMPLEKS".
+Berikan bobot maksimal merata (misal 100/N).
+
+Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
+{
+  "answerKey": "Teks lengkap kunci jawaban persis seperti instruksi di atas (plain text, dipisahkan newline \\n)",
+  "parsedQuestions": [
+    {
+      "order": 1, // Nomor urut soal
+      "questionType": "ESSAY", // Tebakan tipe soal
+      "maxScore": 20 // Tebakan bobot
+    }
+  ]
+}`;
 
     const contentParts: any[] = [{ text: prompt }];
 
@@ -222,6 +248,7 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
           contents: [{ role: "user", parts: contentParts }],
           generationConfig: {
             temperature: 0.3,
+            responseMimeType: "application/json",
           }
         });
 
@@ -231,7 +258,8 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
         }
 
         console.log(`[Gemini] Answer key generated successfully with ${modelName}.`);
-        return responseText.trim();
+        const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        return JSON.parse(cleanText);
       } catch (error: any) {
         console.warn(`[Gemini] Answer key generation failed with ${modelName}:`, error.message || error);
         lastError = error;

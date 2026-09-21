@@ -56,12 +56,18 @@ export async function POST(
 
     // Generate answer key using AI
     const provider = new GeminiProvider();
-    const answerKey = await provider.generateAnswerKey(combinedText, rubricsWithCriteria, imageAttachments);
+    const result = await provider.generateAnswerKey(combinedText, rubricsWithCriteria, imageAttachments);
+
+    const answerKeyText = typeof result === "string" ? result : result.answerKey;
+    const parsedQuestions = typeof result === "object" && result.parsedQuestions ? result.parsedQuestions : [];
 
     // Save answer key
-    await attachmentService.saveAnswerKey(resolvedParams.id, answerKey);
+    await attachmentService.saveAnswerKey(resolvedParams.id, answerKeyText);
 
-    return NextResponse.json({ answerKey });
+    return NextResponse.json({ 
+      answerKey: answerKeyText, 
+      parsedQuestions 
+    });
   } catch (error: any) {
     console.error("[Generate Answer Key Error]", error);
     return NextResponse.json(
