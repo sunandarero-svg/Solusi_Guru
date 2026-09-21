@@ -23,6 +23,7 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const router = useRouter();
 
   const fetchAssignment = () => {
@@ -54,6 +55,25 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
       alert("Gagal mempublikasikan tugas.");
     }
     setPublishing(false);
+  };
+
+  const handleCleanup = async () => {
+    if (!assignment) return;
+    if (!confirm("⚠️ Tindakan ini akan menghapus semua file fisik (foto) jawaban siswa dari server untuk menghemat kapasitas penyimanan.\n\nJANGAN KHAWATIR: Nilai, tabel analisis benar/salah, dan riwayat tugas siswa TETAP AMAN dan tidak akan terhapus.\n\nApakah Anda yakin ingin melanjutkan?")) return;
+    
+    setCleaning(true);
+    try {
+      const res = await fetch(`/api/assignments/${assignment.id}/cleanup`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+      } else {
+        alert(data.error || "Gagal membersihkan storage.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan jaringan.");
+    }
+    setCleaning(false);
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat detail tugas...</div>;
@@ -91,6 +111,14 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
               >
                 📸 Foto Kertas Siswa
               </Link>
+              <button
+                onClick={handleCleanup}
+                disabled={cleaning}
+                className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-200 transition shadow-sm flex items-center justify-center w-full sm:w-auto disabled:opacity-50"
+                title="Hapus file foto siswa dari server untuk menghemat ruang"
+              >
+                {cleaning ? "Membersihkan..." : "🧹 Bersihkan Penyimpanan"}
+              </button>
               <span className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center shadow-sm w-full sm:w-auto">
                 ✅ Sudah Dipublish
               </span>
