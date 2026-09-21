@@ -1,4 +1,4 @@
-import { delay } from "@/lib/utils";
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class TokenBucket {
   tokens: number;
