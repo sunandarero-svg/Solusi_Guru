@@ -21,7 +21,7 @@ export class GeminiProvider implements AIProvider {
     // Fallback models for Gemini
     const fallbackModels = [
       process.env.GEMINI_MODEL || "gemini-3.6-flash",
-      "gemini-2.5-flash"
+      "gemini-3.1-flash"
     ];
     const uniqueModels = Array.from(new Set(fallbackModels));
 
@@ -159,7 +159,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     // Fokus ke gemini-3.6-flash (terbaru per Sept 2026)
     const fallbackModels = [
       process.env.GEMINI_MODEL || "gemini-3.6-flash",
-      "gemini-2.5-flash"
+      "gemini-3.1-flash"
     ];
     const uniqueModels = Array.from(new Set(fallbackModels));
 
