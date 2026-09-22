@@ -66,10 +66,21 @@ export class AIService {
     const maxRetries = 2;
     let primaryFailed = false;
 
+    // Estimate tokens
+    // Text prompt is around ~1000 tokens. Each image is ~2000 tokens depending on the model.
+    const estimatedTokens = 1000 + (pages.length * 2000);
+
     let primaryProvider = this.provider;
     let isGeminiForced = options?.forceProvider === "gemini";
+    
+    // Smart Routing Logic
+    if (!isGeminiForced && estimatedTokens > 7000) {
+      console.log(`[AI] Estimated tokens (${estimatedTokens}) > 7000. Automatically routing to GeminiProvider.`);
+      isGeminiForced = true;
+    }
+
     if (isGeminiForced) {
-      console.log(`[AI] Forcing GeminiProvider as primary per options...`);
+      console.log(`[AI] Forcing GeminiProvider as primary per options or smart routing...`);
       const { GeminiProvider } = await import("./GeminiProvider");
       primaryProvider = new GeminiProvider();
     }

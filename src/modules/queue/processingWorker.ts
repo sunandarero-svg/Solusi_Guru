@@ -6,7 +6,7 @@ import { aiService } from "@/modules/ai/aiService";
  * Ensures at most MAX_CONCURRENT AI processing tasks run simultaneously.
  * Additional tasks are queued and processed in FIFO order.
  */
-const MAX_CONCURRENT = 25;
+const MAX_CONCURRENT = 14;
 let activeCount = 0;
 const waitQueue: Array<() => void> = [];
 

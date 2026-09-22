@@ -194,22 +194,6 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
 
       setUploadProgress(70);
 
-      // 4. Verify all pages at once with AI
-      const verifyRes = await fetch(`/api/submissions/${submission.id}/verify`, {
-        method: "POST"
-      });
-      
-      const verifyData = await verifyRes.json();
-      if (!verifyRes.ok) {
-        if (verifyData.error === "AI_REJECTION") {
-          throw new Error(JSON.stringify(verifyData));
-        }
-        throw new Error(verifyData.error || "Gagal memverifikasi AI");
-      }
-      
-      finalAiScore = verifyData.aiResult.readabilityScore;
-      finalAiReason = verifyData.aiResult.reason;
-
       clearInterval(progressInterval);
       setUploadProgress(95);
 
