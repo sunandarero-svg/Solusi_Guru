@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function TeacherReviewPage({ 
@@ -10,7 +9,6 @@ export default function TeacherReviewPage({
   params: Promise<{ id: string, submissionId: string }> 
 }) {
   const resolvedParams = use(params);
-  const router = useRouter();
   
   const [submission, setSubmission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -81,12 +79,13 @@ export default function TeacherReviewPage({
       });
       
       if (res.ok) {
-        alert(publish ? "Nilai dipublish ke siswa!" : "Ulasan berhasil disimpan (Draft).");
+        const updated = await res.json();
         if (publish) {
-          router.push(`/dashboard/assignments/${resolvedParams.id}`);
+          alert(isPublished ? "Nilai berhasil diperbarui dan dipublish ulang ke siswa!" : "Nilai dipublish ke siswa!");
+          // Update local state to reflect the new published review
+          setSubmission({ ...submission, teacherReview: updated });
         } else {
-          // Update local state to reflect saved review
-          const updated = await res.json();
+          alert("Ulasan berhasil disimpan (Draft).");
           setSubmission({ ...submission, teacherReview: updated });
         }
       } else {
@@ -168,19 +167,24 @@ export default function TeacherReviewPage({
         </div>
         
         <div className="flex space-x-2 md:space-x-3 w-full md:w-auto">
+          {isPublished && (
+            <span className="flex items-center px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-bold">
+              ✅ Sudah di-Publish
+            </span>
+          )}
           <button 
             onClick={() => handleSave(false)}
-            disabled={saving || isPublished}
+            disabled={saving}
             className="flex-1 md:flex-none px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
           >
             {saving ? "Menyimpan..." : "Simpan Draft"}
           </button>
           <button 
             onClick={() => handleSave(true)}
-            disabled={saving || isPublished}
+            disabled={saving}
             className="flex-1 md:flex-none px-4 md:px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-sm whitespace-nowrap"
           >
-            {isPublished ? "Telah di-Publish" : "Publish Nilai Akhir"}
+            {isPublished ? "Update & Publish Ulang" : "Publish Nilai Akhir"}
           </button>
         </div>
       </div>
@@ -258,8 +262,7 @@ export default function TeacherReviewPage({
                       min="0" max="100"
                       value={finalScore}
                       onChange={(e) => setFinalScore(parseInt(e.target.value) || 0)}
-                      disabled={isPublished}
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl font-bold text-xl text-gray-900 text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition disabled:bg-gray-100"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl font-bold text-xl text-gray-900 text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                     />
                   </div>
                   <div className="flex-1">
@@ -276,9 +279,8 @@ export default function TeacherReviewPage({
                 <textarea
                   value={finalFeedback}
                   onChange={(e) => setFinalFeedback(e.target.value)}
-                  disabled={isPublished}
                   rows={4}
-                  className="w-full p-4 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition disabled:bg-gray-50"
+                  className="w-full p-4 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                   placeholder="Tambahkan umpan balik tambahan atau edit saran dari AI di sini..."
                 />
               </div>
@@ -337,14 +339,12 @@ export default function TeacherReviewPage({
                               <span className="text-sm font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 text-gray-800">
                                 {a.score} <span className="text-gray-400 font-normal">/ {a.maxScore}</span>
                               </span>
-                              {!isPublished && (
-                                <button 
-                                  onClick={() => handleStartEditAnalysis(a)}
-                                  className="text-xs text-blue-600 font-medium hover:text-blue-800 bg-white px-2 py-1 border border-blue-100 rounded shadow-sm"
-                                >
-                                  Koreksi Manual
-                                </button>
-                              )}
+                              <button 
+                                onClick={() => handleStartEditAnalysis(a)}
+                                className="text-xs text-blue-600 font-medium hover:text-blue-800 bg-white px-2 py-1 border border-blue-100 rounded shadow-sm"
+                              >
+                                Koreksi Manual
+                              </button>
                             </div>
                           )}
                         </div>

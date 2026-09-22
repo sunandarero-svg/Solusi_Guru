@@ -309,7 +309,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                       href={`/dashboard/assignments/${assignmentId}/submissions/${sub.id}/review`}
                       className="px-3 py-1.5 bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
                     >
-                      {["APPROVED", "PUBLISHED"].includes(sub.status) ? "Lihat Hasil" : "Edit ✏️"}
+                      {sub.status === "PUBLISHED" ? "Lihat / Edit ✏️" : ["APPROVED"].includes(sub.status) ? "Lihat Hasil" : "Edit ✏️"}
                     </Link>
                     <button
                       onClick={() => handleDelete(sub.id, sub.student.fullName)}
