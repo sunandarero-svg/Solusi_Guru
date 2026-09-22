@@ -66,23 +66,22 @@ export class AIService {
     const maxRetries = 2;
     let primaryFailed = false;
 
-    // Estimate tokens
-    // Text prompt is around ~1000 tokens. Each image is ~2000 tokens depending on the model.
+    // Estimate tokens: ~1000 for base prompt text + ~2000 per image page
     const estimatedTokens = 1000 + (pages.length * 2000);
 
     let primaryProvider = this.provider;
-    let isGeminiForced = options?.forceProvider === "gemini";
-    
-    // Smart Routing Logic
-    if (!isGeminiForced && estimatedTokens > 7000) {
-      console.log(`[AI] Estimated tokens (${estimatedTokens}) > 7000. Automatically routing to GeminiProvider.`);
-      isGeminiForced = true;
+    let isOpenRouterForced = options?.forceProvider === "openrouter";
+
+    // Smart Routing Logic: if estimated tokens > 7000, use OpenRouter (Llama 4 Maverick)
+    if (!isOpenRouterForced && estimatedTokens > 7000) {
+      console.log(`[AI] Estimated tokens (${estimatedTokens}) > 7000. Automatically routing to OpenRouterProvider (Llama 4 Maverick).`);
+      isOpenRouterForced = true;
     }
 
-    if (isGeminiForced) {
-      console.log(`[AI] Forcing GeminiProvider as primary per options or smart routing...`);
-      const { GeminiProvider } = await import("./GeminiProvider");
-      primaryProvider = new GeminiProvider();
+    if (isOpenRouterForced) {
+      console.log(`[AI] Using OpenRouterProvider as primary...`);
+      const { OpenRouterProvider } = await import("./OpenRouterProvider");
+      primaryProvider = new OpenRouterProvider();
     }
 
     while (attempt <= maxRetries) {
@@ -111,8 +110,8 @@ export class AIService {
     if (primaryFailed) {
       let secondarySuccess = false;
 
-      if (isGeminiForced) {
-        console.log(`[AI] Falling back to GroqProvider because Gemini was forced and failed...`);
+      if (isOpenRouterForced) {
+        console.log(`[AI] Falling back to GroqProvider because OpenRouter was forced and failed...`);
         try {
           const { GroqProvider } = await import("./GroqProvider");
           const fallbackProvider = new GroqProvider();
@@ -129,26 +128,26 @@ export class AIService {
           console.warn(`[AI] GroqProvider fallback also failed: ${fallbackError}`);
         }
       } else {
-        console.log(`[AI] Falling back to GeminiProvider because Groq was primary and failed...`);
+        console.log(`[AI] Falling back to OpenRouterProvider because Groq was primary and failed...`);
         try {
-          const { GeminiProvider } = await import("./GeminiProvider");
-          const fallbackProvider = new GeminiProvider();
+          const { OpenRouterProvider } = await import("./OpenRouterProvider");
+          const fallbackProvider = new OpenRouterProvider();
           assessmentResult = await fallbackProvider.assessSubmission(
             pages as any,
             [],
             answerKey,
             questions
           );
-          console.log(`[AI] GeminiProvider fallback succeeded!`);
+          console.log(`[AI] OpenRouterProvider fallback succeeded!`);
           Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
           secondarySuccess = true;
         } catch (fallbackError) {
-          console.warn(`[AI] GeminiProvider fallback also failed: ${fallbackError}`);
+          console.warn(`[AI] OpenRouterProvider fallback also failed: ${fallbackError}`);
         }
       }
 
       if (!secondarySuccess) {
-        throw new Error(`AI assessment failed on all providers (Groq and Gemini). Both providers exhausted.`);
+        throw new Error(`AI assessment failed on all providers (Groq and OpenRouter). Both providers exhausted.`);
       }
     }
 

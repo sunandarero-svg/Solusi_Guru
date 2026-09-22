@@ -1,33 +1,43 @@
 import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export class GeminiProvider implements AIProvider {
-  readonly providerName = "Gemini-Vision";
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+export class OpenRouterProvider implements AIProvider {
+  readonly providerName = "OpenRouter-Maverick";
 
   private getApiKey(): string {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("GEMINI_API_KEY is not configured.");
-    }
-    return key.trim().replace(/^["']|["']$/g, '');
+    const key = process.env.OPENROUTER_API_KEY;
+    if (!key) throw new Error("OPENROUTER_API_KEY is not configured.");
+    return key.trim().replace(/^[\"']|[\"']$/g, "");
   }
 
-  async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
-    const apiKey = this.getApiKey();
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Fallback models for Gemini
-    const fallbackModels = [
-      process.env.GEMINI_MODEL || "gemini-3.6-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro"
-    ];
-    // We allow duplicates in case the env var matches a fallback, so it acts as a retry
-    const uniqueModels = fallbackModels;
+  private getHeaders(apiKey: string): Record<string, string> {
+    return {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      // Required by OpenRouter
+      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+      "X-Title": "Solusi Guru",
+    };
+  }
 
-    // Build answer key context if available
+  async assessSubmission(
+    pages: any[],
+    rubrics: any[],
+    answerKey?: string,
+    questions?: any[]
+  ): Promise<AIAssessmentResult> {
+    const apiKey = this.getApiKey();
+
+    // Model priority: Maverick (flagship), fallback to Scout (efficient)
+    const modelsToTry = [
+      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+    ];
+
+    // Build prompt context
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
       answerKeyInstruction = `
@@ -38,7 +48,9 @@ ${answerKey}
 
     let questionsInstruction = "";
     if (questions && questions.length > 0) {
-      const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
+      const qList = questions
+        .map((q) => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`)
+        .join("\\n");
       questionsInstruction = `
 KONFIGURASI SOAL & BOBOT (DARI GURU):
 Berikut adalah struktur dan pedoman bobot maksimal untuk setiap soal:
@@ -61,7 +73,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
 ${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. PENILAIAN KONTEKSTUAL:
    - Jika siswa HANYA MENULIS JAWABAN (tanpa pertanyaan): Cocokkan jawaban tersebut dengan Kunci Jawaban Referensi secara berurutan atau berdasarkan konteks.
-   - Jika siswa MENULIS PERTANYAAN DAN JAWABAN di kertasnya: Anda WAJIB memetakan dan mencocokkan setiap pertanyaan dengan jawabannya berdasarkan NOMOR YANG SAMA (contoh: Pertanyaan nomor 1 dipasangkan dengan Jawaban nomor 1). Baca seluruh kata dari pertanyaan tersebut secara menyeluruh agar tidak salah konteks. Setelah dipasangkan, tugas Anda adalah mengecek apakah JAWABAN siswa tersebut benar dan tepat terhadap PERTANYAAN-nya sendiri. PASTIKAN Anda HANYA memberikan analisis dan nilai untuk bagian JAWABANNYA saja (jangan menilai kualitas pertanyaannya).
+   - Jika siswa MENULIS PERTANYAAN DAN JAWABAN di kertasnya: Anda WAJIB memetakan dan mencocokkan setiap pertanyaan dengan jawabannya berdasarkan NOMOR YANG SAMA. Setelah dipasangkan, HANYA nilai bagian JAWABANNYA saja.
 5. Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
 
 ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
@@ -72,35 +84,28 @@ ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
 - JIKA TULISAN SISWA TIDAK DAPAT DIBACA SAMA SEKALI PADA SOAL TERTENTU: Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
 
 ATURAN BAHASA:
-- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI. Gunakan kata 'algoritma' (bukan 'algoritme').
-- DETEKSI KESALAHAN EJAAN (BOUNDING BOX): Hanya koreksi kata yang BENAR-BENAR SALAH ejaannya (contoh: 'apotik' menjadi 'apotek'). Jika salah ejaan, berikan koordinat [ymin, xmin, ymax, xmax] di array \`errorHighlights\`. Jika tidak ada salah ejaan, JANGAN memaksakan koreksi, kosongkan array.
+- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI.
+- DETEKSI KESALAHAN EJAAN (BOUNDING BOX): Hanya koreksi kata yang BENAR-BENAR SALAH ejaannya. Jika salah ejaan, berikan koordinat [ymin, xmin, ymax, xmax] di array \`errorHighlights\`. Jika tidak ada salah ejaan, kosongkan array.
 
 Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
-  "totalScore": number, // jumlah skor yang didapat siswa (maks 100)
+  "totalScore": number,
   "generalFeedback": "Apresiasi dan umpan balik singkat keseluruhan untuk siswa",
   "analysis": [
     {
       "questionNumber": "string",
       "studentAnswer": "string (teks pertanyaan & jawaban siswa yang terbaca, atau jawabannya saja)",
-      "score": number, // skor yang didapat untuk soal ini
-      "maxScore": number, // skor maksimal soal ini (100 / N)
+      "score": number,
+      "maxScore": number,
       "analysisText": "string (Analisis alasan skor + Umpan balik edukatif/pujian)",
-      "status": "OK" // atau "UNREADABLE" jika tulisan tidak dapat dibaca
+      "status": "OK"
     }
   ],
-  "errorHighlights": [
-    {
-      "word": "kata yang salah",
-      "correction": "perbaikan kata sesuai KBBI",
-      "box": [0, 0, 0, 0],
-      "pageIndex": 0
-    }
-  ]
+  "errorHighlights": []
 }`;
 
-    const contentParts: any[] = [{ text: promptText }];
-
+    // Build image content parts
+    const contentParts: any[] = [{ type: "text", text: promptText }];
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
       let buffer: Buffer;
@@ -112,59 +117,58 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
         const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
         buffer = await readFile(filePath);
       }
-
       const mimeType = page.mimeType || "image/jpeg";
       const base64Data = buffer.toString("base64");
-
       contentParts.push({
-        inlineData: {
-          data: base64Data,
-          mimeType: mimeType,
-        }
+        type: "image_url",
+        image_url: { url: `data:${mimeType};base64,${base64Data}` },
       });
     }
 
     let lastError: any = null;
-
-    for (const modelName of uniqueModels) {
+    for (const modelName of modelsToTry) {
       try {
-        console.log(`[Gemini] Assessing submission with model ${modelName}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent({
-          contents: [{ role: "user", parts: contentParts }],
-          generationConfig: {
+        console.log(`[OpenRouter] Assessing submission with model ${modelName}...`);
+        const response = await fetch(OPENROUTER_BASE_URL, {
+          method: "POST",
+          headers: this.getHeaders(apiKey),
+          body: JSON.stringify({
+            model: modelName,
+            messages: [{ role: "user", content: contentParts }],
             temperature: 0.2,
-            responseMimeType: "application/json",
-          }
+            max_tokens: 4096,
+            response_format: { type: "json_object" },
+          }),
         });
 
-        const responseText = result.response.text();
-        if (!responseText) {
-          throw new Error("Gemini API returned empty response.");
+        if (!response.ok) {
+          const errBody = await response.text();
+          throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
         }
 
+        const data = await response.json();
+        const responseText = data.choices?.[0]?.message?.content;
+        if (!responseText) throw new Error("OpenRouter returned empty response.");
+
         const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        console.log(`[OpenRouter] Assessment successful with ${modelName}.`);
         return JSON.parse(cleanText) as AIAssessmentResult;
       } catch (error: any) {
-        console.warn(`[Gemini] Error assessing submission with ${modelName}:`, error.message || error);
         lastError = error;
+        console.warn(`[OpenRouter] Error with model ${modelName}:`, error?.message || error);
       }
     }
 
-    throw lastError || new Error("All Gemini fallback models failed.");
+    throw lastError || new Error("All OpenRouter models failed.");
   }
 
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
     const apiKey = this.getApiKey();
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Fokus ke gemini-3.6-flash, fallback ke 1.5-flash jika 503
-    const fallbackModels = [
-      process.env.GEMINI_MODEL || "gemini-3.6-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro"
+
+    const modelsToTry = [
+      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
     ];
-    const uniqueModels = fallbackModels;
 
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
 
@@ -177,30 +181,30 @@ INSTRUKSI UMUM:
 3. Untuk soal esai, berikan jawaban yang mencakup poin-poin utama yang harus ada.
 4. Untuk soal pilihan ganda, sebutkan jawaban yang benar beserta penjelasan singkat.
 5. Gunakan tata bahasa Indonesia yang baku, efektif, dan natural (sesuai EYD/PUEBI).
-6. DILARANG KERAS memberikan komentar tentang kondisi gambar (misal: buram/gelap). Kerjakan sebaik mungkin tanpa keluhan.
+6. DILARANG KERAS memberikan komentar tentang kondisi gambar (misal: buram/gelap). Kerjakan sebaik mungkin.
 7. DILARANG KERAS menggunakan kalimat pengantar atau penutup. Langsung berikan isi kunci jawaban saja.
 
 INSTRUKSI FORMAT TULISAN (SANGAT PENTING):
-1. DILARANG KERAS menggunakan simbol Markdown untuk menebalkan teks (seperti **teks**) atau memiringkan teks (seperti *teks*) pada bagian \`answerKey\`.
-2. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural tanpa markdown khusus. 
-3. Pertahankan struktur poin-poin agar tetap rapi pada \`answerKey\`.
+1. DILARANG KERAS menggunakan simbol Markdown untuk menebalkan teks (seperti **teks**) atau memiringkan teks (seperti *teks*).
+2. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural.
+3. Pertahankan struktur poin-poin agar tetap rapi.
 
 Anda JUGA harus menebak struktur soal dari lampiran (ada berapa soal, dan tipenya). Tipe soal yang didukung: "PILIHAN_GANDA", "BENAR_SALAH", "ISIAN_SINGKAT", "ESSAY", "PILIHAN_GANDA_KOMPLEKS".
 Berikan bobot maksimal merata (misal 100/N).
 
 Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
 {
-  "answerKey": "Teks lengkap kunci jawaban persis seperti instruksi di atas (plain text, dipisahkan newline \\n)",
+  "answerKey": "Teks lengkap kunci jawaban (plain text, dipisahkan newline \\n)",
   "parsedQuestions": [
     {
-      "order": 1, // Nomor urut soal
-      "questionType": "ESSAY", // Tebakan tipe soal
-      "maxScore": 20 // Tebakan bobot
+      "order": 1,
+      "questionType": "ESSAY",
+      "maxScore": 20
     }
   ]
 }`;
 
-    const contentParts: any[] = [{ text: prompt }];
+    const contentParts: any[] = [{ type: "text", text: prompt }];
 
     const hasImages = imageAttachments && imageAttachments.length > 0;
     if (hasImages) {
@@ -214,58 +218,56 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
             const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
             buffer = await readFile(filePath);
           }
-          
           let mimeType = attachment.mimeType || "image/jpeg";
-          
-          // Fix for docx image mimetypes if needed
-          if (!mimeType.startsWith("image/")) {
-              mimeType = "image/jpeg";
-          }
-          
+          if (!mimeType.startsWith("image/")) mimeType = "image/jpeg";
+
           if (attachment.description) {
-            contentParts.push({ text: `[Berikut adalah gambar untuk: ${attachment.description}]` });
+            contentParts.push({ type: "text", text: `[Gambar untuk: ${attachment.description}]` });
           }
-          
           contentParts.push({
-            inlineData: {
-              data: buffer.toString("base64"),
-              mimeType: mimeType,
-            }
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` },
           });
         } catch (err) {
-          console.warn(`[Gemini] Failed to load image attachment: ${attachment.originalFileName}`, err);
+          console.warn(`[OpenRouter] Failed to load attachment: ${attachment.originalFileName}`, err);
         }
       }
     }
 
     let lastError: any = null;
-
-    for (const modelName of uniqueModels) {
+    for (const modelName of modelsToTry) {
       try {
-        console.log(`[Gemini] Generating answer key with model ${modelName}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent({
-          contents: [{ role: "user", parts: contentParts }],
-          generationConfig: {
+        console.log(`[OpenRouter] Generating answer key with model ${modelName}...`);
+        const response = await fetch(OPENROUTER_BASE_URL, {
+          method: "POST",
+          headers: this.getHeaders(apiKey),
+          body: JSON.stringify({
+            model: modelName,
+            messages: [{ role: "user", content: contentParts }],
             temperature: 0.3,
-            responseMimeType: "application/json",
-          }
+            max_tokens: 4096,
+            response_format: { type: "json_object" },
+          }),
         });
 
-        const responseText = result.response.text();
-        if (!responseText) {
-          throw new Error("Gemini API returned empty response for answer key.");
+        if (!response.ok) {
+          const errBody = await response.text();
+          throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
         }
 
-        console.log(`[Gemini] Answer key generated successfully with ${modelName}.`);
+        const data = await response.json();
+        const responseText = data.choices?.[0]?.message?.content;
+        if (!responseText) throw new Error("OpenRouter returned empty response for answer key.");
+
         const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        console.log(`[OpenRouter] Answer key generated successfully with ${modelName}.`);
         return JSON.parse(cleanText);
       } catch (error: any) {
-        console.warn(`[Gemini] Answer key generation failed with ${modelName}:`, error.message || error);
         lastError = error;
+        console.warn(`[OpenRouter] Answer key failed with ${modelName}:`, error?.message);
       }
     }
 
-    throw lastError || new Error("All Gemini fallback models failed for answer key generation.");
+    throw lastError || new Error("All OpenRouter models failed for answer key generation.");
   }
 }

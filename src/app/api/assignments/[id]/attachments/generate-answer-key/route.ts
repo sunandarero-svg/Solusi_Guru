@@ -5,7 +5,7 @@ import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
-import { GeminiProvider } from "@/modules/ai/GeminiProvider";
+import { OpenRouterProvider } from "@/modules/ai/OpenRouterProvider";
 
 export async function POST(
   req: NextRequest,
@@ -55,7 +55,7 @@ export async function POST(
     const imageAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("image/"));
 
     // Generate answer key using AI
-    const provider = new GeminiProvider();
+    const provider = new OpenRouterProvider();
     const result = await provider.generateAnswerKey(combinedText, rubricsWithCriteria, imageAttachments);
 
     const answerKeyText = typeof result === "string" ? result : result.answerKey;
