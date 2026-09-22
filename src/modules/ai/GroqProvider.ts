@@ -18,10 +18,11 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
   if (!res.ok) {
     console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
     return [
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
       "llama-3.2-90b-vision-preview",
-      "llama-3.2-11b-vision-preview",
-      "llama-3.3-70b-versatile"
-    ]; // Fallback defaults: Llama 3.2 Vision (multimodal) + Llama 3.3 (text)
+      "llama-3.2-11b-vision-preview"
+    ]; // Fallback defaults: Llama 4 Scout/Maverick (higher TPM) + Llama 3.2 Vision
   }
   
   const data = await res.json();
@@ -54,8 +55,9 @@ export class GroqProvider implements AIProvider {
     
     // Since we are assessing images, we MUST use a multimodal model.
     let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
       "llama-3.2-90b-vision-preview",
-      "llama-3.2-11b-vision-preview",
       "llama-3.2-11b-vision-preview"
     ];
     

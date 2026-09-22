@@ -17,11 +17,11 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
   if (!res.ok) {
     console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
     return [
-      "qwen/qwen3.6-27b",
-      "qwen/qwen3.8-27b",
       "meta-llama/llama-4-scout-17b-16e-instruct",
-      "llama-4-scout-17b-16e-instruct"
-    ]; // Fallback defaults: Qwen3 (free tier multimodal) + Llama 4 (paid tier)
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "qwen/qwen3.8-27b",
+      "qwen/qwen3.6-27b"
+    ]; // Fallback defaults: Llama 4 (higher TPM) + Qwen3 (lower TPM fallback)
   }
   
   const data = await res.json();
@@ -102,10 +102,10 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
 
   // Use detected multimodal models, or fallback to known free-tier multimodal models
   let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
-    "qwen/qwen3.6-27b",
-    "qwen/qwen3.8-27b",
     "meta-llama/llama-4-scout-17b-16e-instruct",
-    "llama-4-scout-17b-16e-instruct"
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "qwen/qwen3.8-27b",
+    "qwen/qwen3.6-27b"
   ];
   
   const customModel = process.env.GROQ_MODEL?.trim();
