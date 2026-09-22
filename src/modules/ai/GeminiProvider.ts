@@ -21,9 +21,11 @@ export class GeminiProvider implements AIProvider {
     // Fallback models for Gemini
     const fallbackModels = [
       process.env.GEMINI_MODEL || "gemini-3.6-flash",
-      "gemini-3.1-flash"
+      "gemini-1.5-flash",
+      "gemini-1.5-pro"
     ];
-    const uniqueModels = Array.from(new Set(fallbackModels));
+    // We allow duplicates in case the env var matches a fallback, so it acts as a retry
+    const uniqueModels = fallbackModels;
 
     // Build answer key context if available
     let answerKeyInstruction = "";
@@ -156,12 +158,13 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     const apiKey = this.getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Fokus ke gemini-3.6-flash (terbaru per Sept 2026)
+    // Fokus ke gemini-3.6-flash, fallback ke 1.5-flash jika 503
     const fallbackModels = [
       process.env.GEMINI_MODEL || "gemini-3.6-flash",
-      "gemini-3.1-flash"
+      "gemini-1.5-flash",
+      "gemini-1.5-pro"
     ];
-    const uniqueModels = Array.from(new Set(fallbackModels));
+    const uniqueModels = fallbackModels;
 
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
 
