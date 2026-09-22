@@ -170,7 +170,7 @@ export class AIService {
       await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
         questionNumber: (analysis as any).questionNumber,
-        studentAnswer: (analysis as any).studentAnswer,
+        studentAnswer: (analysis as any).studentAnswer || "[Tidak terbaca/kosong]",
         score: (analysis as any).score,
         maxScore: (analysis as any).maxScore,
         analysis: (analysis as any).analysisText,
