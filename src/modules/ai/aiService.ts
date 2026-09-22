@@ -72,9 +72,9 @@ export class AIService {
     let primaryProvider = this.provider;
     let isOpenRouterForced = options?.forceProvider === "openrouter";
 
-    // Smart Routing Logic: if estimated tokens > 7000, use OpenRouter (Llama 4 Maverick)
+    // Smart Routing Logic: if estimated tokens > 7000, use OpenRouter (Llama 4 Scout)
     if (!isOpenRouterForced && estimatedTokens > 7000) {
-      console.log(`[AI] Estimated tokens (${estimatedTokens}) > 7000. Automatically routing to OpenRouterProvider (Llama 4 Maverick).`);
+      console.log(`[AI] Estimated tokens (${estimatedTokens}) > 7000. Automatically routing to OpenRouterProvider (Llama 4 Scout).`);
       isOpenRouterForced = true;
     }
 

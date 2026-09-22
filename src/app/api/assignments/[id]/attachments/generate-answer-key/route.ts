@@ -64,7 +64,7 @@ export async function POST(
     // Generate answer key using AI (Smart Routing)
     let provider;
     if (estimatedTokens > 7000) {
-      console.log("[Generate Answer Key] Routing to OpenRouterProvider (Llama 4 Maverick)");
+      console.log("[Generate Answer Key] Routing to OpenRouterProvider (Llama 4 Scout)");
       provider = new OpenRouterProvider();
     } else {
       console.log("[Generate Answer Key] Routing to GroqProvider (Free Tier)");

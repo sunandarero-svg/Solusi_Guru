@@ -5,7 +5,7 @@ import path from "path";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export class OpenRouterProvider implements AIProvider {
-  readonly providerName = "OpenRouter-Maverick";
+  readonly providerName = "OpenRouter-Scout";
 
   private getApiKey(): string {
     const key = process.env.OPENROUTER_API_KEY;
@@ -31,10 +31,10 @@ export class OpenRouterProvider implements AIProvider {
   ): Promise<AIAssessmentResult> {
     const apiKey = this.getApiKey();
 
-    // Model priority: Maverick (flagship), fallback to Scout (efficient)
+    // Model priority: Scout (efficient, fast), fallback to Maverick (flagship)
     const modelsToTry = [
-      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "meta-llama/llama-4-scout-17b-16e-instruct",
+      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
     ];
 
     // Build prompt context
@@ -165,9 +165,10 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
     const apiKey = this.getApiKey();
 
+    // Model priority: Scout (efficient, fast), fallback to Maverick (flagship)
     const modelsToTry = [
-      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "meta-llama/llama-4-scout-17b-16e-instruct",
+      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
     ];
 
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
