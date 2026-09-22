@@ -33,8 +33,8 @@ export class OpenRouterProvider implements AIProvider {
 
     // Model priority: Scout (efficient, fast), fallback to Maverick (flagship)
     const modelsToTry = [
-      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout",
+      "meta-llama/llama-4-maverick",
     ];
 
     // Build prompt context
@@ -167,8 +167,8 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
 
     // Model priority: Scout (efficient, fast), fallback to Maverick (flagship)
     const modelsToTry = [
-      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout",
+      "meta-llama/llama-4-maverick",
     ];
 
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
