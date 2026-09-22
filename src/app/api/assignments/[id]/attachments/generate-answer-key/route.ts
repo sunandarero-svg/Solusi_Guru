@@ -54,8 +54,24 @@ export async function POST(
     const attachments = await attachmentService.getAttachmentsByAssignment(resolvedParams.id);
     const imageAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("image/"));
 
-    // Generate answer key using AI
-    const provider = new OpenRouterProvider();
+    // Estimate tokens
+    // Text token estimation (~4 chars per token) + ~2000 tokens per image
+    const textTokens = Math.ceil(combinedText.length / 4);
+    const estimatedTokens = textTokens + (imageAttachments.length * 2000);
+    
+    console.log(`[Generate Answer Key] Estimated tokens: ${estimatedTokens}`);
+
+    // Generate answer key using AI (Smart Routing)
+    let provider;
+    if (estimatedTokens > 7000) {
+      console.log("[Generate Answer Key] Routing to OpenRouterProvider (Llama 4 Maverick)");
+      provider = new OpenRouterProvider();
+    } else {
+      console.log("[Generate Answer Key] Routing to GroqProvider (Free Tier)");
+      const { GroqProvider } = await import("@/modules/ai/GroqProvider");
+      provider = new GroqProvider();
+    }
+    
     const result = await provider.generateAnswerKey(combinedText, rubricsWithCriteria, imageAttachments);
 
     const answerKeyText = typeof result === "string" ? result : result.answerKey;
