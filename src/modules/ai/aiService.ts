@@ -196,13 +196,15 @@ export class AIService {
     // Create analysis records separately
     const { StudentAnswerAnalysis } = await import("@/models/Submission");
     for (const analysis of normalizedAnalyses) {
+      const combinedAnalysis = (analysis.reasoning_steps ? `**Penalaran AI:**\n${analysis.reasoning_steps}\n\n**Umpan Balik:**\n` : '') + (analysis.analysisText || analysis.analysis || "Tidak ada analisis.");
+      
       await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
         questionNumber: analysis.questionNumber,
         studentAnswer: analysis.studentAnswer || "[Tidak terbaca/kosong]",
         score: analysis.score,
         maxScore: analysis.maxScore,
-        analysis: analysis.analysisText || analysis.analysis || "Tidak ada analisis.",
+        analysis: combinedAnalysis,
         status: analysis.status || "OK",
       });
     }
