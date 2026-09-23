@@ -42,24 +42,16 @@ export class GroqProvider implements AIProvider {
     
     const availableModels = await getDynamicModels(apiKey);
     
-    // Filter for multimodal models that can process images
-    // Covers: vision models, Llama 4 Scout/Maverick, Qwen3 VL series
-    const multimodalModels = availableModels.filter(m => {
-      const lower = m.toLowerCase();
-      return lower.includes("vision") || lower.includes("llava") || lower.includes("pixtral")
-        || lower.includes("scout") || lower.includes("maverick")
-        || lower.includes("qwen3") || lower.includes("qwen-vl");
-    });
-    
-    console.log(`[Groq] Detected multimodal models: ${multimodalModels.length > 0 ? multimodalModels.join(", ") : "NONE"}`);
-    
-    // Since we are assessing images, we MUST use a multimodal model.
-    let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
-      "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "llama-3.2-90b-vision-preview",
-      "llama-3.2-11b-vision-preview"
+    const topModels = [
+      "openai/gpt-oss-120b",
+      "qwen/qwen3.8-27b",
+      "openai/gpt-oss-20b"
     ];
+
+    const matchedModels = topModels.filter(m => availableModels.includes(m));
+    console.log(`[Groq] Matched top models for assessment: ${matchedModels.length > 0 ? matchedModels.join(", ") : "NONE"}`);
+    
+    let modelsToTry = matchedModels.length > 0 ? matchedModels : topModels;
     
     const customModel = process.env.GROQ_MODEL?.trim();
     if (customModel) {
@@ -236,28 +228,18 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
 
     const availableModels = await getDynamicModels(apiKey);
     
-    // Determine if we need multimodal (have images) or text-only
-    const hasImages = imageAttachments && imageAttachments.length > 0;
+    const topModels = [
+      "openai/gpt-oss-120b",
+      "qwen/qwen3.8-27b",
+      "openai/gpt-oss-20b"
+    ];
+
+    const matchedModels = topModels.filter(m => availableModels.includes(m));
+    console.log(`[Groq] Matched top models for answer key: ${matchedModels.length > 0 ? matchedModels.join(", ") : "NONE"}`);
     
-    let modelsToTry: string[];
-    if (hasImages) {
-      const multimodalModels = availableModels.filter(m => {
-        const lower = m.toLowerCase();
-        return lower.includes("vision") || lower.includes("llava") || lower.includes("pixtral")
-          || lower.includes("scout") || lower.includes("maverick")
-          || lower.includes("qwen3") || lower.includes("qwen-vl");
-      });
-      modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
-        "llama-3.2-90b-vision-preview",
-        "llama-3.2-11b-vision-preview"
-      ];
-    } else {
-      // For text-only, prefer larger text models
-      modelsToTry = availableModels.length > 0 ? availableModels : [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant"
-      ];
-    }
+    let modelsToTry = matchedModels.length > 0 ? matchedModels : topModels;
+    
+    const hasImages = imageAttachments && imageAttachments.length > 0;
 
     const customModel = process.env.GROQ_MODEL?.trim();
     if (customModel) {
