@@ -36,61 +36,115 @@ export class GroqProvider implements AIProvider {
   readonly providerName = "Groq-Vision";
 
   async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
-    // Select key using rate limiter (waits up to 60 seconds if all keys are busy)
     const { key: apiKey, index: usedIndex } = await groqRateLimiter.waitForKey(60000);
     const totalKeys = groqRateLimiter.getKeys().length;
     
     const availableModels = await getDynamicModels(apiKey);
     
-    const topModels = [
-      "llama-3.2-90b-vision-preview",
-      "llama-3.2-11b-vision-preview"
-    ];
+    const visionModels = ["qwen/qwen3.8-27b", "llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
+    const textModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"];
 
-    const matchedModels = topModels.filter(m => availableModels.includes(m));
-    console.log(`[Groq] Matched top models for assessment: ${matchedModels.length > 0 ? matchedModels.join(", ") : "NONE"}`);
-    
-    let modelsToTry = matchedModels.length > 0 ? matchedModels : topModels;
+    const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
+    const activeTextModels = textModels.filter(m => availableModels.includes(m));
+
+    const visionModel = activeVisionModels[0] || "qwen/qwen3.8-27b";
+    let textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-120b"];
     
     const customModel = process.env.GROQ_MODEL?.trim();
     if (customModel) {
-      modelsToTry = [customModel, ...modelsToTry];
+      textModelsToTry = [customModel, ...textModelsToTry];
     }
     
     let lastError: any = null;
 
-    for (const modelName of modelsToTry) {
+    for (const textModel of textModelsToTry) {
       try {
-        console.log(`[Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${totalKeys})`);
-        const result = await this._doAssessment(apiKey, modelName, pages, rubrics, answerKey, questions);
+        console.log(`[Groq] Two-Step: Vision=${visionModel}, Text=${textModel} (Key Index: ${usedIndex + 1}/${totalKeys})`);
+        // We pass BOTH models to _doAssessment
+        const result = await this._doAssessment(apiKey, visionModel, textModel, pages, rubrics, answerKey, questions);
         return result;
       } catch (error: any) {
         lastError = error;
-        console.warn(`[Groq] Error with model ${modelName}:`, error?.message || error);
+        console.warn(`[Groq] Error with Text Model ${textModel}:`, error?.message || error);
         
-        // Handle rate limit specifically
         if (error?.message?.includes("429") || error?.status === 429) {
           groqRateLimiter.setCooldown(apiKey, 60);
         }
 
-        // Clear cache so it fetches fresh models list next time if there's permission error
         if (error?.message?.includes("404") || error?.message?.includes("400")) {
            delete modelCache[apiKey];
         }
       }
     }
 
-    throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key.");
+    throw lastError || new Error("All text models failed in Two-Step Pipeline.");
   }
 
   private async _doAssessment(
     apiKey: string,
-    modelName: string,
+    visionModel: string,
+    textModel: string,
     pages: any[],
     rubrics: any[],
     answerKey?: string,
     questions?: any[]
   ): Promise<AIAssessmentResult> {
+    
+    // --- TAHAP 1: VISION (Ekstraksi Teks) ---
+    const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan tangan pada gambar-gambar ini. Transkripsikan semua teks dan angka persis seperti yang tertulis. Jangan ubah, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
+    
+    const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
+    
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      let buffer: Buffer;
+      if (page.storageKey.startsWith("http")) {
+        const res = await fetch(page.storageKey);
+        const arrayBuffer = await res.arrayBuffer();
+        buffer = Buffer.from(arrayBuffer);
+      } else {
+        const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
+        buffer = await readFile(filePath);
+      }
+      const mimeType = page.mimeType || "image/jpeg";
+      const base64Data = buffer.toString("base64");
+      visionContentParts.push({
+        type: "image_url",
+        image_url: {
+          url: `data:${mimeType};base64,${base64Data}`,
+        },
+      });
+    }
+
+    console.log(`[Groq] Step 1: Extracting text using ${visionModel}...`);
+    const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [{ role: "user", content: visionContentParts }],
+        temperature: 0.1,
+        max_tokens: 4096,
+      }),
+    });
+
+    if (!visionResponse.ok) {
+      const errBody = await visionResponse.text();
+      throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+    }
+
+    const visionData = await visionResponse.json();
+    const extractedText = visionData.choices?.[0]?.message?.content;
+    
+    if (!extractedText) {
+      throw new Error("Vision API returned empty response.");
+    }
+    console.log(`[Groq] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
+
+    // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
     // Build answer key context if available
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
@@ -114,14 +168,19 @@ Nilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).
 3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
     }
 
-    const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak, objektif, dan suportif.
-Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya secara akurat.
+    const textPrompt = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak, objektif, dan suportif.
+Tugas Anda adalah membaca *hasil transkripsi tulisan siswa* yang sudah diekstrak, lalu menilainya secara akurat berdasarkan Kunci Jawaban.
+
+BERIKUT ADALAH HASIL TRANSKRIPSI JAWABAN SISWA:
+"""
+${extractedText}
+"""
 
 ${answerKeyInstruction}
 ${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
-1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir. Ekstrak teks/jawaban siswa sebaik mungkin.
+1. Baca SELURUH tulisan siswa dari awal hingga akhir.
 ${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
    - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
@@ -139,11 +198,11 @@ ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
 - JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat).
 - Jika jawaban SALAH atau KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi (contoh: "Jawabanmu hampir tepat, namun mari perhatikan kembali bagian... tetap semangat!").
 - Gunakan bahasa yang ramah, hangat, dan memotivasi HANYA pada jawaban yang belum sempurna.
-- JIKA TULISAN SISWA TIDAK DAPAT DIBACA SAMA SEKALI PADA SOAL TERTENTU: Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
+- JIKA TRANSKRIPSI SISWA MENGANDUNG KATA "UNREADABLE": Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
 
 ATURAN BAHASA:
 - Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI.
-- DETEKSI KESALAHAN EJAAN (BOUNDING BOX): Hanya koreksi kata yang BENAR-BENAR SALAH ejaannya (contoh: 'apotik' menjadi 'apotek'). Jika salah ejaan, berikan koordinat [ymin, xmin, ymax, xmax] di array \`errorHighlights\`. Jika tidak ada salah ejaan, JANGAN memaksakan koreksi, kosongkan array.
+- Abaikan 'errorHighlights' karena posisi koordinat ejaan salah tidak relevan pada tahap ini. Kosongkan array-nya ([]).
 
 Output Anda HARUS berupa JSON murni dengan struktur berikut:
 {
@@ -152,7 +211,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
   "analysis": [
     {
       "questionNumber": "string",
-      "studentAnswer": "string (teks pertanyaan & jawaban siswa yang terbaca, atau jawabannya saja)",
+      "studentAnswer": "string (teks pertanyaan & jawaban siswa)",
       "reasoning_steps": "string (Langkah-langkah penalaran membandingkan jawaban siswa dan kunci jawaban, WAJIB diisi sebelum skor)",
       "score": number,
       "maxScore": number,
@@ -163,61 +222,31 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
   "errorHighlights": []
 }`;
 
-
-    const contentParts: any[] = [{ type: "text", text: promptText }];
-
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i];
-      let buffer: Buffer;
-      if (page.storageKey.startsWith("http")) {
-        const res = await fetch(page.storageKey);
-        const arrayBuffer = await res.arrayBuffer();
-        buffer = Buffer.from(arrayBuffer);
-      } else {
-        const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
-        buffer = await readFile(filePath);
-      }
-
-      const mimeType = page.mimeType || "image/jpeg";
-      const base64Data = buffer.toString("base64");
-
-      contentParts.push({
-        type: "image_url",
-        image_url: {
-          url: `data:${mimeType};base64,${base64Data}`,
-        },
-      });
-    }
-
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    console.log(`[Groq] Step 2: Grading with ${textModel}...`);
+    const textResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: modelName,
-        messages: [
-          {
-            role: "user",
-            content: contentParts,
-          },
-        ],
+        model: textModel,
+        messages: [{ role: "user", content: textPrompt }], // Text only!
         temperature: 0.2,
         max_tokens: 4096,
         response_format: { type: "json_object" },
       }),
     });
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Groq API returned ${response.status}: ${errBody}`);
+    if (!textResponse.ok) {
+      const errBody = await textResponse.text();
+      throw new Error(`Text API returned ${textResponse.status}: ${errBody}`);
     }
 
-    const data = await response.json();
-    const responseText = data.choices?.[0]?.message?.content;
+    const textData = await textResponse.json();
+    const responseText = textData.choices?.[0]?.message?.content;
     if (!responseText) {
-      throw new Error("Groq API returned empty response.");
+      throw new Error("Text API returned empty response.");
     }
 
     const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
