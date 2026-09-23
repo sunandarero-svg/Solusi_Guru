@@ -43,9 +43,8 @@ export class GroqProvider implements AIProvider {
     const availableModels = await getDynamicModels(apiKey);
     
     const topModels = [
-      "openai/gpt-oss-120b",
-      "qwen/qwen3.8-27b",
-      "openai/gpt-oss-20b"
+      "llama-3.2-90b-vision-preview",
+      "llama-3.2-11b-vision-preview"
     ];
 
     const matchedModels = topModels.filter(m => availableModels.includes(m));
@@ -234,19 +233,22 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     const { key: apiKey } = await groqRateLimiter.waitForKey(60000);
 
     const availableModels = await getDynamicModels(apiKey);
+    const hasImages = imageAttachments && imageAttachments.length > 0;
     
-    const topModels = [
+    const topModels = hasImages ? [
+      "llama-3.2-90b-vision-preview",
+      "llama-3.2-11b-vision-preview"
+    ] : [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
       "openai/gpt-oss-120b",
-      "qwen/qwen3.8-27b",
-      "openai/gpt-oss-20b"
+      "qwen/qwen3.8-27b"
     ];
 
     const matchedModels = topModels.filter(m => availableModels.includes(m));
     console.log(`[Groq] Matched top models for answer key: ${matchedModels.length > 0 ? matchedModels.join(", ") : "NONE"}`);
     
     let modelsToTry = matchedModels.length > 0 ? matchedModels : topModels;
-    
-    const hasImages = imageAttachments && imageAttachments.length > 0;
 
     const customModel = process.env.GROQ_MODEL?.trim();
     if (customModel) {
