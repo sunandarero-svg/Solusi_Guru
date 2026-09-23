@@ -56,7 +56,20 @@ export async function POST(
 
     // Estimate tokens
     // Text token estimation (~4 chars per token) + ~2000 tokens per image
-    const textTokens = Math.ceil(combinedText.length / 4);
+    let finalTaskText = combinedText;
+    
+    // Check for existing answer key and use as reference
+    try {
+      const existingAnswerKey = await attachmentService.getAnswerKey(resolvedParams.id);
+      if (existingAnswerKey && existingAnswerKey.trim().length > 0) {
+        console.log(`[Generate Answer Key] Found existing answer key, adding as reference.`);
+        finalTaskText += `\n\n=== REFERENSI KUNCI JAWABAN SEBELUMNYA ===\nBerikut adalah kunci jawaban yang sudah ada. Gunakan sebagai pedoman utama, perbaiki struktur atau tambahkan penjelasan jika perlu:\n${existingAnswerKey}\n==========================================\n`;
+      }
+    } catch (err) {
+      console.warn("[Generate Answer Key] Failed to fetch existing answer key:", err);
+    }
+
+    const textTokens = Math.ceil(finalTaskText.length / 4);
     const estimatedTokens = textTokens + (imageAttachments.length * 2000);
     
     console.log(`[Generate Answer Key] Estimated tokens: ${estimatedTokens}`);
@@ -72,7 +85,7 @@ export async function POST(
       provider = new GroqProvider();
     }
     
-    const result = await provider.generateAnswerKey(combinedText, rubricsWithCriteria, imageAttachments);
+    const result = await provider.generateAnswerKey(finalTaskText, rubricsWithCriteria, imageAttachments);
 
     const answerKeyText = typeof result === "string" ? result : result.answerKey;
     const parsedQuestions = typeof result === "object" && result.parsedQuestions ? result.parsedQuestions : [];

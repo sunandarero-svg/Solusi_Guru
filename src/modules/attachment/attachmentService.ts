@@ -318,8 +318,7 @@ async function extractTextFromFile(filePath: string, mimeType: string): Promise<
 
 async function extractTextFromPDF(filePath: string): Promise<string> {
   try {
-    const pdfParseModule = await import("pdf-parse");
-    const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+    const pdfParse = require("pdf-parse");
     const buffer = await readFile(filePath);
     const data = await pdfParse(buffer);
     return data.text || "";
