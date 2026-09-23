@@ -180,6 +180,7 @@ ${answerKeyInstruction}
 ${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
+0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. JANGAN PERNAH menjadi malas atau berhenti di tengah jalan!
 1. Baca SELURUH tulisan siswa dari awal hingga akhir.
 ${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
@@ -233,7 +234,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
         model: textModel,
         messages: [{ role: "user", content: textPrompt }], // Text only!
         temperature: 0.2,
-        max_tokens: 4096,
+        max_tokens: 8192,
         response_format: { type: "json_object" },
       }),
     });
