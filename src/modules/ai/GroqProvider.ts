@@ -91,7 +91,11 @@ export class GroqProvider implements AIProvider {
   ): Promise<AIAssessmentResult> {
     
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---
-    const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan tangan pada gambar-gambar ini. Transkripsikan semua teks dan angka persis seperti yang tertulis. Jangan ubah, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
+    const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan tangan pada gambar-gambar ini. Transkripsikan semua teks dan angka persis seperti yang tertulis. 
+SANGAT PENTING: 
+- PASTIKAN Anda menangkap dan mempertahankan NOMOR SOAL (1, 2, 3, dst) yang ditulis oleh siswa. 
+- Pisahkan setiap jawaban atau nomor soal dengan baris baru agar strukturnya sangat jelas dibaca.
+Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
     
     const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
     
@@ -182,6 +186,7 @@ ${questionsInstruction && questions && questions.length > 0 ? questionsInstructi
 INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
 0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. JANGAN PERNAH menjadi malas atau berhenti di tengah jalan!
 1. Baca SELURUH tulisan siswa dari awal hingga akhir.
+2. PENCOCOKAN NOMOR SOAL: Anda WAJIB MENGKAITKAN SETIAP JAWABAN SISWA DENGAN NOMOR SOAL YANG BENAR DI KUNCI JAWABAN. Jangan sampai tertukar! Perhatikan angka nomor soal pada transkripsi siswa. Jika siswa tidak menuliskan nomor urut, cocokkan berdasarkan konteksnya dengan sangat hati-hati.
 ${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
    - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
