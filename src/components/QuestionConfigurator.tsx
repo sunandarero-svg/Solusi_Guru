@@ -35,6 +35,7 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(initialQuestions.length === 0);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   useEffect(() => {
     if (initialQuestions.length > 0) {
@@ -49,6 +50,9 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
         if (res.ok) {
           const data = await res.json();
           setQuestions(data.questions || []);
+          if (data.questions && data.questions.length > 0) {
+            setIsExpanded(false);
+          }
         }
       } catch (err) {
         console.error("Failed to fetch questions:", err);
@@ -88,6 +92,7 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
       });
       if (res.ok) {
         setMessage({ type: 'success', text: "Konfigurasi soal berhasil disimpan!" });
+        setIsExpanded(false);
         if (onSaveSuccess) onSaveSuccess();
       } else {
         const data = await res.json();
@@ -109,10 +114,16 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
   return (
     <div className="mt-6 border-t border-gray-100 pt-6">
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <div className="flex-1">
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-lg font-bold text-gray-800 flex items-center gap-2 hover:text-emerald-700 transition"
+          >
+            <span className={`transform transition-transform text-sm ${isExpanded ? "rotate-90" : ""}`}>
+              ▶
+            </span>
             ⚙️ Konfigurasi Soal & Bobot Nilai
-          </h3>
+          </button>
           <p className="text-sm text-gray-500 mt-1">
             Atur tipe soal dan bobot nilai per nomor. AI akan menggunakan pedoman ini saat menilai tugas siswa.
           </p>
@@ -128,90 +139,94 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
         </div>
       )}
 
-      {questions.length === 0 ? (
-        <div className="text-center py-6 bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-gray-500 text-sm mb-3">Belum ada konfigurasi soal. Silakan tambah atau gunakan hasil tebakan AI.</p>
-          <button 
-            onClick={handleAddQuestion}
-            className="text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition"
-          >
-            + Tambah Soal Manual
-          </button>
-        </div>
-      ) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-xl">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 border-b border-gray-200 text-gray-700">
-              <tr>
-                <th className="px-4 py-3 font-semibold w-20">Nomor</th>
-                <th className="px-4 py-3 font-semibold">Tipe Soal</th>
-                <th className="px-4 py-3 font-semibold w-32">Bobot Nilai</th>
-                <th className="px-4 py-3 font-semibold w-16 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {questions.map((q, index) => (
-                <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                  <td className="px-4 py-2">
-                    <input 
-                      type="number" 
-                      value={q.order}
-                      onChange={(e) => handleChange(index, 'order', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-center"
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <select 
-                      value={q.questionType}
-                      onChange={(e) => handleChange(index, 'questionType', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
-                    >
-                      {QUESTION_TYPES.map(type => (
-                        <option key={type} value={type}>{QUESTION_TYPE_LABELS[type]}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <input 
-                      type="number" 
-                      value={q.maxScore}
-                      onChange={(e) => handleChange(index, 'maxScore', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none"
-                    />
-                  </td>
-                  <td className="px-4 py-2 text-center">
-                    <button 
-                      onClick={() => handleRemoveQuestion(index)}
-                      className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition"
-                      title="Hapus"
-                    >
-                      ❌
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {isExpanded && (
+        <>
+          {questions.length === 0 ? (
+            <div className="text-center py-6 bg-gray-50 rounded-xl border border-gray-200">
+              <p className="text-gray-500 text-sm mb-3">Belum ada konfigurasi soal. Silakan tambah atau gunakan hasil tebakan AI.</p>
+              <button 
+                onClick={handleAddQuestion}
+                className="text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition"
+              >
+                + Tambah Soal Manual
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-gray-200 rounded-xl">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold w-20">Nomor</th>
+                    <th className="px-4 py-3 font-semibold">Tipe Soal</th>
+                    <th className="px-4 py-3 font-semibold w-32">Bobot Nilai</th>
+                    <th className="px-4 py-3 font-semibold w-16 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {questions.map((q, index) => (
+                    <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                      <td className="px-4 py-2">
+                        <input 
+                          type="number" 
+                          value={q.order}
+                          onChange={(e) => handleChange(index, 'order', parseInt(e.target.value) || 0)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <select 
+                          value={q.questionType}
+                          onChange={(e) => handleChange(index, 'questionType', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
+                        >
+                          {QUESTION_TYPES.map(type => (
+                            <option key={type} value={type}>{QUESTION_TYPE_LABELS[type]}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2">
+                        <input 
+                          type="number" 
+                          value={q.maxScore}
+                          onChange={(e) => handleChange(index, 'maxScore', parseInt(e.target.value) || 0)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none"
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <button 
+                          onClick={() => handleRemoveQuestion(index)}
+                          className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition"
+                          title="Hapus"
+                        >
+                          ❌
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-      {questions.length > 0 && (
-        <div className="flex items-center justify-between mt-4">
-          <button 
-            onClick={handleAddQuestion}
-            className="text-sm font-medium text-emerald-600 hover:text-emerald-700 px-2 py-1 rounded transition hover:bg-emerald-50"
-          >
-            + Tambah Baris Soal
-          </button>
-          
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
-          >
-            {saving ? "Menyimpan..." : "💾 Simpan Konfigurasi"}
-          </button>
-        </div>
+          {questions.length > 0 && (
+            <div className="flex items-center justify-between mt-4">
+              <button 
+                onClick={handleAddQuestion}
+                className="text-sm font-medium text-emerald-600 hover:text-emerald-700 px-2 py-1 rounded transition hover:bg-emerald-50"
+              >
+                + Tambah Baris Soal
+              </button>
+              
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
+              >
+                {saving ? "Menyimpan..." : "💾 Simpan Konfigurasi"}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
