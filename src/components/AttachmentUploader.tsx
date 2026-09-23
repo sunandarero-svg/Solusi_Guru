@@ -47,6 +47,9 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [showAnswerKey, setShowAnswerKey] = useState(false);
+  const [isEditingKey, setIsEditingKey] = useState(false);
+  const [editedAnswerKey, setEditedAnswerKey] = useState("");
+  const [savingKey, setSavingKey] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +61,7 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
         const data = await res.json();
         setAttachments(data.attachments || []);
         setAnswerKey(data.answerKey || null);
+        setEditedAnswerKey(data.answerKey || "");
       }
     } catch (err) {
       console.error("Failed to fetch attachments:", err);
@@ -171,6 +175,30 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
     }
   };
 
+  const handleSaveEditedKey = async () => {
+    setSavingKey(true);
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}/attachments/answer-key`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answerKey: editedAnswerKey }),
+      });
+      if (res.ok) {
+        setAnswerKey(editedAnswerKey);
+        setIsEditingKey(false);
+        setSuccessMsg("Kunci jawaban berhasil disimpan!");
+        setTimeout(() => setSuccessMsg(""), 3000);
+      } else {
+        const data = await res.json();
+        setError(data.error || "Gagal menyimpan kunci jawaban.");
+      }
+    } catch (err) {
+      setError("Gagal menyimpan kunci jawaban.");
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
   const handleGenerateAnswerKey = async () => {
     if (attachments.length === 0) {
       setError("Upload setidaknya satu lampiran soal terlebih dahulu.");
@@ -189,8 +217,10 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
       if (res.ok) {
         const data = await res.json();
         setAnswerKey(data.answerKey);
+        setEditedAnswerKey(data.answerKey || "");
         setParsedQuestions(data.parsedQuestions || []);
         setShowAnswerKey(true);
+        setIsEditingKey(false);
         setSuccessMsg("Kunci jawaban AI berhasil di-generate!");
         setTimeout(() => setSuccessMsg(""), 5000);
       } else {
@@ -436,19 +466,63 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
               </button>
 
               {showAnswerKey && (
-                <div className="mt-3 p-4 bg-purple-50 rounded-xl border border-purple-100 max-h-96 overflow-y-auto">
-                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-purple-100">
-                    <span className="text-purple-600 font-bold text-sm">🔑 Kunci Jawaban Referensi</span>
-                    <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
-                      Dibuat oleh AI
-                    </span>
+                <div className="mt-3 p-4 bg-purple-50 rounded-xl border border-purple-100 flex flex-col max-h-[500px]">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-100 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600 font-bold text-sm">🔑 Kunci Jawaban Referensi</span>
+                      <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
+                        Dibuat oleh AI
+                      </span>
+                    </div>
+                    {!isEditingKey ? (
+                      <button
+                        onClick={() => {
+                          setEditedAnswerKey(answerKey);
+                          setIsEditingKey(true);
+                        }}
+                        className="text-xs font-medium text-purple-700 bg-white border border-purple-200 px-3 py-1.5 rounded-md hover:bg-purple-100 transition"
+                      >
+                        ✏️ Edit Kunci Jawaban
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setIsEditingKey(false);
+                            setEditedAnswerKey(answerKey); // Reset
+                          }}
+                          className="text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-md hover:bg-gray-100 transition"
+                          disabled={savingKey}
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleSaveEditedKey}
+                          disabled={savingKey}
+                          className="text-xs font-medium text-white bg-purple-600 px-3 py-1.5 rounded-md hover:bg-purple-700 transition disabled:opacity-50"
+                        >
+                          {savingKey ? "Menyimpan..." : "💾 Simpan"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {answerKey}
-                  </div>
-                  <div className="mt-3 pt-2 border-t border-purple-100">
+                  
+                  {isEditingKey ? (
+                    <textarea
+                      value={editedAnswerKey}
+                      onChange={(e) => setEditedAnswerKey(e.target.value)}
+                      className="w-full h-64 p-3 text-sm text-gray-800 bg-white border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none resize-y"
+                      placeholder="Ketik atau edit kunci jawaban di sini..."
+                    />
+                  ) : (
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed overflow-y-auto">
+                      {answerKey}
+                    </div>
+                  )}
+
+                  <div className="mt-3 pt-2 border-t border-purple-100 shrink-0">
                     <p className="text-xs text-purple-500 italic">
-                      ⚠️ Kunci jawaban ini adalah referensi yang dihasilkan AI. Jawaban siswa tidak harus sama persis, 
+                      ⚠️ Kunci jawaban ini adalah referensi. Jawaban siswa tidak harus sama persis, 
                       yang dinilai adalah kesesuaian konteks.
                     </p>
                   </div>
