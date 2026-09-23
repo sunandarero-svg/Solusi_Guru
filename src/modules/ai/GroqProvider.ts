@@ -198,10 +198,15 @@ ${!questions || questions.length === 0 ? questionsInstruction : ""}
      * BENAR SEMPURNA (100% dari maxScore): Mengandung seluruh konsep utama Kunci Jawaban.
      * BENAR SEBAGIAN (50% dari maxScore): Hanya mengandung sebagian konsep yang benar, atau konsepnya kurang tepat tapi ada indikasi pemahaman.
      * SALAH (0): Konsep bertolak belakang, melenceng jauh, atau tidak ada sama sekali.
+6. ATURAN PENILAIAN TYPO & EJAAN (SANGAT PENTING):
+   - Periksa seluruh tulisan siswa secara mendetail.
+   - Jika ada kata yang salah ejaan (typo) atau perlu diperbaiki, Anda WAJIB memprediksi kata atau kalimat yang benar.
+   - Masukkan setiap kesalahan ke dalam properti 'typos' di JSON (berisi array object dengan kunci 'salah' dan 'perbaikan').
+   - Untuk SETIAP kata yang typo, KURANGI 1 poin dari total 'score' soal tersebut. Jika skor jadi di bawah 0, jadikan 0.
 
 ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
 - Pada 'analysisText' di setiap soal:
-- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat).
+- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat). Termasuk jika skor dikurangi karena typo.
 - Jika jawaban SALAH atau KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi (contoh: "Jawabanmu hampir tepat, namun mari perhatikan kembali bagian... tetap semangat!").
 - Gunakan bahasa yang ramah, hangat, dan memotivasi HANYA pada jawaban yang belum sempurna.
 - JIKA TRANSKRIPSI SISWA MENGANDUNG KATA "UNREADABLE": Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
@@ -219,6 +224,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       "questionNumber": "string",
       "studentAnswer": "string (teks pertanyaan & jawaban siswa)",
       "reasoning_steps": "string (Langkah-langkah penalaran membandingkan jawaban siswa dan kunci jawaban, WAJIB diisi sebelum skor)",
+      "typos": [{"salah": "kata typo", "perbaikan": "prediksi kata yang benar"}],
       "score": number,
       "maxScore": number,
       "analysisText": "string (Penjelasan ringkas alasan skor dan umpan balik motivasi)",

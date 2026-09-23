@@ -196,7 +196,13 @@ export class AIService {
     // Create analysis records separately
     const { StudentAnswerAnalysis } = await import("@/models/Submission");
     for (const analysis of normalizedAnalyses) {
-      const combinedAnalysis = (analysis.reasoning_steps ? `**Penalaran AI:**\n${analysis.reasoning_steps}\n\n**Umpan Balik:**\n` : '') + (analysis.analysisText || analysis.analysis || "Tidak ada analisis.");
+      let typoFeedback = "";
+      if (analysis.typos && Array.isArray(analysis.typos) && analysis.typos.length > 0) {
+        typoFeedback = "\n\n**Perbaikan Penulisan (Typo):**\n" + 
+          analysis.typos.map((t: any) => `- "${t.salah}" ➡️ "${t.perbaikan}"`).join("\n");
+      }
+
+      const combinedAnalysis = (analysis.reasoning_steps ? `**Penalaran AI:**\n${analysis.reasoning_steps}\n\n**Umpan Balik:**\n` : '') + (analysis.analysisText || analysis.analysis || "Tidak ada analisis.") + typoFeedback;
       
       await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
@@ -206,6 +212,7 @@ export class AIService {
         maxScore: analysis.maxScore,
         analysis: combinedAnalysis,
         status: analysis.status || "OK",
+        typos: analysis.typos || [],
       });
     }
 
