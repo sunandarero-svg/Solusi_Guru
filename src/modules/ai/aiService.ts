@@ -155,26 +155,55 @@ export class AIService {
       throw new Error("AI assessment returned no result");
     }
 
+    // Normalize and strictly enforce scores based on teacher's config
+    let actualTotalScore = 0;
+    const normalizedAnalyses = assessmentResult.analysis.map((analysis: any) => {
+      const questionNumberString = String(analysis.questionNumber);
+      const questionOrder = parseInt(questionNumberString.replace(/\D/g, '')) || 0;
+      
+      let maxScore = Number(analysis.maxScore) || 10;
+      
+      if (questions && questions.length > 0) {
+        const matchedQuestion = questions.find(q => q.order === questionOrder);
+        if (matchedQuestion && matchedQuestion.maxScore !== undefined) {
+          maxScore = matchedQuestion.maxScore;
+        }
+      }
+      
+      let finalScore = Number(analysis.score) || 0;
+      if (finalScore > maxScore) finalScore = maxScore;
+      if (finalScore < 0) finalScore = 0;
+      
+      actualTotalScore += finalScore;
+      
+      return {
+        ...analysis,
+        questionNumber: questionNumberString,
+        score: finalScore,
+        maxScore: maxScore
+      };
+    });
+
     // 4. Save results to database
     const assessmentRecord = await AIAssessment.create({
       submissionId: submissionId,
       provider: this.provider.providerName,
-      suggestedScore: assessmentResult.totalScore,
+      suggestedScore: actualTotalScore,
       feedback: assessmentResult.generalFeedback,
       status: "SUCCESS",
     });
 
     // Create analysis records separately
     const { StudentAnswerAnalysis } = await import("@/models/Submission");
-    for (const analysis of assessmentResult.analysis) {
+    for (const analysis of normalizedAnalyses) {
       await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
-        questionNumber: (analysis as any).questionNumber,
-        studentAnswer: (analysis as any).studentAnswer || "[Tidak terbaca/kosong]",
-        score: (analysis as any).score,
-        maxScore: (analysis as any).maxScore,
-        analysis: (analysis as any).analysisText,
-        status: (analysis as any).status || "OK",
+        questionNumber: analysis.questionNumber,
+        studentAnswer: analysis.studentAnswer || "[Tidak terbaca/kosong]",
+        score: analysis.score,
+        maxScore: analysis.maxScore,
+        analysis: analysis.analysisText || analysis.analysis || "Tidak ada analisis.",
+        status: analysis.status || "OK",
       });
     }
 
