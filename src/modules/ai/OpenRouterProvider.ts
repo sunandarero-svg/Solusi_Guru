@@ -94,7 +94,7 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
     const extractedText = await this._extractVision(visionPrompt, pages);
 
     // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
-    const textModel = process.env.OPENROUTER_MODEL || "openrouter/free";
+    const textModel = "qwen/qwen3.8-27b:free";
 
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
@@ -216,7 +216,7 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
     }
 
     // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN AI
-    const textModel = process.env.OPENROUTER_MODEL || "openrouter/free";
+    const textModel = "qwen/qwen3.8-27b:free";
     
     let combinedTaskText = taskText;
     if (extractedText) {
