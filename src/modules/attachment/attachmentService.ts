@@ -154,8 +154,10 @@ export const attachmentService = {
     try {
       const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
       await unlink(filePath);
-    } catch (err) {
-      console.warn(`[Attachment] Failed to delete file: ${attachment.storageKey}`, err);
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        console.warn(`[Attachment] Failed to delete file: ${attachment.storageKey}`, err);
+      }
     }
 
     await AssignmentAttachment.findByIdAndDelete(attachmentId);
