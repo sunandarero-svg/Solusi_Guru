@@ -272,34 +272,86 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
    */
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
     const { key: apiKey } = await groqRateLimiter.waitForKey(60000);
-
     const availableModels = await getDynamicModels(apiKey);
     const hasImages = imageAttachments && imageAttachments.length > 0;
-    
-    const topModels = hasImages ? [
-      "llama-3.2-90b-vision-preview",
-      "llama-3.2-11b-vision-preview"
-    ] : [
-      "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
-      "openai/gpt-oss-120b",
-      "qwen/qwen3.8-27b"
-    ];
 
-    const matchedModels = topModels.filter(m => availableModels.includes(m));
-    console.log(`[Groq] Matched top models for answer key: ${matchedModels.length > 0 ? matchedModels.join(", ") : "NONE"}`);
-    
-    let modelsToTry = matchedModels.length > 0 ? matchedModels : topModels;
+    let extractedText = "";
+
+    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN QWEN JIKA ADA GAMBAR
+    if (hasImages) {
+      const visionModels = ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b"];
+      const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
+      const visionModel = activeVisionModels[0] || "qwen/qwen3.8-27b";
+
+      console.log(`[Groq] Step 1 (Answer Key): Extracting text from images using ${visionModel}...`);
+      
+      const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
+Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
+      
+      const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
+      
+      for (const attachment of imageAttachments!) {
+        try {
+          let buffer: Buffer;
+          if (attachment.storageKey.startsWith("http")) {
+            const res = await fetch(attachment.storageKey);
+            buffer = Buffer.from(await res.arrayBuffer());
+          } else {
+            const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
+            buffer = await readFile(filePath);
+          }
+          const mimeType = attachment.mimeType || "image/jpeg";
+          visionContentParts.push({
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` },
+          });
+        } catch (err) {
+          console.warn(`[Groq] Failed to load image attachment: ${attachment.originalFileName}`, err);
+        }
+      }
+
+      const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: visionModel,
+          messages: [{ role: "user", content: visionContentParts }],
+          temperature: 0.1,
+          max_tokens: 4096,
+        }),
+      });
+
+      if (!visionResponse.ok) {
+        const errBody = await visionResponse.text();
+        throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+      }
+      const visionData = await visionResponse.json();
+      extractedText = visionData.choices?.[0]?.message?.content || "";
+      console.log(`[Groq] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
+    }
+
+    // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN GPT-OSS-20B
+    const textModels = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile"];
+    const activeTextModels = textModels.filter(m => availableModels.includes(m));
+    let modelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-20b"];
 
     const customModel = process.env.GROQ_MODEL?.trim();
     if (customModel) {
       modelsToTry = [customModel, ...modelsToTry];
     }
 
+    let combinedTaskText = taskText;
+    if (extractedText) {
+      combinedTaskText += `\n\n=== HASIL EKSTRAKSI TEKS SOAL DARI GAMBAR ===\n${extractedText}\n===========================================\n`;
+    }
+
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
 
 SOAL/TUGAS DARI GURU:
-${taskText}
+${combinedTaskText}
 
 INSTRUKSI UMUM:
 1. Baca dan pahami seluruh soal/tugas di atas dengan cermat.
@@ -321,43 +373,10 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
 
     const contentParts: any[] = [{ type: "text", text: prompt }];
 
-    // Add image attachments if any
-    if (hasImages) {
-      for (const attachment of imageAttachments!) {
-        try {
-          let buffer: Buffer;
-          if (attachment.storageKey.startsWith("http")) {
-            const res = await fetch(attachment.storageKey);
-            buffer = Buffer.from(await res.arrayBuffer());
-          } else {
-            const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
-            buffer = await readFile(filePath);
-          }
-          const mimeType = attachment.mimeType || "image/jpeg";
-          
-          if (attachment.description) {
-            contentParts.push({
-              type: "text",
-              text: `[Berikut adalah gambar untuk: ${attachment.description}]`
-            });
-          }
-          
-          contentParts.push({
-            type: "image_url",
-            image_url: {
-              url: `data:${mimeType};base64,${buffer.toString("base64")}`,
-            },
-          });
-        } catch (err) {
-          console.warn(`[Groq] Failed to load image attachment: ${attachment.originalFileName}`, err);
-        }
-      }
-    }
-
     let lastError: any = null;
     for (const modelName of modelsToTry) {
       try {
-        console.log(`[Groq] Generating answer key with model ${modelName}...`);
+        console.log(`[Groq] Step 2: Generating answer key with model ${modelName}...`);
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: {
