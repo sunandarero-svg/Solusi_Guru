@@ -179,7 +179,6 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
         messages: [{ role: "user", content: textPrompt }],
         temperature: 0.2,
         max_tokens: 4096,
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -262,7 +261,6 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
         max_tokens: 4096,
-        response_format: { type: "json_object" },
       }),
     });
 
