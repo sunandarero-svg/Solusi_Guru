@@ -50,7 +50,6 @@ export class GroqProvider implements AIProvider {
     try {
       console.log(`[Gemini] Extracting vision using key from ${apiKeyName}...`);
       const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const imageParts: any[] = [];
       for (const page of pages) {
@@ -82,11 +81,35 @@ export class GroqProvider implements AIProvider {
         return { text: "[Tidak ada gambar yang dapat dibaca atau file lampiran hilang dari server (ENOENT)]", success: true, isRateLimited: false };
       }
 
-      const result = await model.generateContent([
-        visionPrompt,
-        ...imageParts
-      ]);
-      const extractedText = result.response.text();
+      let extractedText = "";
+      let isSuccess = false;
+      let lastGeminiError: any = null;
+
+      for (const modelName of ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-latest"]) {
+        try {
+          console.log(`[Gemini] Extracting vision using model: ${modelName}...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent([
+            visionPrompt,
+            ...imageParts
+          ]);
+          extractedText = result.response.text();
+          isSuccess = true;
+          break; // Break loop on success
+        } catch (modelErr: any) {
+          lastGeminiError = modelErr;
+          console.warn(`[Gemini] Model ${modelName} failed:`, modelErr?.message || modelErr);
+          // If rate limited, don't try other Gemini models, just break and fallback to Groq
+          if (modelErr?.status === 429 || String(modelErr).includes("429")) {
+            break;
+          }
+        }
+      }
+
+      if (!isSuccess) {
+        throw lastGeminiError || new Error("All Gemini models failed.");
+      }
+
       return { text: extractedText, success: true, isRateLimited: false };
     } catch (err: any) {
       const errMsg = err?.message || String(err);
