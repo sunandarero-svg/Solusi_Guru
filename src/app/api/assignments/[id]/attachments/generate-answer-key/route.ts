@@ -75,15 +75,10 @@ export async function POST(
     console.log(`[Generate Answer Key] Estimated tokens: ${estimatedTokens}`);
 
     // Generate answer key using AI (Smart Routing)
-    let provider;
-    if (estimatedTokens > 7000) {
-      console.log("[Generate Answer Key] Routing to OpenRouterProvider (Llama 4 Scout)");
-      provider = new OpenRouterProvider();
-    } else {
-      console.log("[Generate Answer Key] Routing to GroqProvider (Free Tier)");
-      const { GroqProvider } = await import("@/modules/ai/GroqProvider");
-      provider = new GroqProvider();
-    }
+    // As requested, strictly use GroqProvider only.
+    console.log("[Generate Answer Key] Routing exclusively to GroqProvider");
+    const { GroqProvider } = await import("@/modules/ai/GroqProvider");
+    const provider = new GroqProvider();
     
     const result = await provider.generateAnswerKey(finalTaskText, rubricsWithCriteria, imageAttachments);
 
