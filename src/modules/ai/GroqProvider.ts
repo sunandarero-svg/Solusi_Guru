@@ -85,7 +85,7 @@ export class GroqProvider implements AIProvider {
       let isSuccess = false;
       let lastGeminiError: any = null;
 
-      for (const modelName of ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-latest"]) {
+      for (const modelName of ["gemini-1.5-flash", "gemini-flash", "gemini-1.5-pro", "gemini-1.5-flash-latest", "gemini-pro-vision"]) {
         try {
           console.log(`[Gemini] Extracting vision using model: ${modelName}...`);
           const model = genAI.getGenerativeModel({ model: modelName });
