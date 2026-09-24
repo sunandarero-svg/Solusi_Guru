@@ -75,10 +75,10 @@ export async function POST(
     console.log(`[Generate Answer Key] Estimated tokens: ${estimatedTokens}`);
 
     // Generate answer key using AI (Smart Routing)
-    // As requested, strictly use GroqProvider only.
-    console.log("[Generate Answer Key] Routing exclusively to GroqProvider");
-    const { GroqProvider } = await import("@/modules/ai/GroqProvider");
-    const provider = new GroqProvider();
+    // As requested, use OpenRouterProvider.
+    console.log("[Generate Answer Key] Routing exclusively to OpenRouterProvider");
+    const { OpenRouterProvider } = await import("@/modules/ai/OpenRouterProvider");
+    const provider = new OpenRouterProvider();
     
     const result = await provider.generateAnswerKey(finalTaskText, rubricsWithCriteria, imageAttachments);
 

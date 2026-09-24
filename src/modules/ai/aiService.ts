@@ -3,11 +3,12 @@ import { Submission, OCRResult, AIAssessment } from "@/models/Submission";
 import { Assignment, Rubric, RubricCriterion, AssignmentAttachment, AssignmentQuestion } from "@/models/Assignment";
 import { AIProvider } from "./AIProvider";
 import { GroqProvider } from "./GroqProvider";
+import { OpenRouterProvider } from "./OpenRouterProvider";
 
 export class AIService {
   private provider: AIProvider;
 
-  constructor(provider: AIProvider = new GroqProvider()) {
+  constructor(provider: AIProvider = new OpenRouterProvider()) {
     this.provider = provider;
   }
 
@@ -70,18 +71,12 @@ export class AIService {
     const estimatedTokens = 1000 + (pages.length * 2000);
 
     let primaryProvider = this.provider;
-    let isOpenRouterForced = options?.forceProvider === "openrouter";
+    let isGroqForced = options?.forceProvider === "groq";
 
-    // Smart Routing Logic: if estimated tokens > 7000, use OpenRouter (Llama 4 Scout)
-    if (!isOpenRouterForced && estimatedTokens > 7000) {
-      console.log(`[AI] Estimated tokens (${estimatedTokens}) > 7000. Automatically routing to OpenRouterProvider (Llama 4 Scout).`);
-      isOpenRouterForced = true;
-    }
-
-    if (isOpenRouterForced) {
-      console.log(`[AI] Using OpenRouterProvider as primary...`);
-      const { OpenRouterProvider } = await import("./OpenRouterProvider");
-      primaryProvider = new OpenRouterProvider();
+    if (isGroqForced) {
+      console.log(`[AI] Using GroqProvider as primary...`);
+      const { GroqProvider } = await import("./GroqProvider");
+      primaryProvider = new GroqProvider();
     }
 
     while (attempt <= maxRetries) {
@@ -110,25 +105,8 @@ export class AIService {
     if (primaryFailed) {
       let secondarySuccess = false;
 
-      if (isOpenRouterForced) {
-        console.log(`[AI] Falling back to GroqProvider because OpenRouter was forced and failed...`);
-        try {
-          const { GroqProvider } = await import("./GroqProvider");
-          const fallbackProvider = new GroqProvider();
-          assessmentResult = await fallbackProvider.assessSubmission(
-            pages as any,
-            [],
-            answerKey,
-            questions
-          );
-          console.log(`[AI] GroqProvider fallback succeeded!`);
-          Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
-          secondarySuccess = true;
-        } catch (fallbackError) {
-          console.warn(`[AI] GroqProvider fallback also failed: ${fallbackError}`);
-        }
-      } else {
-        console.log(`[AI] Falling back to OpenRouterProvider because Groq was primary and failed...`);
+      if (isGroqForced) {
+        console.log(`[AI] Falling back to OpenRouterProvider because Groq was forced and failed...`);
         try {
           const { OpenRouterProvider } = await import("./OpenRouterProvider");
           const fallbackProvider = new OpenRouterProvider();
@@ -143,6 +121,23 @@ export class AIService {
           secondarySuccess = true;
         } catch (fallbackError) {
           console.warn(`[AI] OpenRouterProvider fallback also failed: ${fallbackError}`);
+        }
+      } else {
+        console.log(`[AI] Falling back to GroqProvider because OpenRouter was primary and failed...`);
+        try {
+          const { GroqProvider } = await import("./GroqProvider");
+          const fallbackProvider = new GroqProvider();
+          assessmentResult = await fallbackProvider.assessSubmission(
+            pages as any,
+            [],
+            answerKey,
+            questions
+          );
+          console.log(`[AI] GroqProvider fallback succeeded!`);
+          Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
+          secondarySuccess = true;
+        } catch (fallbackError) {
+          console.warn(`[AI] GroqProvider fallback also failed: ${fallbackError}`);
         }
       }
 
@@ -281,7 +276,7 @@ export class AIService {
   }
 }
 
-// Instantiate with GroqProvider
-export const aiService = new AIService(new GroqProvider());
+// Instantiate with OpenRouterProvider
+export const aiService = new AIService(new OpenRouterProvider());
 
 

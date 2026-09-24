@@ -5,12 +5,12 @@ import path from "path";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export class OpenRouterProvider implements AIProvider {
-  readonly providerName = "OpenRouter-Scout";
+  readonly providerName = "OpenRouter-MaverickScout";
 
   private getApiKey(): string {
     const key = process.env.OPENROUTER_API_KEY;
     if (!key) throw new Error("OPENROUTER_API_KEY is not configured.");
-    return key.trim().replace(/^[\"']|[\"']$/g, "");
+    return key.trim().replace(/^["']|["']$/g, "");
   }
 
   private getHeaders(apiKey: string): Record<string, string> {
@@ -23,102 +23,13 @@ export class OpenRouterProvider implements AIProvider {
     };
   }
 
-  async assessSubmission(
-    pages: any[],
-    rubrics: any[],
-    answerKey?: string,
-    questions?: any[]
-  ): Promise<AIAssessmentResult> {
+  private async _extractVision(visionPrompt: string, pages: any[]): Promise<string> {
     const apiKey = this.getApiKey();
-
-    // Model priority: Scout (efficient, fast), fallback to Maverick (flagship)
-    const modelsToTry = [
-      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout",
-      "meta-llama/llama-4-maverick",
-    ];
-
-    // Build prompt context
-    let answerKeyInstruction = "";
-    if (answerKey && answerKey.trim().length > 0) {
-      answerKeyInstruction = `
-KUNCI JAWABAN REFERENSI (dari soal yang dilampirkan guru):
-${answerKey}
-`;
-    }
-
-    let questionsInstruction = "";
-    if (questions && questions.length > 0) {
-      const qList = questions
-        .map((q) => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`)
-        .join("\\n");
-      questionsInstruction = `
-KONFIGURASI SOAL & BOBOT (DARI GURU):
-Berikut adalah struktur dan pedoman bobot maksimal untuk setiap soal:
-${qList}
-Nilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).
-`;
-    } else {
-      questionsInstruction = `2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
-3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
-    }
-
-    const promptText = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak, objektif, dan suportif.
-Tugas Anda adalah membaca gambar-gambar tugas siswa yang dilampirkan, lalu menilainya secara akurat.
-
-${answerKeyInstruction}
-${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
-
-INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
-1. Baca SELURUH tulisan siswa di setiap halaman dari awal hingga akhir. Ekstrak teks/jawaban siswa sebaik mungkin.
-${!questions || questions.length === 0 ? questionsInstruction : ""}
-4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
-   - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
-   - Tuliskan langkah penalaran Anda di properti 'reasoning_steps' pada JSON.
-   - Contoh penalaran: "1. Kunci jawaban menuntut konsep A. 2. Siswa menjawab konsep A dengan bahasa berbeda. 3. Oleh karena itu, jawaban relevan."
-5. PENILAIAN KONTEKSTUAL & PARSIAL (PARTIAL SCORING):
-   - Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
-   - Terapkan penilaian sebagian (partial scoring):
-     * BENAR SEMPURNA (100% dari maxScore): Mengandung seluruh konsep utama Kunci Jawaban.
-     * BENAR SEBAGIAN (50% dari maxScore): Hanya mengandung sebagian konsep yang benar, atau konsepnya kurang tepat tapi ada indikasi pemahaman.
-     * SALAH (0): Konsep bertolak belakang, melenceng jauh, atau tidak ada sama sekali.
-6. ATURAN PENILAIAN TYPO & EJAAN (SANGAT PENTING):
-   - Periksa seluruh tulisan siswa secara mendetail.
-   - Jika ada kata yang salah ejaan (typo) atau perlu diperbaiki, Anda WAJIB memprediksi kata atau kalimat yang benar.
-   - Masukkan setiap kesalahan ke dalam properti 'typos' di JSON (berisi array object dengan kunci 'salah' dan 'perbaikan').
-   - Untuk SETIAP kata yang typo, KURANGI 1 poin dari total 'score' soal tersebut. Jika skor jadi di bawah 0, jadikan 0.
-
-ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
-- Pada 'analysisText' di setiap soal:
-- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat). Termasuk jika skor dikurangi karena typo.
-- Jika jawaban SALAH atau KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi (contoh: "Jawabanmu hampir tepat, namun mari perhatikan kembali bagian... tetap semangat!").
-- Gunakan bahasa yang ramah, hangat, dan memotivasi HANYA pada jawaban yang belum sempurna.
-- JIKA TULISAN SISWA TIDAK DAPAT DIBACA SAMA SEKALI PADA SOAL TERTENTU: Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
-
-ATURAN BAHASA:
-- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI.
-- DETEKSI KESALAHAN EJAAN (BOUNDING BOX): Hanya koreksi kata yang BENAR-BENAR SALAH ejaannya. Jika salah ejaan, berikan koordinat [ymin, xmin, ymax, xmax] di array \`errorHighlights\`. Jika tidak ada salah ejaan, kosongkan array.
-
-Output Anda HARUS berupa JSON murni dengan struktur berikut:
-{
-  "totalScore": number,
-  "generalFeedback": "Apresiasi dan umpan balik singkat keseluruhan untuk siswa",
-  "analysis": [
-    {
-      "questionNumber": "string",
-      "studentAnswer": "string (teks pertanyaan & jawaban siswa yang terbaca, atau jawabannya saja)",
-      "reasoning_steps": "string (Langkah-langkah penalaran membandingkan jawaban siswa dan kunci jawaban, WAJIB diisi sebelum skor)",
-      "typos": [{"salah": "kata typo", "perbaikan": "prediksi kata yang benar"}],
-      "score": number,
-      "maxScore": number,
-      "analysisText": "string (Penjelasan ringkas alasan skor dan umpan balik motivasi)",
-      "status": "OK"
-    }
-  ],
-  "errorHighlights": []
-}`;
-
-    // Build image content parts
-    const contentParts: any[] = [{ type: "text", text: promptText }];
+    const visionModel = "meta-llama/llama-4-maverick";
+    
+    console.log(`[OpenRouter Vision] Step 1: Extracting text using Maverick (${visionModel})...`);
+    
+    const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
       let buffer: Buffer;
@@ -132,61 +43,186 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       }
       const mimeType = page.mimeType || "image/jpeg";
       const base64Data = buffer.toString("base64");
-      contentParts.push({
+      visionContentParts.push({
         type: "image_url",
         image_url: { url: `data:${mimeType};base64,${base64Data}` },
       });
     }
 
-    let lastError: any = null;
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`[OpenRouter] Assessing submission with model ${modelName}...`);
-        const response = await fetch(OPENROUTER_BASE_URL, {
-          method: "POST",
-          headers: this.getHeaders(apiKey),
-          body: JSON.stringify({
-            model: modelName,
-            messages: [{ role: "user", content: contentParts }],
-            temperature: 0.2,
-            max_tokens: 4096,
-          }),
-        });
+    const response = await fetch(OPENROUTER_BASE_URL, {
+      method: "POST",
+      headers: this.getHeaders(apiKey),
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [{ role: "user", content: visionContentParts }],
+        temperature: 0.1,
+        max_tokens: 4096,
+      }),
+    });
 
-        if (!response.ok) {
-          const errBody = await response.text();
-          throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
-        }
-
-        const data = await response.json();
-        const responseText = data.choices?.[0]?.message?.content;
-        if (!responseText) throw new Error("OpenRouter returned empty response.");
-
-        const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-        console.log(`[OpenRouter] Assessment successful with ${modelName}.`);
-        return JSON.parse(cleanText) as AIAssessmentResult;
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`[OpenRouter] Error with model ${modelName}:`, error?.message || error);
-      }
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(`OpenRouter Vision API returned ${response.status}: ${errBody}`);
     }
 
-    throw lastError || new Error("All OpenRouter models failed.");
+    const data = await response.json();
+    const extractedText = data.choices?.[0]?.message?.content;
+    
+    if (!extractedText) {
+      throw new Error("OpenRouter Vision API returned empty response.");
+    }
+    
+    console.log(`[OpenRouter Vision] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
+    return extractedText;
+  }
+
+  async assessSubmission(
+    pages: any[],
+    rubrics: any[],
+    answerKey?: string,
+    questions?: any[]
+  ): Promise<AIAssessmentResult> {
+    const apiKey = this.getApiKey();
+
+    // --- TAHAP 1: VISION (Ekstraksi Teks) ---
+    const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan tangan pada gambar-gambar ini. Transkripsikan semua teks dan angka persis seperti yang tertulis. 
+SANGAT PENTING: 
+- PASTIKAN Anda menangkap dan mempertahankan NOMOR SOAL (1, 2, 3, dst) yang ditulis oleh siswa. 
+- Pisahkan setiap jawaban atau nomor soal dengan baris baru agar strukturnya sangat jelas dibaca.
+Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
+
+    const extractedText = await this._extractVision(visionPrompt, pages);
+
+    // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
+    const textModel = process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout";
+
+    let answerKeyInstruction = "";
+    if (answerKey && answerKey.trim().length > 0) {
+      answerKeyInstruction = `\nKUNCI JAWABAN REFERENSI (dari soal yang dilampirkan guru):\n${answerKey}\n`;
+    }
+
+    let questionsInstruction = "";
+    if (questions && questions.length > 0) {
+      const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
+      questionsInstruction = `\nKONFIGURASI SOAL & BOBOT (DARI GURU):\nBerikut adalah struktur dan pedoman bobot maksimal untuk setiap soal:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
+    } else {
+      questionsInstruction = `2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
+3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
+    }
+
+    const textPrompt = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak, objektif, dan suportif.
+Tugas Anda adalah membaca *hasil transkripsi tulisan siswa* yang sudah diekstrak, lalu menilainya secara akurat berdasarkan Kunci Jawaban.
+
+BERIKUT ADALAH HASIL TRANSKRIPSI JAWABAN SISWA:
+"""
+${extractedText}
+"""
+
+${answerKeyInstruction}
+${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
+
+INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
+0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. JANGAN PERNAH menjadi malas atau berhenti di tengah jalan!
+1. Baca SELURUH tulisan siswa dari awal hingga akhir.
+2. PENCOCOKAN NOMOR SOAL: Anda WAJIB MENGKAITKAN SETIAP JAWABAN SISWA DENGAN NOMOR SOAL YANG BENAR DI KUNCI JAWABAN.
+${!questions || questions.length === 0 ? questionsInstruction : ""}
+4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
+   - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
+   - Tuliskan langkah penalaran Anda di properti 'reasoning_steps' pada JSON.
+5. PENILAIAN KONTEKSTUAL & PARSIAL (PARTIAL SCORING):
+   - Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
+   - Terapkan penilaian sebagian (partial scoring):
+     * BENAR SEMPURNA (100% dari maxScore): Mengandung seluruh konsep utama.
+     * BENAR SEBAGIAN (50% dari maxScore): Hanya mengandung sebagian konsep yang benar.
+     * SALAH (0): Konsep bertolak belakang, melenceng jauh.
+6. ATURAN PENILAIAN TYPO & EJAAN (SANGAT PENTING):
+   - Periksa seluruh tulisan siswa secara mendetail.
+   - Jika ada kata yang salah ejaan (typo), Anda WAJIB memprediksi kata yang benar.
+   - Masukkan setiap kesalahan ke dalam properti 'typos' di JSON (array of {salah, perbaikan}).
+   - Untuk SETIAP kata yang typo, KURANGI 1 poin dari total 'score' soal tersebut. Jika skor jadi di bawah 0, jadikan 0.
+
+ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
+- Pada 'analysisText' di setiap soal:
+- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat). Termasuk jika skor dikurangi karena typo.
+- Jika jawaban SALAH atau KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi.
+- JIKA TRANSKRIPSI SISWA MENGANDUNG KATA "UNREADABLE": Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
+
+ATURAN BAHASA:
+- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI.
+- Kosongkan array 'errorHighlights' ([]).
+
+Output Anda HARUS berupa JSON murni dengan struktur berikut:
+{
+  "totalScore": number,
+  "generalFeedback": "Apresiasi dan umpan balik singkat keseluruhan untuk siswa",
+  "analysis": [
+    {
+      "questionNumber": "string",
+      "studentAnswer": "string (teks pertanyaan & jawaban siswa)",
+      "reasoning_steps": "string (Langkah-langkah penalaran membandingkan jawaban siswa dan kunci jawaban)",
+      "typos": [{"salah": "kata typo", "perbaikan": "prediksi kata yang benar"}],
+      "score": number,
+      "maxScore": number,
+      "analysisText": "string (Penjelasan ringkas alasan skor dan umpan balik motivasi)",
+      "status": "OK"
+    }
+  ],
+  "errorHighlights": []
+}`;
+
+    console.log(`[OpenRouter Scout] Step 2: Grading with ${textModel}...`);
+    const response = await fetch(OPENROUTER_BASE_URL, {
+      method: "POST",
+      headers: this.getHeaders(apiKey),
+      body: JSON.stringify({
+        model: textModel,
+        messages: [{ role: "user", content: textPrompt }],
+        temperature: 0.2,
+        max_tokens: 4096,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(`OpenRouter Text API returned ${response.status}: ${errBody}`);
+    }
+
+    const data = await response.json();
+    const responseText = data.choices?.[0]?.message?.content;
+    if (!responseText) throw new Error("OpenRouter Text API returned empty response.");
+
+    const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    console.log(`[OpenRouter Scout] Step 2 Complete. Assessment successful.`);
+    return JSON.parse(cleanText) as AIAssessmentResult;
   }
 
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
     const apiKey = this.getApiKey();
+    const hasImages = imageAttachments && imageAttachments.length > 0;
+    
+    let extractedText = "";
 
-    // Model priority: Scout (efficient, fast), fallback to Maverick (flagship)
-    const modelsToTry = [
-      process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout",
-      "meta-llama/llama-4-maverick",
-    ];
+    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN MAVERICK
+    if (hasImages) {
+      const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
+Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
+      
+      extractedText = await this._extractVision(visionPrompt, imageAttachments as any[]);
+    }
+
+    // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN SCOUT
+    const textModel = process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout";
+    
+    let combinedTaskText = taskText;
+    if (extractedText) {
+      combinedTaskText += `\n\n--- TEKS DARI LAMPIRAN GAMBAR ---\n${extractedText}`;
+    }
 
     const prompt = `Anda adalah seorang guru yang sangat berpengalaman. Tugas Anda adalah membuat KUNCI JAWABAN berdasarkan soal/tugas yang diberikan.
 
 SOAL/TUGAS DARI GURU:
-${taskText}
+${combinedTaskText}
 
 INSTRUKSI UMUM:
 1. Baca dan pahami seluruh soal/tugas di atas dengan cermat.
@@ -202,7 +238,7 @@ INSTRUKSI FORMAT TULISAN (SANGAT PENTING):
 2. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural.
 3. Pertahankan struktur poin-poin agar tetap rapi.
 
-Anda JUGA harus menebak struktur soal dari lampiran (ada berapa soal, dan tipenya). Tipe soal yang didukung: "PILIHAN_GANDA", "BENAR_SALAH", "ISIAN_SINGKAT", "ESSAY", "PILIHAN_GANDA_KOMPLEKS".
+Anda JUGA harus menebak struktur soal dari input di atas (ada berapa soal, dan tipenya). Tipe soal yang didukung: "PILIHAN_GANDA", "BENAR_SALAH", "ISIAN_SINGKAT", "ESSAY", "PILIHAN_GANDA_KOMPLEKS".
 Berikan bobot maksimal merata (misal 100/N).
 
 Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
@@ -217,69 +253,30 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
   ]
 }`;
 
-    const contentParts: any[] = [{ type: "text", text: prompt }];
+    console.log(`[OpenRouter Scout] Step 2: Generating answer key with ${textModel}...`);
+    const response = await fetch(OPENROUTER_BASE_URL, {
+      method: "POST",
+      headers: this.getHeaders(apiKey),
+      body: JSON.stringify({
+        model: textModel,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: 4096,
+        response_format: { type: "json_object" },
+      }),
+    });
 
-    const hasImages = imageAttachments && imageAttachments.length > 0;
-    if (hasImages) {
-      for (const attachment of imageAttachments!) {
-        try {
-          let buffer: Buffer;
-          if (attachment.storageKey.startsWith("http")) {
-            const res = await fetch(attachment.storageKey);
-            buffer = Buffer.from(await res.arrayBuffer());
-          } else {
-            const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
-            buffer = await readFile(filePath);
-          }
-          let mimeType = attachment.mimeType || "image/jpeg";
-          if (!mimeType.startsWith("image/")) mimeType = "image/jpeg";
-
-          if (attachment.description) {
-            contentParts.push({ type: "text", text: `[Gambar untuk: ${attachment.description}]` });
-          }
-          contentParts.push({
-            type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` },
-          });
-        } catch (err) {
-          console.warn(`[OpenRouter] Failed to load attachment: ${attachment.originalFileName}`, err);
-        }
-      }
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(`OpenRouter Text API returned ${response.status}: ${errBody}`);
     }
 
-    let lastError: any = null;
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`[OpenRouter] Generating answer key with model ${modelName}...`);
-        const response = await fetch(OPENROUTER_BASE_URL, {
-          method: "POST",
-          headers: this.getHeaders(apiKey),
-          body: JSON.stringify({
-            model: modelName,
-            messages: [{ role: "user", content: contentParts }],
-            temperature: 0.3,
-            max_tokens: 4096,
-          }),
-        });
+    const data = await response.json();
+    const responseText = data.choices?.[0]?.message?.content;
+    if (!responseText) throw new Error("OpenRouter Text API returned empty response for answer key.");
 
-        if (!response.ok) {
-          const errBody = await response.text();
-          throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
-        }
-
-        const data = await response.json();
-        const responseText = data.choices?.[0]?.message?.content;
-        if (!responseText) throw new Error("OpenRouter returned empty response for answer key.");
-
-        const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-        console.log(`[OpenRouter] Answer key generated successfully with ${modelName}.`);
-        return JSON.parse(cleanText);
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`[OpenRouter] Answer key failed with ${modelName}:`, error?.message);
-      }
-    }
-
-    throw lastError || new Error("All OpenRouter models failed for answer key generation.");
+    const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    console.log(`[OpenRouter Scout] Step 2 Complete. Answer key generated successfully.`);
+    return JSON.parse(cleanText);
   }
 }
