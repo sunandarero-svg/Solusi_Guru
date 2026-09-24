@@ -25,9 +25,9 @@ export class OpenRouterProvider implements AIProvider {
 
   private async _extractVision(visionPrompt: string, pages: any[]): Promise<string> {
     const apiKey = this.getApiKey();
-    const visionModel = "meta-llama/llama-4-maverick";
+    const visionModel = "google/gemini-2.0-flash-exp:free";
     
-    console.log(`[OpenRouter Vision] Step 1: Extracting text using Maverick (${visionModel})...`);
+    console.log(`[OpenRouter Vision] Step 1: Extracting text using Gemini (${visionModel})...`);
     
     const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
     for (let i = 0; i < pages.length; i++) {
@@ -94,7 +94,7 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
     const extractedText = await this._extractVision(visionPrompt, pages);
 
     // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
-    const textModel = process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout";
+    const textModel = process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-exp:free";
 
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
@@ -215,8 +215,8 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
       extractedText = await this._extractVision(visionPrompt, imageAttachments as any[]);
     }
 
-    // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN SCOUT
-    const textModel = process.env.OPENROUTER_MODEL || "meta-llama/llama-4-scout";
+    // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN GEMINI
+    const textModel = process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-exp:free";
     
     let combinedTaskText = taskText;
     if (extractedText) {
