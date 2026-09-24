@@ -54,23 +54,32 @@ export class GroqProvider implements AIProvider {
       
       const imageParts: any[] = [];
       for (const page of pages) {
-        let buffer: Buffer;
-        if (page.storageKey.startsWith("http")) {
-          const res = await fetch(page.storageKey);
-          buffer = Buffer.from(await res.arrayBuffer());
-        } else {
-          const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
-          buffer = await readFile(filePath);
-        }
-        let mimeType = page.mimeType || "image/jpeg";
-        if (!mimeType.startsWith("image/")) mimeType = "image/jpeg";
-        
-        imageParts.push({
-          inlineData: {
-            data: buffer.toString("base64"),
-            mimeType
+        try {
+          let buffer: Buffer;
+          if (page.storageKey.startsWith("http")) {
+            const res = await fetch(page.storageKey);
+            buffer = Buffer.from(await res.arrayBuffer());
+          } else {
+            const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
+            buffer = await readFile(filePath);
           }
-        });
+          let mimeType = page.mimeType || "image/jpeg";
+          if (!mimeType.startsWith("image/")) mimeType = "image/jpeg";
+          
+          imageParts.push({
+            inlineData: {
+              data: buffer.toString("base64"),
+              mimeType
+            }
+          });
+        } catch (fileErr: any) {
+          console.warn(`[Gemini] Failed to read image file:`, fileErr?.message || fileErr);
+        }
+      }
+
+      if (imageParts.length === 0) {
+        console.warn(`[Gemini] No valid images found to process. Skipping Gemini call.`);
+        return { text: "[Tidak ada gambar yang dapat dibaca atau file lampiran hilang dari server (ENOENT)]", success: true, isRateLimited: false };
       }
 
       const result = await model.generateContent([
