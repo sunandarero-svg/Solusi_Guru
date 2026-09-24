@@ -76,6 +76,64 @@ export class OpenRouterProvider implements AIProvider {
     return extractedText;
   }
 
+  private async _executeTextWithFallback(apiKey: string, prompt: string, temperature: number, maxTokens: number): Promise<string> {
+    const fallbackModels = [
+      "qwen/qwen3.8-27b:free",
+      "google/gemma-4-31b-it:free",
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "nex-agi/nex-n2.5-pro:free",
+      "google/gemma-4-26b-a4b-it:free"
+    ];
+
+    let lastError: Error | null = null;
+
+    for (const model of fallbackModels) {
+      console.log(`[OpenRouter] Trying text model: ${model}...`);
+      try {
+        const response = await fetch(OPENROUTER_BASE_URL, {
+          method: "POST",
+          headers: this.getHeaders(apiKey),
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: "user", content: prompt }],
+            temperature: temperature,
+            max_tokens: maxTokens,
+          }),
+        });
+
+        if (!response.ok) {
+          const errBody = await response.text();
+          if (response.status === 429 || response.status === 529 || response.status === 404) {
+            console.warn(`[OpenRouter] Model ${model} returned ${response.status}. Trying next...`);
+            lastError = new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
+            continue;
+          }
+          throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
+        }
+
+        const data = await response.json();
+        const responseText = data.choices?.[0]?.message?.content;
+        
+        if (!responseText) {
+           console.warn(`[OpenRouter] Model ${model} returned empty response. Trying next...`);
+           lastError = new Error("OpenRouter Text API returned empty response.");
+           continue;
+        }
+
+        console.log(`[OpenRouter] Successfully got response from ${model}`);
+        return responseText;
+      } catch (err: any) {
+        lastError = err;
+        if (err.message.includes("429") || err.message.includes("529") || err.message.includes("empty response") || err.message.includes("404")) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw lastError || new Error("All fallback models failed.");
+  }
+
   async assessSubmission(
     pages: any[],
     rubrics: any[],
@@ -94,7 +152,7 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
     const extractedText = await this._extractVision(visionPrompt, pages);
 
     // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
-    const textModel = "qwen/qwen3.8-27b:free";
+    // (Model selection is now handled by _executeTextWithFallback)
 
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
@@ -170,26 +228,8 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
   "errorHighlights": []
 }`;
 
-    console.log(`[OpenRouter Scout] Step 2: Grading with ${textModel}...`);
-    const response = await fetch(OPENROUTER_BASE_URL, {
-      method: "POST",
-      headers: this.getHeaders(apiKey),
-      body: JSON.stringify({
-        model: textModel,
-        messages: [{ role: "user", content: textPrompt }],
-        temperature: 0.2,
-        max_tokens: 4096,
-      }),
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`OpenRouter Text API returned ${response.status}: ${errBody}`);
-    }
-
-    const data = await response.json();
-    const responseText = data.choices?.[0]?.message?.content;
-    if (!responseText) throw new Error("OpenRouter Text API returned empty response.");
+    console.log(`[OpenRouter Scout] Step 2: Grading with fallback models...`);
+    const responseText = await this._executeTextWithFallback(apiKey, textPrompt, 0.2, 4096);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -216,7 +256,7 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
     }
 
     // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN AI
-    const textModel = "qwen/qwen3.8-27b:free";
+    // (Model selection is now handled by _executeTextWithFallback)
     
     let combinedTaskText = taskText;
     if (extractedText) {
@@ -257,26 +297,8 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Scout] Step 2: Generating answer key with ${textModel}...`);
-    const response = await fetch(OPENROUTER_BASE_URL, {
-      method: "POST",
-      headers: this.getHeaders(apiKey),
-      body: JSON.stringify({
-        model: textModel,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 4096,
-      }),
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`OpenRouter Text API returned ${response.status}: ${errBody}`);
-    }
-
-    const data = await response.json();
-    const responseText = data.choices?.[0]?.message?.content;
-    if (!responseText) throw new Error("OpenRouter Text API returned empty response for answer key.");
+    console.log(`[OpenRouter Scout] Step 2: Generating answer key with fallback models...`);
+    const responseText = await this._executeTextWithFallback(apiKey, prompt, 0.3, 4096);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
