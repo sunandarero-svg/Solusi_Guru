@@ -284,6 +284,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
 3. PENILAIAN PARSIAL (Kesesuaian Konteks):
+   - KHUSUS SOAL PILIHAN GANDA: Jika jawaban siswa menuliskan 'huruf' pilihan (A, B, C, dsb) yang sama persis dengan 'huruf' di kunci jawaban, langsung nyatakan BENAR SEMPURNA (100% maxScore).
    - BENAR SEMPURNA (100% maxScore): Mengandung seluruh konsep utama.
    - BENAR SEBAGIAN (50% maxScore): Mengandung sebagian konsep yang benar.
    - SALAH (0): Melenceng jauh atau tidak menjawab.
