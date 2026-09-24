@@ -268,8 +268,8 @@ Nilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).
 3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
     }
 
-    const textPrompt = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak, objektif, dan suportif.
-Tugas Anda adalah membaca *hasil transkripsi tulisan siswa* yang sudah diekstrak, lalu menilainya secara akurat berdasarkan Kunci Jawaban.
+    const textPrompt = `Anda adalah asisten guru (AI) penilai tugas siswa.
+Tugas Anda menilai transkripsi tulisan siswa secara akurat berdasarkan Kunci Jawaban.
 
 BERIKUT ADALAH HASIL TRANSKRIPSI JAWABAN SISWA:
 """
@@ -279,55 +279,34 @@ ${extractedText}
 ${answerKeyInstruction}
 ${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
-INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
-0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. JANGAN PERNAH menjadi malas atau berhenti di tengah jalan!
-1. Baca SELURUH tulisan siswa dari awal hingga akhir.
-2. PENCOCOKAN NOMOR SOAL: Anda WAJIB MENGKAITKAN SETIAP JAWABAN SISWA DENGAN NOMOR SOAL YANG BENAR DI KUNCI JAWABAN. Jangan sampai tertukar! Perhatikan angka nomor soal pada transkripsi siswa. Jika siswa tidak menuliskan nomor urut, cocokkan berdasarkan konteksnya dengan sangat hati-hati.
-${!questions || questions.length === 0 ? questionsInstruction : ""}
-4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
-   - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
-   - Tuliskan langkah penalaran Anda di properti 'reasoning_steps' pada JSON.
-   - Contoh penalaran: "1. Kunci jawaban menuntut konsep A. 2. Siswa menjawab konsep A dengan bahasa berbeda. 3. Oleh karena itu, jawaban relevan."
-5. PENILAIAN KONTEKSTUAL & PARSIAL (PARTIAL SCORING):
-   - Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
-   - Terapkan penilaian sebagian (partial scoring):
-     * BENAR SEMPURNA (100% dari maxScore): Mengandung seluruh konsep utama Kunci Jawaban.
-     * BENAR SEBAGIAN (50% dari maxScore): Hanya mengandung sebagian konsep yang benar, atau konsepnya kurang tepat tapi ada indikasi pemahaman.
-     * SALAH (0): Konsep bertolak belakang, melenceng jauh, atau tidak ada sama sekali.
-6. ATURAN PENILAIAN TYPO & EJAAN (SANGAT PENTING):
-   - Periksa seluruh tulisan siswa secara mendetail.
-   - Jika ada kata yang salah ejaan (typo) atau perlu diperbaiki, Anda WAJIB memprediksi kata atau kalimat yang benar.
-   - Masukkan setiap kesalahan ke dalam properti 'typos' di JSON (berisi array object dengan kunci 'salah' dan 'perbaikan').
-   - Untuk SETIAP kata yang typo, KURANGI 1 poin dari total 'score' soal tersebut. Jika skor jadi di bawah 0, jadikan 0.
+INSTRUKSI PENILAIAN & ALOKASI SKOR:
+0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Pastikan array 'analysis' berisi penilaian untuk semua soal.
+1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
+2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
+3. PENILAIAN PARSIAL (Kesesuaian Konteks):
+   - BENAR SEMPURNA (100% maxScore): Mengandung seluruh konsep utama.
+   - BENAR SEBAGIAN (50% maxScore): Mengandung sebagian konsep yang benar.
+   - SALAH (0): Melenceng jauh atau tidak menjawab.
+4. TYPO/EJAAN: Abaikan typo kecil jika maknanya tetap sama (tidak perlu dicatat, kurangi skor jika fatal saja).
+5. UMPAN BALIK EDUKATIF:
+   - Pada 'analysisText', jelaskan alasan skor dalam 1-2 kalimat.
+   - Jika 'UNREADABLE', berikan skor 0, analysisText "Tulisan tidak terbaca", dan status "UNREADABLE".
 
-ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
-- Pada 'analysisText' di setiap soal:
-- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat). Termasuk jika skor dikurangi karena typo.
-- Jika jawaban SALAH atau KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi (contoh: "Jawabanmu hampir tepat, namun mari perhatikan kembali bagian... tetap semangat!").
-- Gunakan bahasa yang ramah, hangat, dan memotivasi HANYA pada jawaban yang belum sempurna.
-- JIKA TRANSKRIPSI SISWA MENGANDUNG KATA "UNREADABLE": Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
-
-ATURAN BAHASA:
-- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI.
-- Abaikan 'errorHighlights' karena posisi koordinat ejaan salah tidak relevan pada tahap ini. Kosongkan array-nya ([]).
-
-Output Anda HARUS berupa JSON murni dengan struktur berikut:
+Output WAJIB berupa JSON murni dengan struktur:
 {
   "totalScore": number,
-  "generalFeedback": "Apresiasi dan umpan balik singkat keseluruhan untuk siswa",
+  "generalFeedback": "Apresiasi/umpan balik singkat keseluruhan",
   "analysis": [
     {
       "questionNumber": "string",
-      "studentAnswer": "string (teks pertanyaan & jawaban siswa)",
-      "reasoning_steps": "string (Langkah-langkah penalaran membandingkan jawaban siswa dan kunci jawaban, WAJIB diisi sebelum skor)",
-      "typos": [{"salah": "kata typo", "perbaikan": "prediksi kata yang benar"}],
+      "studentAnswer": "teks jawaban siswa",
+      "reasoning": "1 kalimat perbandingan",
       "score": number,
       "maxScore": number,
-      "analysisText": "string (Penjelasan ringkas alasan skor dan umpan balik motivasi)",
+      "analysisText": "Penjelasan singkat",
       "status": "OK"
     }
-  ],
-  "errorHighlights": []
+  ]
 }`;
 
     console.log(`[Groq] Step 2: Grading with ${textModel}...`);
@@ -339,9 +318,9 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
       },
       body: JSON.stringify({
         model: textModel,
-        messages: [{ role: "user", content: textPrompt }], // Text only!
+        messages: [{ role: "user", content: textPrompt }],
         temperature: 0.2,
-        max_tokens: 1500,
+        max_tokens: 4096,
         response_format: { type: "json_object" },
       }),
     });
@@ -491,7 +470,7 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
             model: modelName,
             messages: [{ role: "user", content: contentParts }],
             temperature: 0.3,
-            max_tokens: 1500,
+            max_tokens: 4096,
           }),
         });
 
