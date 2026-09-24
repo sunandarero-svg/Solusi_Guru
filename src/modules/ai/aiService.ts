@@ -8,7 +8,7 @@ import { OpenRouterProvider } from "./OpenRouterProvider";
 export class AIService {
   private provider: AIProvider;
 
-  constructor(provider: AIProvider = new OpenRouterProvider()) {
+  constructor(provider: AIProvider = new GroqProvider()) {
     this.provider = provider;
   }
 
@@ -276,7 +276,7 @@ export class AIService {
   }
 }
 
-// Instantiate with OpenRouterProvider
-export const aiService = new AIService(new OpenRouterProvider());
+// Instantiate with GroqProvider
+export const aiService = new AIService(new GroqProvider());
 
 

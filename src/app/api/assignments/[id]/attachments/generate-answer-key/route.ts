@@ -5,7 +5,7 @@ import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
-import { OpenRouterProvider } from "@/modules/ai/OpenRouterProvider";
+// import { OpenRouterProvider } from "@/modules/ai/OpenRouterProvider";
 
 export async function POST(
   req: NextRequest,
@@ -75,10 +75,10 @@ export async function POST(
     console.log(`[Generate Answer Key] Estimated tokens: ${estimatedTokens}`);
 
     // Generate answer key using AI (Smart Routing)
-    // As requested, use OpenRouterProvider.
-    console.log("[Generate Answer Key] Routing exclusively to OpenRouterProvider");
-    const { OpenRouterProvider } = await import("@/modules/ai/OpenRouterProvider");
-    const provider = new OpenRouterProvider();
+    // Use GroqProvider.
+    console.log("[Generate Answer Key] Routing exclusively to GroqProvider");
+    const { GroqProvider } = await import("@/modules/ai/GroqProvider");
+    const provider = new GroqProvider();
     
     const result = await provider.generateAnswerKey(finalTaskText, rubricsWithCriteria, imageAttachments);
 
