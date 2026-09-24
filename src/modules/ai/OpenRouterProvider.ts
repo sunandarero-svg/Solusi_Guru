@@ -191,7 +191,12 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     const responseText = data.choices?.[0]?.message?.content;
     if (!responseText) throw new Error("OpenRouter Text API returned empty response.");
 
-    const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error(`OpenRouter returned invalid JSON format: ${responseText.substring(0, 100)}...`);
+    }
+
+    const cleanText = jsonMatch[0].trim();
     console.log(`[OpenRouter Scout] Step 2 Complete. Assessment successful.`);
     return JSON.parse(cleanText) as AIAssessmentResult;
   }
@@ -273,7 +278,12 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
     const responseText = data.choices?.[0]?.message?.content;
     if (!responseText) throw new Error("OpenRouter Text API returned empty response for answer key.");
 
-    const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("OpenRouter Text API returned invalid JSON for answer key.");
+    }
+
+    const cleanText = jsonMatch[0].trim();
     console.log(`[OpenRouter Scout] Step 2 Complete. Answer key generated successfully.`);
     return JSON.parse(cleanText);
   }
