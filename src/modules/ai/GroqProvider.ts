@@ -2,6 +2,7 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
 import { groqRateLimiter } from "./rateLimiter";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Cache for dynamically fetched models per API key
 const modelCache: Record<string, string[]> = {};
@@ -22,7 +23,7 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
       "meta-llama/llama-4-maverick-17b-128e-instruct",
       "llama-3.2-90b-vision-preview",
       "llama-3.2-11b-vision-preview"
-    ]; // Fallback defaults: Llama 4 Scout/Maverick (higher TPM) + Llama 3.2 Vision
+    ]; // Fallback defaults
   }
   
   const data = await res.json();
@@ -35,19 +36,69 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
 export class GroqProvider implements AIProvider {
   readonly providerName = "Groq-Vision";
 
+  private async _extractVisionWithGemini(
+    visionPrompt: string,
+    pages: any[],
+    apiKeyName: string
+  ): Promise<{ text: string, success: boolean, isRateLimited: boolean }> {
+    const geminiKey = process.env[apiKeyName] || process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+      console.warn(`[Gemini] No API key found for ${apiKeyName}.`);
+      return { text: "", success: false, isRateLimited: false };
+    }
+
+    try {
+      console.log(`[Gemini] Extracting vision using key from ${apiKeyName}...`);
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const imageParts: any[] = [];
+      for (const page of pages) {
+        let buffer: Buffer;
+        if (page.storageKey.startsWith("http")) {
+          const res = await fetch(page.storageKey);
+          buffer = Buffer.from(await res.arrayBuffer());
+        } else {
+          const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
+          buffer = await readFile(filePath);
+        }
+        let mimeType = page.mimeType || "image/jpeg";
+        if (!mimeType.startsWith("image/")) mimeType = "image/jpeg";
+        
+        imageParts.push({
+          inlineData: {
+            data: buffer.toString("base64"),
+            mimeType
+          }
+        });
+      }
+
+      const result = await model.generateContent([
+        visionPrompt,
+        ...imageParts
+      ]);
+      const extractedText = result.response.text();
+      return { text: extractedText, success: true, isRateLimited: false };
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      console.warn(`[Gemini] Vision extraction failed:`, errMsg);
+      const isRateLimited = err?.status === 429 || errMsg.includes("429");
+      if (isRateLimited) {
+         console.warn(`[Gemini] ⚠️ RATE LIMIT REACHED for ${apiKeyName}. Switching to Fallback...`);
+      }
+      return { text: "", success: false, isRateLimited };
+    }
+  }
+
   async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
     const { key: apiKey, index: usedIndex } = await groqRateLimiter.waitForKey(60000);
     const totalKeys = groqRateLimiter.getKeys().length;
     
     const availableModels = await getDynamicModels(apiKey);
     
-    const visionModels = ["qwen/qwen3.8-27b", "llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
     const textModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"];
-
-    const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
     const activeTextModels = textModels.filter(m => availableModels.includes(m));
 
-    const visionModel = activeVisionModels[0] || "qwen/qwen3.8-27b";
     let textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-120b"];
     
     const customModel = process.env.GROQ_MODEL?.trim();
@@ -59,13 +110,12 @@ export class GroqProvider implements AIProvider {
 
     for (const textModel of textModelsToTry) {
       try {
-        console.log(`[Groq] Two-Step: Vision=${visionModel}, Text=${textModel} (Key Index: ${usedIndex + 1}/${totalKeys})`);
-        // We pass BOTH models to _doAssessment
-        const result = await this._doAssessment(apiKey, visionModel, textModel, pages, rubrics, answerKey, questions);
+        console.log(`[AI] Two-Step: Vision=Hybrid(Gemini->Llama), Text=${textModel} (Key Index: ${usedIndex + 1}/${totalKeys})`);
+        const result = await this._doAssessment(apiKey, textModel, pages, rubrics, answerKey, questions, availableModels);
         return result;
       } catch (error: any) {
         lastError = error;
-        console.warn(`[Groq] Error with Text Model ${textModel}:`, error?.message || error);
+        console.warn(`[AI] Error with Text Model ${textModel}:`, error?.message || error);
         
         if (error?.message?.includes("429") || error?.status === 429) {
           groqRateLimiter.setCooldown(apiKey, 60);
@@ -82,12 +132,12 @@ export class GroqProvider implements AIProvider {
 
   private async _doAssessment(
     apiKey: string,
-    visionModel: string,
     textModel: string,
     pages: any[],
     rubrics: any[],
     answerKey?: string,
-    questions?: any[]
+    questions?: any[],
+    availableModels: string[]
   ): Promise<AIAssessmentResult> {
     
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---
@@ -97,56 +147,70 @@ SANGAT PENTING:
 - Pisahkan setiap jawaban atau nomor soal dengan baris baru agar strukturnya sangat jelas dibaca.
 Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
     
-    const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
+    let extractedText = "";
+
+    // 1. Try Gemini using Student Key
+    const geminiResult = await this._extractVisionWithGemini(visionPrompt, pages, "GEMINI_API_KEY_STUDENT");
     
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i];
-      let buffer: Buffer;
-      if (page.storageKey.startsWith("http")) {
-        const res = await fetch(page.storageKey);
-        const arrayBuffer = await res.arrayBuffer();
-        buffer = Buffer.from(arrayBuffer);
-      } else {
-        const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
-        buffer = await readFile(filePath);
+    if (geminiResult.success && geminiResult.text) {
+      extractedText = geminiResult.text;
+      console.log(`[Gemini] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
+    } else {
+      // 2. Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
+      const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview", "qwen/qwen3.8-27b"];
+      const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
+      const visionModel = activeVisionModels[0] || "llama-3.2-90b-vision-preview";
+
+      console.log(`[Groq Fallback] Step 1: Extracting text using Llama Maverick Vision (${visionModel})...`);
+      const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        let buffer: Buffer;
+        if (page.storageKey.startsWith("http")) {
+          const res = await fetch(page.storageKey);
+          const arrayBuffer = await res.arrayBuffer();
+          buffer = Buffer.from(arrayBuffer);
+        } else {
+          const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
+          buffer = await readFile(filePath);
+        }
+        const mimeType = page.mimeType || "image/jpeg";
+        const base64Data = buffer.toString("base64");
+        visionContentParts.push({
+          type: "image_url",
+          image_url: {
+            url: `data:${mimeType};base64,${base64Data}`,
+          },
+        });
       }
-      const mimeType = page.mimeType || "image/jpeg";
-      const base64Data = buffer.toString("base64");
-      visionContentParts.push({
-        type: "image_url",
-        image_url: {
-          url: `data:${mimeType};base64,${base64Data}`,
+
+      const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          model: visionModel,
+          messages: [{ role: "user", content: visionContentParts }],
+          temperature: 0.1,
+          max_tokens: 800,
+        }),
       });
-    }
 
-    console.log(`[Groq] Step 1: Extracting text using ${visionModel}...`);
-    const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: visionModel,
-        messages: [{ role: "user", content: visionContentParts }],
-        temperature: 0.1,
-        max_tokens: 800,
-      }),
-    });
+      if (!visionResponse.ok) {
+        const errBody = await visionResponse.text();
+        throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+      }
 
-    if (!visionResponse.ok) {
-      const errBody = await visionResponse.text();
-      throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+      const visionData = await visionResponse.json();
+      extractedText = visionData.choices?.[0]?.message?.content;
+      
+      if (!extractedText) {
+        throw new Error("Fallback Vision API returned empty response.");
+      }
+      console.log(`[Groq Fallback] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
     }
-
-    const visionData = await visionResponse.json();
-    const extractedText = visionData.choices?.[0]?.message?.content;
-    
-    if (!extractedText) {
-      throw new Error("Vision API returned empty response.");
-    }
-    console.log(`[Groq] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
 
     // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
     // Build answer key context if available
@@ -277,60 +341,68 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
 
     let extractedText = "";
 
-    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN QWEN JIKA ADA GAMBAR
+    // TAHAP 1: EKSTRAKSI GAMBAR
     if (hasImages) {
-      const visionModels = ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b"];
-      const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
-      const visionModel = activeVisionModels[0] || "qwen/qwen3.8-27b";
-
-      console.log(`[Groq] Step 1 (Answer Key): Extracting text from images using ${visionModel}...`);
-      
       const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
 Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
       
-      const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
+      // 1. Try Gemini using Teacher Key
+      const geminiResult = await this._extractVisionWithGemini(visionPrompt, imageAttachments as any, "GEMINI_API_KEY_TEACHER");
       
-      for (const attachment of imageAttachments!) {
-        try {
-          let buffer: Buffer;
-          if (attachment.storageKey.startsWith("http")) {
-            const res = await fetch(attachment.storageKey);
-            buffer = Buffer.from(await res.arrayBuffer());
-          } else {
-            const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
-            buffer = await readFile(filePath);
+      if (geminiResult.success && geminiResult.text) {
+        extractedText = geminiResult.text;
+        console.log(`[Gemini] Step 1 (Answer Key) Complete. Extracted Text Length: ${extractedText.length}`);
+      } else {
+        // 2. Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
+        const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview", "qwen/qwen3.8-27b"];
+        const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
+        const visionModel = activeVisionModels[0] || "llama-3.2-90b-vision-preview";
+
+        console.log(`[Groq Fallback] Step 1 (Answer Key): Extracting text using Llama Maverick Vision (${visionModel})...`);
+        const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
+        
+        for (const attachment of imageAttachments!) {
+          try {
+            let buffer: Buffer;
+            if (attachment.storageKey.startsWith("http")) {
+              const res = await fetch(attachment.storageKey);
+              buffer = Buffer.from(await res.arrayBuffer());
+            } else {
+              const filePath = path.join(process.cwd(), "public", attachment.storageKey.replace(/^\//, ""));
+              buffer = await readFile(filePath);
+            }
+            const mimeType = attachment.mimeType || "image/jpeg";
+            visionContentParts.push({
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` },
+            });
+          } catch (err) {
+            console.warn(`[Groq] Failed to load image attachment: ${attachment.originalFileName}`, err);
           }
-          const mimeType = attachment.mimeType || "image/jpeg";
-          visionContentParts.push({
-            type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` },
-          });
-        } catch (err) {
-          console.warn(`[Groq] Failed to load image attachment: ${attachment.originalFileName}`, err);
         }
-      }
 
-      const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: visionModel,
-          messages: [{ role: "user", content: visionContentParts }],
-          temperature: 0.1,
-          max_tokens: 800,
-        }),
-      });
+        const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: visionModel,
+            messages: [{ role: "user", content: visionContentParts }],
+            temperature: 0.1,
+            max_tokens: 800,
+          }),
+        });
 
-      if (!visionResponse.ok) {
-        const errBody = await visionResponse.text();
-        throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+        if (!visionResponse.ok) {
+          const errBody = await visionResponse.text();
+          throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+        }
+        const visionData = await visionResponse.json();
+        extractedText = visionData.choices?.[0]?.message?.content || "";
+        console.log(`[Groq Fallback] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
       }
-      const visionData = await visionResponse.json();
-      extractedText = visionData.choices?.[0]?.message?.content || "";
-      console.log(`[Groq] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
     }
 
     // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN GPT-OSS-20B
