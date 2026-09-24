@@ -131,7 +131,7 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
         model: visionModel,
         messages: [{ role: "user", content: visionContentParts }],
         temperature: 0.1,
-        max_tokens: 4096,
+        max_tokens: 800,
       }),
     });
 
@@ -245,7 +245,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
         model: textModel,
         messages: [{ role: "user", content: textPrompt }], // Text only!
         temperature: 0.2,
-        max_tokens: 8192,
+        max_tokens: 1500,
         response_format: { type: "json_object" },
       }),
     });
@@ -320,7 +320,7 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
           model: visionModel,
           messages: [{ role: "user", content: visionContentParts }],
           temperature: 0.1,
-          max_tokens: 4096,
+          max_tokens: 800,
         }),
       });
 
@@ -387,7 +387,7 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
             model: modelName,
             messages: [{ role: "user", content: contentParts }],
             temperature: 0.3,
-            max_tokens: 4096,
+            max_tokens: 1500,
           }),
         });
 
