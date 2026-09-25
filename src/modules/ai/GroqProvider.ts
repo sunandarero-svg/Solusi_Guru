@@ -313,29 +313,20 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Pastikan array 'analysis' berisi penilaian untuk semua soal.
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
-3. KRITERIA BENAR/SALAH - PILIHAN GANDA (ATURAN MUTLAK - TIDAK BOLEH DILANGGAR):
-   - Untuk soal PILIHAN GANDA: SATU-SATUNYA hal yang dinilai adalah HURUF PILIHAN JAWABAN siswa.
-   - Bandingkan HANYA huruf jawaban siswa (A/B/C/D/E) dengan huruf di Kunci Jawaban. ABAIKAN BESAR/KECIL HURUF.
-   - Huruf 'a' SAMA dengan 'A', huruf 'b' SAMA dengan 'B', huruf 'c' SAMA dengan 'C', huruf 'd' SAMA dengan 'D', huruf 'e' SAMA dengan 'E'.
-   - Jika HURUF jawaban siswa COCOK dengan huruf Kunci Jawaban → WAJIB BENAR SEMPURNA (100% maxScore). TITIK. TIDAK ADA PENGECUALIAN.
-   - ABAIKAN SEPENUHNYA semua teks, kalimat, atau kata yang ditulis SETELAH huruf jawaban. Teks tersebut TIDAK RELEVAN untuk penilaian pilihan ganda.
-   - Meskipun kata/kalimat setelah huruf mengandung typo, salah ejaan, berbeda susunan huruf, tidak lengkap, atau bahkan SAMA SEKALI BERBEDA dari kunci jawaban → jawaban TETAP BENAR selama HURUF-nya cocok.
-   - CONTOH-CONTOH (semua ini BENAR SEMPURNA):
-     * Kunci: "A. Fotosintesis" → Siswa: "A. Potosintesis" ✅ BENAR (huruf A cocok)
-     * Kunci: "A. Fotosintesis" → Siswa: "a. fotosintesis" ✅ BENAR (huruf a=A cocok)
-     * Kunci: "A. Fotosintesis" → Siswa: "a" ✅ BENAR (huruf a=A cocok)
-     * Kunci: "B. Jakarta" → Siswa: "B. Jakrta" ✅ BENAR (huruf B cocok)
-     * Kunci: "B. Jakarta" → Siswa: "b. jakrta" ✅ BENAR (huruf b=B cocok)
-     * Kunci: "C. Proklamasi" → Siswa: "c. proklamsi" ✅ BENAR (huruf c=C cocok)
-     * Kunci: "C. Proklamasi" → Siswa: "C. Proklmasi" ✅ BENAR (huruf C cocok)
-     * Kunci: "D. Soekarno" → Siswa: "d. soekarno" ✅ BENAR (huruf d=D cocok)
-     * Kunci: "D. Soekarno" → Siswa: "D. Sukarno" ✅ BENAR (huruf D cocok)
-     * Kunci: "E. Pancasila" → Siswa: "e. pancasla" ✅ BENAR (huruf e=E cocok)
-     * Kunci: "E. Pancasila" → Siswa: "E" ✅ BENAR (huruf E cocok)
-   - CONTOH SALAH (huruf BERBEDA):
-     * Kunci: "A. Fotosintesis" → Siswa: "B. Fotosintesis" ❌ SALAH (huruf B ≠ A)
-     * Kunci: "C. Proklamasi" → Siswa: "D. Proklamasi" ❌ SALAH (huruf D ≠ C)
-   - HANYA berikan nilai SALAH (0) jika HURUF jawaban siswa BERBEDA dari huruf di Kunci Jawaban.
+3. KRITERIA BENAR/SALAH - PILIHAN GANDA (ATURAN MUTLAK - SANGAT KETAT):
+   - EKSTRAKSI HURUF PERTAMA: Hal PERTAMA yang WAJIB Anda lakukan adalah mencari dan MENGAMBIL HANYA HURUF (A/B/C/D/E) yang menjadi pilihan siswa.
+   - ABAIKAN SEMUA TEKS LAINNYA: Setelah mendapatkan huruf pilihan, ABAIKAN SEPENUHNYA semua kata, kalimat, salah ejaan, typo, atau tulisan apapun yang mengikuti huruf tersebut. Teks tambahan itu BUKAN ALASAN UNTUK MENYALAHKAN JAWABAN.
+   - PENCOCOKAN HURUF SAJA: Bandingkan HANYA huruf pilihan siswa tersebut dengan huruf di Kunci Jawaban (abaikan huruf besar/kecil).
+   - JIKA HURUF COCOK = BENAR 100%: Jika huruf pilihan siswa sama dengan huruf Kunci Jawaban, WAJIB BERIKAN NILAI PENUH (maxScore). TIDAK ADA PENGECUALIAN.
+   - MESKIPUN TEKS SETELAH HURUF SALAH/BERBEDA/NGASAL = TETAP BENAR selama huruf pilihannya cocok.
+   - CONTOH BENAR SEMPURNA:
+     * Kunci "A. Fotosintesis" -> Siswa "A. Potosintesis" ✅ BENAR (Huruf A cocok)
+     * Kunci "B. Jakarta" -> Siswa "B. Salah total" ✅ BENAR (Huruf B cocok, abaikan teksnya)
+     * Kunci "C. Soekarno" -> Siswa "c. .... " ✅ BENAR (Huruf c=C cocok)
+     * Kunci "D. 1945" -> Siswa "d" ✅ BENAR (Huruf d=D cocok)
+   - CONTOH SALAH (HANYA JIKA HURUF BERBEDA):
+     * Kunci "A. Fotosintesis" -> Siswa "B. Fotosintesis" ❌ SALAH (Huruf B ≠ A, nilai 0)
+     * Kunci "C. Proklamasi" -> Siswa "D. Proklamasi" ❌ SALAH (Huruf D ≠ C, nilai 0)
 4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY (SANGAT PENTING - WAJIB DIPATUHI):
    - Untuk soal ISIAN SINGKAT dan ESSAY: Gunakan pencocokan KESAMAAN MAKNA/KONSEP dengan toleransi tinggi.
    - Jika jawaban siswa memiliki KESAMAAN MAKNA/KONSEP minimal 80% dari Kunci Jawaban, maka jawaban siswa WAJIB dinilai BENAR SEMPURNA (100% maxScore).
