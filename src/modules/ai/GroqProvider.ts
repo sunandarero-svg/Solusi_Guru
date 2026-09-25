@@ -313,16 +313,27 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Pastikan array 'analysis' berisi penilaian untuk semua soal.
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
-3. KRITERIA BENAR/SALAH (SANGAT PENTING):
-   - KHUSUS PILIHAN GANDA: Jika siswa menulis HURUF pilihan yang benar (contoh: 'A' atau 'A. Teks', abaikan besar/kecil huruf), langsung beri BENAR SEMPURNA (100% maxScore).
-   - BENAR SEMPURNA (100% maxScore): Mengandung seluruh konsep utama.
-   - BENAR SEBAGIAN (50% maxScore): Mengandung sebagian konsep yang benar (untuk isian/esai).
-   - SALAH (0): Jawaban salah atau melenceng jauh.
-4. TYPO/EJAAN: Abaikan typo kecil jika maknanya tetap sama.
-5. UMPAN BALIK EDUKATIF ('analysisText') - SANGAT PENTING:
+3. KRITERIA BENAR/SALAH - PILIHAN GANDA (SANGAT PENTING - WAJIB DIPATUHI):
+   - Untuk soal PILIHAN GANDA: Yang PALING UTAMA dinilai adalah HURUF PILIHAN JAWABAN (A, B, C, D, atau E) yang ditulis siswa.
+   - Jika HURUF jawaban siswa SAMA dengan huruf di Kunci Jawaban (abaikan besar/kecil huruf), maka jawaban tersebut WAJIB dinilai BENAR SEMPURNA (100% maxScore), TANPA TERKECUALI.
+   - Abaikan SEPENUHNYA teks, kalimat, atau kata yang ditulis siswa SETELAH huruf jawaban. Meskipun teks tersebut mengandung typo, salah tulis, tidak lengkap, atau bahkan berbeda dari kunci jawaban, selama HURUF jawabannya BENAR, maka jawabannya tetap BENAR SEMPURNA.
+   - Contoh: Kunci jawaban = "B. Fotosintesis". Siswa menulis "B. Potosintesis" atau "B. Fotosentesis" atau "B" saja → Semua BENAR SEMPURNA karena huruf B-nya cocok.
+   - Contoh: Kunci jawaban = "A. Jakarta". Siswa menulis "A. Jakrta" atau "A. jakrta" → BENAR SEMPURNA karena huruf A-nya cocok.
+   - HANYA salahkan jika HURUF jawaban siswa BERBEDA dari huruf di Kunci Jawaban.
+4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY (SANGAT PENTING - WAJIB DIPATUHI):
+   - Untuk soal ISIAN SINGKAT dan ESSAY: Gunakan pencocokan KESAMAAN MAKNA/KONSEP dengan toleransi tinggi.
+   - Jika jawaban siswa memiliki KESAMAAN MAKNA/KONSEP minimal 80% dari Kunci Jawaban, maka jawaban siswa WAJIB dinilai BENAR SEMPURNA (100% maxScore).
+   - Abaikan perbedaan ejaan, typo, tata bahasa, urutan kata, atau penggunaan sinonim selama MAKNA/KONSEP utamanya sama.
+   - BENAR SEMPURNA (100% maxScore): Makna/konsep jawaban siswa sama atau setara ≥80% dengan kunci jawaban.
+   - BENAR SEBAGIAN (50% maxScore): Jawaban siswa mengandung sebagian konsep benar namun kesamaan <80%.
+   - SALAH (0): Jawaban salah, melenceng jauh, atau tidak ada hubungannya dengan kunci jawaban.
+5. ATURAN TEKS TIDAK TERBACA (SANGAT PENTING):
+   - JANGAN PERNAH memprediksi, menebak, atau mengasumsikan kata/kalimat yang TIDAK DAPAT DIBACA atau TIDAK MEMILIKI MAKNA.
+   - Jika transkripsi mengandung teks yang sama sekali tidak bisa dipahami maknanya (bukan typo biasa, melainkan karakter acak atau kata yang benar-benar tidak bermakna), anggap bagian tersebut sebagai tidak terjawab.
+   - Jika 'UNREADABLE', berikan skor 0, analysisText "Tulisan kurang jelas terbaca, silakan coba foto ulang ya.", dan status "UNREADABLE".
+6. UMPAN BALIK EDUKATIF ('analysisText') - SANGAT PENTING:
    - Jika jawaban BENAR SEMPURNA: Berikan apresiasi atau pujian singkat (1 kalimat).
    - Jika jawaban SALAH atau BENAR SEBAGIAN (nilai < maxScore): WAJIB berikan analisis singkat kenapa salah/kurang tepat, DAN jelaskan jawaban yang seharusnya benar berdasarkan Kunci Jawaban (dengan bahasa yang memotivasi siswa).
-   - Jika 'UNREADABLE', berikan skor 0, analysisText "Tulisan kurang jelas terbaca, silakan coba foto ulang ya.", dan status "UNREADABLE".
 
 Output WAJIB berupa JSON murni dengan struktur:
 {

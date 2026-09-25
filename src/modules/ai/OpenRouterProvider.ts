@@ -187,23 +187,33 @@ ${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
    - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
    - Tuliskan langkah penalaran Anda di properti 'reasoning_steps' pada JSON.
-5. PENILAIAN KONTEKSTUAL & PARSIAL (PARTIAL SCORING):
-   - Yang dinilai adalah KESESUAIAN KONTEKS (bukan kesamaan kata per kata).
-   - Terapkan penilaian sebagian (partial scoring):
-     * BENAR SEMPURNA (100% dari maxScore): Mengandung seluruh konsep utama.
-     * BENAR SEBAGIAN (50% dari maxScore): Hanya mengandung sebagian konsep yang benar.
-     * SALAH (0): Konsep bertolak belakang, melenceng jauh.
-6. ATURAN PENILAIAN TYPO & EJAAN (SANGAT PENTING):
-   - Periksa seluruh tulisan siswa secara mendetail.
-   - Jika ada kata yang salah ejaan (typo), Anda WAJIB memprediksi kata yang benar.
-   - Masukkan setiap kesalahan ke dalam properti 'typos' di JSON (array of {salah, perbaikan}).
-   - Untuk SETIAP kata yang typo, KURANGI 1 poin dari total 'score' soal tersebut. Jika skor jadi di bawah 0, jadikan 0.
+
+5. KRITERIA PENILAIAN - PILIHAN GANDA (SANGAT PENTING - WAJIB DIPATUHI):
+   - Untuk soal PILIHAN GANDA: Yang PALING UTAMA dinilai adalah HURUF PILIHAN JAWABAN (A, B, C, D, atau E) yang ditulis siswa.
+   - Jika HURUF jawaban siswa SAMA dengan huruf di Kunci Jawaban (abaikan besar/kecil huruf), maka jawaban tersebut WAJIB dinilai BENAR SEMPURNA (100% maxScore), TANPA TERKECUALI.
+   - Abaikan SEPENUHNYA teks, kalimat, atau kata yang ditulis siswa SETELAH huruf jawaban. Meskipun teks tersebut mengandung typo, salah tulis, tidak lengkap, atau bahkan berbeda dari kunci jawaban, selama HURUF jawabannya BENAR, maka jawabannya tetap BENAR SEMPURNA.
+   - Contoh: Kunci jawaban = "B. Fotosintesis". Siswa menulis "B. Potosintesis" atau "B. Fotosentesis" atau "B" saja → Semua BENAR SEMPURNA karena huruf B-nya cocok.
+   - Contoh: Kunci jawaban = "A. Jakarta". Siswa menulis "A. Jakrta" atau "A. jakrta" → BENAR SEMPURNA karena huruf A-nya cocok.
+   - HANYA salahkan jika HURUF jawaban siswa BERBEDA dari huruf di Kunci Jawaban.
+
+6. KRITERIA PENILAIAN - ISIAN SINGKAT & ESSAY (SANGAT PENTING - WAJIB DIPATUHI):
+   - Untuk soal ISIAN SINGKAT dan ESSAY: Gunakan pencocokan KESAMAAN MAKNA/KONSEP dengan toleransi tinggi.
+   - Jika jawaban siswa memiliki KESAMAAN MAKNA/KONSEP minimal 80% dari Kunci Jawaban, maka jawaban siswa WAJIB dinilai BENAR SEMPURNA (100% maxScore).
+   - Abaikan perbedaan ejaan, typo, tata bahasa, urutan kata, atau penggunaan sinonim selama MAKNA/KONSEP utamanya sama.
+   - BENAR SEMPURNA (100% maxScore): Makna/konsep jawaban siswa sama atau setara ≥80% dengan kunci jawaban.
+   - BENAR SEBAGIAN (50% maxScore): Jawaban siswa mengandung sebagian konsep benar namun kesamaan <80%.
+   - SALAH (0): Jawaban salah, melenceng jauh, atau tidak ada hubungannya dengan kunci jawaban.
+
+7. ATURAN TEKS TIDAK TERBACA (SANGAT PENTING):
+   - JANGAN PERNAH memprediksi, menebak, atau mengasumsikan kata/kalimat yang TIDAK DAPAT DIBACA atau TIDAK MEMILIKI MAKNA.
+   - Jika transkripsi mengandung teks yang sama sekali tidak bisa dipahami maknanya (bukan typo biasa, melainkan karakter acak atau kata yang benar-benar tidak bermakna), anggap bagian tersebut sebagai tidak terjawab.
+   - JIKA TRANSKRIPSI SISWA MENGANDUNG KATA "UNREADABLE": Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
 
 ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
 - Pada 'analysisText' di setiap soal:
-- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat). Termasuk jika skor dikurangi karena typo.
+- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat).
+- Jika jawaban BENAR SEMPURNA: Berikan apresiasi atau pujian singkat.
 - Jika jawaban SALAH atau KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi.
-- JIKA TRANSKRIPSI SISWA MENGANDUNG KATA "UNREADABLE": Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
 
 ATURAN BAHASA:
 - Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI.
