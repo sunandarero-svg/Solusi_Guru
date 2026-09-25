@@ -89,55 +89,71 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
     });
   }
 
-  // Select key using rate limiter (waits up to 30 seconds if all keys are busy)
-  const { key: apiKey, index: usedIndex } = await groqRateLimiter.waitForKey(30000);
-  const totalKeys = groqRateLimiter.getKeys().length;
-
-  const availableModels = await getDynamicModels(apiKey);
-  
-  // Filter for multimodal models that can process images
-  const multimodalModels = availableModels.filter(isMultimodalModel);
-  
-  console.log(`[Verify-Groq] Detected multimodal models: ${multimodalModels.length > 0 ? multimodalModels.join(", ") : "NONE"}`);
-
-  // Use detected multimodal models, or fallback to known free-tier multimodal models
-  let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
-    "meta-llama/llama-4-scout-17b-16e-instruct",
-    "meta-llama/llama-4-maverick-17b-128e-instruct",
-    "qwen/qwen3.8-27b",
-    "qwen/qwen3.6-27b"
-  ];
-  
-  const customModel = process.env.GROQ_MODEL?.trim();
-  if (customModel) {
-    modelsToTry = [customModel, ...modelsToTry];
-  }
-
   let lastError: any = null;
+  const maxRetries = 4;
 
-  for (const modelName of modelsToTry) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    let apiKey = "";
     try {
-      console.log(`[Verify-Groq] Trying model ${modelName} with key prefix ${apiKey.substring(0, 8)}... (Key Index: ${usedIndex + 1}/${totalKeys})`);
-      const result = await runGroqVerify(apiKey, modelName, prompt, imageBuffers);
-      console.log(`[Verify-Groq] Success with model: ${modelName}`);
-      return result;
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`[Verify-Groq] Error with model ${modelName}:`, err?.message || err);
+      const { key, index: usedIndex } = await groqRateLimiter.waitForKey(20000);
+      apiKey = key;
+      const totalKeys = groqRateLimiter.getKeys().length;
+
+      const availableModels = await getDynamicModels(apiKey);
+      const multimodalModels = availableModels.filter(isMultimodalModel);
       
-      // Handle rate limit specifically
-      if (err?.message?.includes("429") || err?.status === 429) {
-        groqRateLimiter.setCooldown(apiKey, 60);
+      let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "qwen/qwen3.8-27b",
+        "qwen/qwen3.6-27b"
+      ];
+      
+      const customModel = process.env.GROQ_MODEL?.trim();
+      if (customModel) {
+        modelsToTry = [customModel, ...modelsToTry];
       }
 
-      // Clear cache so it fetches fresh models list next time if there's permission error
+      let modelSuccess = false;
+      let modelResult: VerifyResult | null = null;
+
+      for (const modelName of modelsToTry) {
+        try {
+          console.log(`[Verify-Groq] Attempt ${attempt + 1}: Trying model ${modelName} (Key Index: ${usedIndex + 1}/${totalKeys})`);
+          modelResult = await runGroqVerify(apiKey, modelName, prompt, imageBuffers);
+          console.log(`[Verify-Groq] Success with model: ${modelName}`);
+          modelSuccess = true;
+          break;
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`[Verify-Groq] Error with model ${modelName}:`, err?.message || err);
+          if (err?.message?.includes("429") || err?.status === 429) {
+            continue; // try next model in the same key
+          } else {
+            throw err; // throw to trigger outer retry block (fetch new key)
+          }
+        }
+      }
+
+      if (modelSuccess && modelResult) return modelResult;
+      throw lastError || new Error("All models failed on this key.");
+
+    } catch (err: any) {
+      lastError = err;
+      if (err?.message?.includes("429") || err?.status === 429) {
+        if (apiKey) groqRateLimiter.setCooldown(apiKey, 60);
+      }
       if (err?.message?.includes("404") || err?.message?.includes("400")) {
-         delete modelCache[apiKey];
+         if (apiKey) delete modelCache[apiKey];
+      }
+      
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
     }
   }
 
-  throw lastError || new Error("All dynamically fetched Groq API models failed for the selected key.");
+  throw lastError || new Error("All dynamically fetched Groq API models failed after rotating keys.");
 }
 
 

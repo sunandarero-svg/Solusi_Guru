@@ -123,43 +123,50 @@ export class GroqProvider implements AIProvider {
   }
 
   async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
-    const { key: apiKey, index: usedIndex } = await groqRateLimiter.waitForKey(60000);
-    const totalKeys = groqRateLimiter.getKeys().length;
-    
-    const availableModels = await getDynamicModels(apiKey);
-    
-    const textModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"];
-    const activeTextModels = textModels.filter(m => availableModels.includes(m));
-
-    let textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-120b"];
-    
+    const textModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "qwen/qwen-2.5-72b"];
     const customModel = process.env.GROQ_MODEL?.trim();
-    if (customModel) {
-      textModelsToTry = [customModel, ...textModelsToTry];
-    }
-    
-    let lastError: any = null;
+    const baseTextModels = customModel ? [customModel, ...textModels] : textModels;
 
-    for (const textModel of textModelsToTry) {
+    let lastError: any = null;
+    const maxRetries = 4; // Beri kesempatan retry lebih banyak untuk menampung rotasi 3+ API key
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      let apiKey = "";
       try {
-        console.log(`[AI] Two-Step: Vision=Hybrid(Gemini->Llama), Text=${textModel} (Key Index: ${usedIndex + 1}/${totalKeys})`);
+        // Ambil key baru setiap attempt
+        const { key, index: usedIndex } = await groqRateLimiter.waitForKey(30000);
+        apiKey = key;
+        const totalKeys = groqRateLimiter.getKeys().length;
+        
+        const availableModels = await getDynamicModels(apiKey);
+        const activeTextModels = baseTextModels.filter(m => availableModels.includes(m) || m === customModel);
+        const textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-120b"];
+
+        const textModel = textModelsToTry[attempt % textModelsToTry.length];
+
+        console.log(`[AI] Attempt ${attempt + 1}/${maxRetries}: Vision=Hybrid, Text=${textModel} (Key Index: ${usedIndex + 1}/${totalKeys})`);
+        
         const result = await this._doAssessment(apiKey, textModel, pages, rubrics, answerKey, questions, availableModels);
         return result;
       } catch (error: any) {
         lastError = error;
-        console.warn(`[AI] Error with Text Model ${textModel}:`, error?.message || error);
+        console.warn(`[AI] Error on attempt ${attempt + 1}:`, error?.message || error);
         
         if (error?.message?.includes("429") || error?.status === 429) {
-          groqRateLimiter.setCooldown(apiKey, 60);
+          if (apiKey) groqRateLimiter.setCooldown(apiKey, 60);
         }
 
         if (error?.message?.includes("404") || error?.message?.includes("400")) {
-           delete modelCache[apiKey];
+           if (apiKey) delete modelCache[apiKey];
+        }
+        
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     }
 
-    throw lastError || new Error("All text models failed in Two-Step Pipeline.");
+    throw lastError || new Error("All attempts failed in Two-Step Pipeline after rotating keys.");
   }
 
   private async _doAssessment(
@@ -191,9 +198,8 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
       // 2. Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
       const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview", "qwen/qwen3.8-27b"];
       const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
-      const visionModel = activeVisionModels[0] || "llama-3.2-90b-vision-preview";
+      const visionModelsToTry = activeVisionModels.length > 0 ? activeVisionModels : ["llama-3.2-90b-vision-preview"];
 
-      console.log(`[Groq Fallback] Step 1: Extracting text using Llama Maverick Vision (${visionModel})...`);
       const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
@@ -216,32 +222,56 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
         });
       }
 
-      const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: visionModel,
-          messages: [{ role: "user", content: visionContentParts }],
-          temperature: 0.1,
-          max_tokens: 800,
-        }),
-      });
+      let visionSuccess = false;
+      let visionLastError: any = null;
 
-      if (!visionResponse.ok) {
-        const errBody = await visionResponse.text();
-        throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+      for (const visionModel of visionModelsToTry) {
+        try {
+          console.log(`[Groq Fallback] Step 1: Extracting text using Vision (${visionModel})...`);
+          const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: visionModel,
+              messages: [{ role: "user", content: visionContentParts }],
+              temperature: 0.1,
+              max_tokens: 800,
+            }),
+          });
+
+          if (!visionResponse.ok) {
+            const errBody = await visionResponse.text();
+            throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+          }
+
+          const visionData = await visionResponse.json();
+          extractedText = visionData.choices?.[0]?.message?.content;
+          
+          if (!extractedText) {
+            throw new Error("Fallback Vision API returned empty response.");
+          }
+          console.log(`[Groq Fallback] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
+          visionSuccess = true;
+          break; // Keluar loop jika sukses
+        } catch (err: any) {
+          visionLastError = err;
+          console.warn(`[Groq Fallback] Vision model ${visionModel} failed:`, err?.message || err);
+          if (err?.message?.includes("429") || String(err).includes("429")) {
+            // Lanjut ke model vision berikutnya di key ini.
+            continue;
+          } else {
+            // Jika bukan error rate limit, lemparkan error agar dicatch oleh assessSubmission
+            throw err;
+          }
+        }
       }
 
-      const visionData = await visionResponse.json();
-      extractedText = visionData.choices?.[0]?.message?.content;
-      
-      if (!extractedText) {
-        throw new Error("Fallback Vision API returned empty response.");
+      if (!visionSuccess) {
+        throw visionLastError || new Error("All Fallback Vision models failed.");
       }
-      console.log(`[Groq Fallback] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
     }
 
     // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
@@ -347,13 +377,20 @@ Output WAJIB berupa JSON murni dengan struktur:
    * and produces reference answers.
    */
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
-    const { key: apiKey } = await groqRateLimiter.waitForKey(60000);
-    const availableModels = await getDynamicModels(apiKey);
-    const hasImages = imageAttachments && imageAttachments.length > 0;
+    let lastError: any = null;
+    const maxRetries = 4;
 
-    let extractedText = "";
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      let apiKey = "";
+      try {
+        const { key } = await groqRateLimiter.waitForKey(30000);
+        apiKey = key;
+        const availableModels = await getDynamicModels(apiKey);
+        const hasImages = imageAttachments && imageAttachments.length > 0;
 
-    // TAHAP 1: EKSTRAKSI GAMBAR
+        let extractedText = "";
+
+        // TAHAP 1: EKSTRAKSI GAMBAR
     if (hasImages) {
       const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
 Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
@@ -457,43 +494,73 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
 
     const contentParts: any[] = [{ type: "text", text: prompt }];
 
-    let lastError: any = null;
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`[Groq] Step 2: Generating answer key with model ${modelName}...`);
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages: [{ role: "user", content: contentParts }],
-            temperature: 0.3,
-            max_tokens: 4096,
-          }),
-        });
+        let modelLastError: any = null;
+        let success = false;
+        let generatedAnswer = "";
 
-        if (!response.ok) {
-          const errBody = await response.text();
-          throw new Error(`Groq API returned ${response.status}: ${errBody}`);
+        for (const modelName of modelsToTry) {
+          try {
+            console.log(`[Groq] Step 2: Generating answer key with model ${modelName}...`);
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: modelName,
+                messages: [{ role: "user", content: contentParts }],
+                temperature: 0.3,
+                max_tokens: 4096,
+              }),
+            });
+
+            if (!response.ok) {
+              const errBody = await response.text();
+              throw new Error(`Groq API returned ${response.status}: ${errBody}`);
+            }
+
+            const data = await response.json();
+            const answerKeyStr = data.choices?.[0]?.message?.content;
+            if (!answerKeyStr) {
+              throw new Error("Groq API returned empty response for answer key.");
+            }
+
+            console.log(`[Groq] Answer key generated successfully with ${modelName}.`);
+            generatedAnswer = answerKeyStr.trim();
+            success = true;
+            break;
+          } catch (error: any) {
+            modelLastError = error;
+            console.warn(`[Groq] Answer key generation failed with ${modelName}:`, error?.message);
+            if (error?.message?.includes("429") || String(error).includes("429")) {
+              continue; // try next model
+            } else {
+              throw error; // throw to trigger retry with new key
+            }
+          }
         }
 
-        const data = await response.json();
-        const answerKey = data.choices?.[0]?.message?.content;
-        if (!answerKey) {
-          throw new Error("Groq API returned empty response for answer key.");
-        }
+        if (success) return generatedAnswer;
+        throw modelLastError || new Error("Failed to generate answer key with all available models on this key.");
 
-        console.log(`[Groq] Answer key generated successfully with ${modelName}.`);
-        return answerKey.trim();
       } catch (error: any) {
         lastError = error;
-        console.warn(`[Groq] Answer key generation failed with ${modelName}:`, error?.message);
+        console.warn(`[Groq] Answer key generation attempt ${attempt + 1} failed:`, error?.message || error);
+        
+        if (error?.message?.includes("429") || error?.status === 429) {
+          if (apiKey) groqRateLimiter.setCooldown(apiKey, 60);
+        }
+        if (error?.message?.includes("404") || error?.message?.includes("400")) {
+           if (apiKey) delete modelCache[apiKey];
+        }
+        
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
     }
 
-    throw lastError || new Error("Failed to generate answer key with all available models.");
+    throw lastError || new Error("Failed to generate answer key after rotating keys.");
   }
 }
