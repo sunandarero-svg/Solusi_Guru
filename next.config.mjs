@@ -8,6 +8,7 @@ const nextConfig = {
   experimental: {
     memoryBasedWorkersCount: true,
   },
+  output: 'standalone',
 
   async rewrites() {
     return [
