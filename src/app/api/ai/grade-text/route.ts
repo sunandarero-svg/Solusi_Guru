@@ -125,11 +125,11 @@ Output WAJIB berupa JSON murni dengan struktur:
       submission = await Submission.create({
         assignmentId,
         studentId,
-        status: "GRADED",
+        status: "AI_COMPLETED",
         submittedAt: new Date()
       });
     } else {
-      submission.status = "GRADED";
+      submission.status = "AI_COMPLETED";
       submission.submittedAt = new Date();
       await submission.save();
     }
