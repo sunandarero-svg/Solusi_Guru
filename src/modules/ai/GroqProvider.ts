@@ -2,8 +2,6 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
 import { groqRateLimiter } from "./rateLimiter";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 // Cache for dynamically fetched models per API key
 const modelCache: Record<string, string[]> = {};
 
@@ -36,91 +34,6 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
 export class GroqProvider implements AIProvider {
   readonly providerName = "Groq-Vision";
 
-  private async _extractVisionWithGemini(
-    visionPrompt: string,
-    pages: any[],
-    apiKeyName: string
-  ): Promise<{ text: string, success: boolean, isRateLimited: boolean }> {
-    const geminiKey = process.env[apiKeyName] || process.env.GEMINI_API_KEY;
-    if (!geminiKey) {
-      console.warn(`[Gemini] No API key found for ${apiKeyName}.`);
-      return { text: "", success: false, isRateLimited: false };
-    }
-
-    try {
-      console.log(`[Gemini] Extracting vision using key from ${apiKeyName}...`);
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      
-      const imageParts: any[] = [];
-      for (const page of pages) {
-        try {
-          let buffer: Buffer;
-          if (page.storageKey.startsWith("http")) {
-            const res = await fetch(page.storageKey);
-            buffer = Buffer.from(await res.arrayBuffer());
-          } else {
-            const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
-            buffer = await readFile(filePath);
-          }
-          let mimeType = page.mimeType || "image/jpeg";
-          if (!mimeType.startsWith("image/")) mimeType = "image/jpeg";
-          
-          imageParts.push({
-            inlineData: {
-              data: buffer.toString("base64"),
-              mimeType
-            }
-          });
-        } catch (fileErr: any) {
-          console.warn(`[Gemini] Failed to read image file:`, fileErr?.message || fileErr);
-        }
-      }
-
-      if (imageParts.length === 0) {
-        console.warn(`[Gemini] No valid images found to process. Skipping Gemini call.`);
-        return { text: "[Tidak ada gambar yang dapat dibaca atau file lampiran hilang dari server (ENOENT)]", success: true, isRateLimited: false };
-      }
-
-      let extractedText = "";
-      let isSuccess = false;
-      let lastGeminiError: any = null;
-
-      for (const modelName of ["gemini-1.5-flash", "gemini-flash", "gemini-1.5-pro", "gemini-1.5-flash-latest", "gemini-pro-vision"]) {
-        try {
-          console.log(`[Gemini] Extracting vision using model: ${modelName}...`);
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent([
-            visionPrompt,
-            ...imageParts
-          ]);
-          extractedText = result.response.text();
-          isSuccess = true;
-          break; // Break loop on success
-        } catch (modelErr: any) {
-          lastGeminiError = modelErr;
-          console.warn(`[Gemini] Model ${modelName} failed:`, modelErr?.message || modelErr);
-          // If rate limited, don't try other Gemini models, just break and fallback to Groq
-          if (modelErr?.status === 429 || String(modelErr).includes("429")) {
-            break;
-          }
-        }
-      }
-
-      if (!isSuccess) {
-        throw lastGeminiError || new Error("All Gemini models failed.");
-      }
-
-      return { text: extractedText, success: true, isRateLimited: false };
-    } catch (err: any) {
-      const errMsg = err?.message || String(err);
-      console.warn(`[Gemini] Vision extraction failed:`, errMsg);
-      const isRateLimited = err?.status === 429 || errMsg.includes("429");
-      if (isRateLimited) {
-         console.warn(`[Gemini] ⚠️ RATE LIMIT REACHED for ${apiKeyName}. Switching to Fallback...`);
-      }
-      return { text: "", success: false, isRateLimited };
-    }
-  }
 
   async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
     const textModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "qwen/qwen-2.5-72b"];
@@ -188,14 +101,8 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
     
     let extractedText = "";
 
-    // 1. Try Gemini using Student Key
-    const geminiResult = await this._extractVisionWithGemini(visionPrompt, pages, "GEMINI_API_KEY_STUDENT");
-    
-    if (geminiResult.success && geminiResult.text) {
-      extractedText = geminiResult.text;
-      console.log(`[Gemini] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
-    } else {
-      // 2. Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
+    // Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
+
       const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview", "qwen/qwen3.8-27b"];
       const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
       const visionModelsToTry = activeVisionModels.length > 0 ? activeVisionModels : ["llama-3.2-90b-vision-preview"];
@@ -272,7 +179,7 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
       if (!visionSuccess) {
         throw visionLastError || new Error("All Fallback Vision models failed.");
       }
-    }
+
 
     // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
     // Build answer key context if available
@@ -414,14 +321,8 @@ Output WAJIB berupa JSON murni dengan struktur:
       const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
 Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
       
-      // 1. Try Gemini using Teacher Key
-      const geminiResult = await this._extractVisionWithGemini(visionPrompt, imageAttachments as any, "GEMINI_API_KEY_TEACHER");
-      
-      if (geminiResult.success && geminiResult.text) {
-        extractedText = geminiResult.text;
-        console.log(`[Gemini] Step 1 (Answer Key) Complete. Extracted Text Length: ${extractedText.length}`);
-      } else {
-        // 2. Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
+      // Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
+
         const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview", "qwen/qwen3.8-27b"];
         const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
         const visionModel = activeVisionModels[0] || "llama-3.2-90b-vision-preview";
@@ -471,7 +372,7 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
         extractedText = visionData.choices?.[0]?.message?.content || "";
         console.log(`[Groq Fallback] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
       }
-    }
+
 
     // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN GPT-OSS-20B
     const textModels = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile"];
