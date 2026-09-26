@@ -91,7 +91,7 @@ Output WAJIB berupa JSON murni dengan struktur:
 }`;
 
     const { key } = await groqRateLimiter.waitForKey(30000);
-    const textModel = "llama-3.3-70b-versatile";
+    const textModel = "llama-3.1-70b-versatile";
 
     const textResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
