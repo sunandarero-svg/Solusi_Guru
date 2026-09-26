@@ -9,9 +9,6 @@ const nextConfig = {
     memoryBasedWorkersCount: true,
   },
 
-  // Fitur untuk memangkas ukuran build (Image Docker) secara drastis
-  output: 'standalone',
-  
   async rewrites() {
     return [
       {
