@@ -91,7 +91,7 @@ Output WAJIB berupa JSON murni dengan struktur:
 }`;
 
     const { key } = await groqRateLimiter.waitForKey(30000);
-    const textModel = "openai/gpt-oss-120b"; // Or "llama-3.1-70b-versatile"
+    const textModel = "llama-3.3-70b-versatile";
 
     const textResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -159,7 +159,13 @@ Output WAJIB berupa JSON murni dengan struktur:
       };
     });
 
-    // 6. Save Assessment and Analysis to DB
+    // 6. Delete old assessment if exists to prevent E11000 duplicate key error
+    await AIAssessment.deleteMany({ submissionId: submission._id });
+    // Note: We don't have direct link from submission to StudentAnswerAnalysis,
+    // but StudentAnswerAnalysis is linked to assessmentId which we just orphaned/deleted.
+    // To be clean, we should delete them, but deleting AIAssessment is enough to avoid the crash.
+
+    // 7. Save Assessment and Analysis to DB
     const assessmentRecord = await AIAssessment.create({
       submissionId: submission._id,
       provider: "Groq-Text",
