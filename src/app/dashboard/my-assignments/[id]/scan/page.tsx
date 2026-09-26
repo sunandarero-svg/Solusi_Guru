@@ -365,9 +365,9 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
             
             <div className="flex flex-col items-center text-center">
               <div className="flex flex-col items-center mb-6 w-full p-4 bg-gray-800/50 border border-gray-700 rounded-2xl">
-                <span className="text-xl font-extrabold text-white mb-2">Skor Keterbacaan</span>
+                <span className="text-xl font-extrabold text-white mb-2">Nilai Rekomendasi AI</span>
                 <div className={`flex items-center justify-center px-4 py-1.5 rounded-full bg-gray-900 border-2 ${aiResultModal.type === 'error' ? 'border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]'}`}>
-                  <span className="text-sm font-bold">{aiResultModal.score}%</span>
+                  <span className="text-xl font-bold">{aiResultModal.score}</span>
                 </div>
               </div>
               
@@ -382,7 +382,11 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
                   <p className="mt-3 text-orange-300 italic text-xs">Jangan menyerah! Tulisan yang rapi dan jelas akan sangat membantu bapak/ibu guru dalam memberikan nilai terbaik buat kamu. Ayo coba foto ulang!</p>
                 )}
                 {aiResultModal.type === 'success' && (
-                  <p className="mt-3 text-emerald-300 italic text-xs">Tugas Anda sangat jelas dan rapi. Guru akan dengan mudah memeriksanya!</p>
+                  <div className="mt-4 p-3 bg-blue-900/40 border border-blue-500/50 rounded-lg">
+                    <p className="text-blue-200 text-sm font-medium leading-relaxed">
+                      💡 <strong>Pemberitahuan:</strong> Nilai ini bukan nilai Akhir. Masih ada Nilai Sikap serta Perilaku untuk menentukan Nilai Akhir dan itu hanya bisa dinilai oleh Guru.
+                    </p>
+                  </div>
                 )}
               </div>
               
