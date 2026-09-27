@@ -27,6 +27,19 @@ export default function TeacherReviewPage({
   const [editAnalysisText, setEditAnalysisText] = useState<string>("");
   const [isSavingAnalysis, setIsSavingAnalysis] = useState(false);
 
+  // State for UI/UX Optimizations (Phase 1)
+  const [filterMode, setFilterMode] = useState<"ALL" | "WRONG" | "MANUAL">("ALL");
+  const [expandedAnalysisIds, setExpandedAnalysisIds] = useState<Set<string>>(new Set());
+  
+  const toggleAccordion = (id: string) => {
+    setExpandedAnalysisIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   useEffect(() => {
     fetch(`/api/submissions/${resolvedParams.submissionId}/review`)
       .then(res => res.json())
@@ -241,12 +254,34 @@ export default function TeacherReviewPage({
         </div>
 
         {/* Right Pane: AI Assessment & Grading */}
-        <div className="w-full lg:w-1/2 bg-white flex flex-col lg:overflow-y-auto">
+        <div className="w-full lg:w-1/2 bg-white flex flex-col lg:overflow-y-auto relative">
           {ai ? (
-            <div className="p-8 space-y-8">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
               
+              {/* Executive Summary (Sticky on Mobile & Desktop for quick glance) */}
+              <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md pt-2 pb-4 border-b border-gray-100 -mt-2">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                    <p className="text-[10px] sm:text-xs text-emerald-600 font-bold uppercase">Nilai AI</p>
+                    <p className="text-xl sm:text-2xl font-black text-emerald-800">{ai.suggestedScore}</p>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+                    <p className="text-[10px] sm:text-xs text-orange-600 font-bold uppercase">Salah</p>
+                    <p className="text-xl sm:text-2xl font-black text-orange-800">
+                      {ai.analysis?.filter((a:any) => a.score < a.maxScore).length || 0}
+                    </p>
+                  </div>
+                  <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                    <p className="text-[10px] sm:text-xs text-red-600 font-bold uppercase">Perhatian</p>
+                    <p className="text-xl sm:text-2xl font-black text-red-800">
+                      {ai.analysis?.filter((a:any) => a.status === 'UNREADABLE' || a.status === 'MANUAL_EDIT').length || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Grading Input */}
-              <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 shadow-sm">
+              <div className="bg-emerald-50 p-5 sm:p-6 rounded-2xl border border-emerald-100 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 mb-4">
                   <h3 className="font-bold text-gray-800">Penilaian Akhir</h3>
                   <div className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-medium">
@@ -316,90 +351,144 @@ export default function TeacherReviewPage({
                 </div>
               )}
 
-              {/* AI Details Breakdown */}
-              <div>
-                <h3 className="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">Analisis Jawaban Siswa</h3>
-                <div className="space-y-4">
-                  {ai.analysis?.map((a: any, idx: number) => {
+              {/* Filter & Analysis List */}
+              <div className="sticky top-[100px] bg-white z-20 pt-2 pb-4 border-b border-gray-100">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <h3 className="font-bold text-gray-800">Analisis Jawaban Siswa</h3>
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button 
+                      onClick={() => setFilterMode("ALL")}
+                      className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-colors ${filterMode === "ALL" ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Semua
+                    </button>
+                    <button 
+                      onClick={() => setFilterMode("WRONG")}
+                      className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-colors ${filterMode === "WRONG" ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Hanya Salah
+                    </button>
+                    <button 
+                      onClick={() => setFilterMode("MANUAL")}
+                      className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-colors ${filterMode === "MANUAL" ? 'bg-white shadow-sm text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Perlu Koreksi
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 mt-4">
+                {ai.analysis
+                  ?.filter((a: any) => {
+                    if (filterMode === "WRONG") return a.score < a.maxScore;
+                    if (filterMode === "MANUAL") return a.status === 'UNREADABLE' || a.status === 'MANUAL_EDIT';
+                    return true;
+                  })
+                  .map((a: any, idx: number) => {
                     const isEditing = editingAnalysisId === a._id;
+                    const isExpanded = expandedAnalysisIds.has(a._id) || isEditing;
+                    const isWrong = a.score < a.maxScore;
+
                     return (
-                      <div key={a._id || idx} className={`p-4 rounded-xl border ${a.status === 'UNREADABLE' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-semibold text-sm ${a.status === 'UNREADABLE' ? 'text-red-800' : 'text-gray-800'}`}>Soal {a.questionNumber}</span>
-                            {a.status === 'UNREADABLE' && (
-                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200 font-bold">⚠️ Tidak Terbaca AI</span>
-                            )}
-                            {a.status === 'MANUAL_EDIT' && (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold">✏️ Diedit Guru</span>
-                            )}
-                          </div>
-                          {!isEditing && (
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 text-gray-800">
-                                {a.score} <span className="text-gray-400 font-normal">/ {a.maxScore}</span>
-                              </span>
-                              <button 
-                                onClick={() => handleStartEditAnalysis(a)}
-                                className="text-xs text-blue-600 font-medium hover:text-blue-800 bg-white px-2 py-1 border border-blue-100 rounded shadow-sm"
-                              >
-                                Koreksi Manual
-                              </button>
+                      <div key={a._id || idx} className={`rounded-xl border transition-all ${a.status === 'UNREADABLE' ? 'border-red-200 bg-red-50' : isWrong ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-white'}`}>
+                        {/* Summary Bar (Always Visible) */}
+                        <div 
+                          className="p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer hover:bg-black/5"
+                          onClick={() => !isEditing && toggleAccordion(a._id)}
+                        >
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <span className={`font-bold text-sm ${isWrong ? 'text-orange-700' : 'text-emerald-700'}`}>Soal {a.questionNumber}</span>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-sm font-medium text-gray-700 truncate max-w-[120px] sm:max-w-[200px]" title={a.studentAnswer}>
+                              {a.studentAnswer || "(Kosong)"}
+                            </span>
+                            
+                            <div className="flex gap-1 ml-1 sm:ml-2">
+                              {a.status === 'UNREADABLE' && (
+                                <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold">⚠️ OCR Fail</span>
+                              )}
+                              {a.status === 'MANUAL_EDIT' && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200 font-bold">✏️ Diedit</span>
+                              )}
                             </div>
-                          )}
+                          </div>
+
+                          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                            <span className={`text-xs font-bold px-2 py-1 rounded shadow-sm border ${isWrong ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'}`}>
+                              {isWrong ? '❌ Salah' : '✅ Benar'} ({a.score}/{a.maxScore})
+                            </span>
+                            <span className="text-gray-400 text-xs">
+                              {isExpanded ? '▲' : '▼'}
+                            </span>
+                          </div>
                         </div>
                         
-                        {isEditing ? (
-                          <div className="mt-4 bg-white p-4 rounded-lg border border-blue-200 shadow-inner">
-                            <div className="mb-3">
-                              <label className="block text-xs font-medium text-gray-700 mb-1">Skor ({a.maxScore} max)</label>
-                              <input 
-                                type="number" 
-                                min="0" max={a.maxScore}
-                                value={editScore}
-                                onChange={(e) => setEditScore(parseFloat(e.target.value) || 0)}
-                                className="w-24 px-3 py-2 bg-gray-50 border border-gray-300 rounded font-bold text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                              />
-                            </div>
-                            <div className="mb-4">
-                              <label className="block text-xs font-medium text-gray-700 mb-1">Analisis Guru</label>
-                              <textarea
-                                value={editAnalysisText}
-                                onChange={(e) => setEditAnalysisText(e.target.value)}
-                                rows={3}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                              />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <button 
-                                onClick={() => setEditingAnalysisId(null)}
-                                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded"
-                                disabled={isSavingAnalysis}
-                              >
-                                Batal
-                              </button>
-                              <button 
-                                onClick={() => handleSaveAnalysis(a._id)}
-                                className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm"
-                                disabled={isSavingAnalysis}
-                              >
-                                {isSavingAnalysis ? 'Menyimpan...' : 'Simpan Koreksi'}
-                              </button>
-                            </div>
+                        {/* Expanded Details */}
+                        {isExpanded && (
+                          <div className="p-4 border-t border-gray-100/50 bg-white/50 rounded-b-xl">
+                            {isEditing ? (
+                              <div className="bg-white p-4 rounded-lg border border-blue-200 shadow-inner">
+                                <div className="mb-3">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Skor ({a.maxScore} max)</label>
+                                  <input 
+                                    type="number" 
+                                    min="0" max={a.maxScore}
+                                    value={editScore}
+                                    onChange={(e) => setEditScore(parseFloat(e.target.value) || 0)}
+                                    className="w-24 px-3 py-2 bg-gray-50 border border-gray-300 rounded font-bold text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                                  />
+                                </div>
+                                <div className="mb-4">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Analisis Guru</label>
+                                  <textarea
+                                    value={editAnalysisText}
+                                    onChange={(e) => setEditAnalysisText(e.target.value)}
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                                  />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <button 
+                                    onClick={() => setEditingAnalysisId(null)}
+                                    className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded"
+                                    disabled={isSavingAnalysis}
+                                  >
+                                    Batal
+                                  </button>
+                                  <button 
+                                    onClick={() => handleSaveAnalysis(a._id)}
+                                    className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm"
+                                    disabled={isSavingAnalysis}
+                                  >
+                                    {isSavingAnalysis ? 'Menyimpan...' : 'Simpan Koreksi'}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="mb-3">
+                                  <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-1">Analisis AI</p>
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{a.analysis || "(Tidak ada penjelasan AI)"}</p>
+                                </div>
+                                <div className="flex justify-end mt-2">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStartEditAnalysis(a);
+                                    }}
+                                    className="text-xs text-blue-600 font-medium hover:text-blue-800 bg-white px-3 py-1.5 border border-blue-200 rounded-md shadow-sm transition-colors"
+                                  >
+                                    ✏️ Koreksi Manual
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </div>
-                        ) : (
-                          <>
-                            <div className={`mt-2 p-3 border rounded-lg ${a.status === 'UNREADABLE' ? 'bg-red-50 border-red-100' : 'bg-white border-gray-200'}`}>
-                              <p className="text-xs text-gray-500 font-medium mb-1">Jawaban Siswa Terbaca:</p>
-                              <p className={`text-sm font-medium ${a.status === 'UNREADABLE' ? 'text-red-700' : 'text-gray-800'}`}>{a.studentAnswer}</p>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap"><span className="font-medium text-gray-700">Analisis:</span> {a.analysis}</p>
-                          </>
                         )}
                       </div>
                     );
-                  })}
-                </div>
+                })}
               </div>
 
             </div>
