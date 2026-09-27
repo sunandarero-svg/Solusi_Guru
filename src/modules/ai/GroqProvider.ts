@@ -36,7 +36,7 @@ export class GroqProvider implements AIProvider {
 
 
   async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
-    const textModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "qwen/qwen-2.5-72b"];
+    const textModels = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen-2.5-72b"];
     const customModel = process.env.GROQ_MODEL?.trim();
     const baseTextModels = customModel ? [customModel, ...textModels] : textModels;
 
@@ -53,7 +53,7 @@ export class GroqProvider implements AIProvider {
         
         const availableModels = await getDynamicModels(apiKey);
         const activeTextModels = baseTextModels.filter(m => availableModels.includes(m) || m === customModel);
-        const textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-120b"];
+        const textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-20b"];
 
         const textModel = textModelsToTry[attempt % textModelsToTry.length];
 
@@ -101,11 +101,10 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
     
     let extractedText = "";
 
-    // Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
-
-      const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview", "qwen/qwen3.8-27b"];
+    // Fallback to Qwen VL or Llama Vision
+      const visionModels = ["qwen/qwen3.8-27b", "llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
       const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
-      const visionModelsToTry = activeVisionModels.length > 0 ? activeVisionModels : ["llama-3.2-90b-vision-preview"];
+      const visionModelsToTry = activeVisionModels.length > 0 ? activeVisionModels : ["qwen/qwen3.8-27b"];
 
       const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
       for (let i = 0; i < pages.length; i++) {
@@ -321,13 +320,12 @@ Output WAJIB berupa JSON murni tanpa narasi pembuka/penutup. Struktur JSON harus
       const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
 Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
       
-      // Fallback to Llama Maverick (Llama 3.2 Vision on Groq)
-
-        const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview", "qwen/qwen3.8-27b"];
+      // Priority: Qwen VL, fallback to Llama Vision
+        const visionModels = ["qwen/qwen3.8-27b", "llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
         const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
-        const visionModel = activeVisionModels[0] || "llama-3.2-90b-vision-preview";
+        const visionModel = activeVisionModels[0] || "qwen/qwen3.8-27b";
 
-        console.log(`[Groq Fallback] Step 1 (Answer Key): Extracting text using Llama Maverick Vision (${visionModel})...`);
+        console.log(`[Groq Fallback] Step 1 (Answer Key): Extracting text using Vision (${visionModel})...`);
         const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
         
         for (const attachment of imageAttachments!) {
