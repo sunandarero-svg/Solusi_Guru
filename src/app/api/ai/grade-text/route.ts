@@ -93,6 +93,8 @@ Output WAJIB berupa JSON murni dengan struktur:
     const { key } = await groqRateLimiter.waitForKey(30000);
     const textModel = "openai/gpt-oss-120b";
 
+    console.log(`[Grade Text API] Memanggil model (Primary): ${textModel}`);
+
     const textResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -116,6 +118,9 @@ Output WAJIB berupa JSON murni dengan struktur:
 
     const textData = await textResponse.json();
     const responseText = textData.choices?.[0]?.message?.content || "";
+    
+    console.log(`[Grade Text API] Penilaian berhasil menggunakan model: ${textModel}`);
+
     const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
     const assessmentResult = JSON.parse(cleanText);
 
