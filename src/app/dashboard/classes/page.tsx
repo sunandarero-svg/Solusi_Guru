@@ -53,6 +53,21 @@ export default function ClassesPage() {
     setSubmitting(false);
   };
 
+  const handleDelete = async (classId: string, className: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus kelas "${className}" beserta seluruh siswa dan tugas-tugasnya? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    setLoading(true);
+    const res = await fetch(`/api/classes/${classId}`, { method: "DELETE" });
+    if (res.ok) {
+      setMessage({ type: "success", text: "Kelas dan seluruh datanya berhasil dihapus." });
+      fetchClasses();
+    } else {
+      const data = await res.json();
+      setMessage({ type: "error", text: data.error || "Gagal menghapus kelas." });
+      setLoading(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -120,25 +135,45 @@ export default function ClassesPage() {
           </div>
         ) : (
           classes.map(c => (
-            <Link href={`/dashboard/classes/${c.id}`} key={c.id} className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 hover:border-emerald-200 transition duration-300 block cursor-pointer group">
-              <div className="flex justify-between items-start">
-                <h2 className="text-lg font-bold text-gray-800 group-hover:text-emerald-600 transition-colors">{c.name}</h2>
-                <span className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">➔</span>
+            <div key={c.id} className="bg-white rounded-xl shadow border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 hover:border-emerald-200 transition duration-300 flex flex-col group relative">
+              <div className="flex justify-between items-start mb-2">
+                <Link href={`/dashboard/classes/${c.id}`} className="flex-grow">
+                  <h2 className="text-lg font-bold text-gray-800 group-hover:text-emerald-600 transition-colors">{c.name}</h2>
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDelete(c.id, c.name);
+                  }}
+                  className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50 z-10"
+                  title="Hapus Kelas"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
-              {c.description && <p className="text-sm text-gray-400 mt-1">{c.description}</p>}
-              <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-sm text-gray-500">
-                  👨‍🎓 <span className="font-semibold text-gray-700">{c.enrollments.length}</span> siswa
-                </span>
-                <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded">
-                  {c.teachers.length > 0 ? c.teachers[0].teacher.fullName : "Tanpa Guru"}
-                </span>
-              </div>
-            </Link>
+              
+              <Link href={`/dashboard/classes/${c.id}`} className="flex-grow flex flex-col justify-between cursor-pointer">
+                <div>
+                  {c.description && <p className="text-sm text-gray-400 mt-1 mb-2">{c.description}</p>}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-sm text-gray-500">
+                    👨‍🎓 <span className="font-semibold text-gray-700">{c.enrollments.length}</span> siswa
+                  </span>
+                  <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded">
+                    {c.teachers.length > 0 ? c.teachers[0].teacher.fullName : "Tanpa Guru"}
+                  </span>
+                </div>
+              </Link>
+            </div>
           ))
         )}
       </div>
     </div>
   );
 }
+
 
