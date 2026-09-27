@@ -234,11 +234,11 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     {
       "questionNumber": "string",
       "studentAnswer": "string (teks pertanyaan & jawaban siswa)",
-      "reasoning_steps": "string (Langkah-langkah penalaran membandingkan jawaban siswa dan kunci jawaban)",
+      "reasoning_steps": "string (Kosongkan jika BENAR SEMPURNA)",
       "typos": [{"salah": "kata typo", "perbaikan": "prediksi kata yang benar"}],
       "score": number,
       "maxScore": number,
-      "analysisText": "string (Penjelasan ringkas alasan skor dan umpan balik motivasi)",
+      "analysisText": "string (Kosongkan jika BENAR SEMPURNA)",
       "status": "OK"
     }
   ],
