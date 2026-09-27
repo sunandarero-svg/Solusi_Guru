@@ -46,7 +46,7 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const visionModel = "gemini-2.5-flash"; // Cepat dan mumpuni untuk OCR
+      const visionModel = "gemini-3.8-flash"; // Versi terbaru yang direkomendasikan API
       console.log(`[Extract Text API] Memanggil model (Primary): ${visionModel}`);
 
       const response = await ai.models.generateContent({
