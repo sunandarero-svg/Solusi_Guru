@@ -95,9 +95,10 @@ export class GroqProvider implements AIProvider {
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---
     const visionPrompt = `Tugas Anda adalah membaca tulisan tangan siswa pada gambar-gambar ini. 
 SANGAT PENTING: 
-1. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
-2. Jika ada simbol atau rumus matematika kompleks (seperti pecahan bersusun, akar, integral, limit, dll), Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ (untuk blok rumus terpisah) atau $...$ (untuk rumus sebaris).
-3. Pisahkan setiap jawaban atau nomor soal dengan baris baru agar strukturnya sangat jelas dibaca.
+1. DETEKSI BAGIAN (SECTIONING): Siswa sering membagi jawaban ke dalam beberapa bagian (misal: Bagian A. Pilgan, Bagian B. Benar/Salah). Anda WAJIB mengenali dan mempertahankan judul/header bagian tersebut dalam hasil transkripsi. Letakkan header bagian di dalam kurung siku, contoh: [Bagian A: Pilgan].
+2. BACA KOLOM VERTIKAL: Jika jawaban ditulis dalam dua kolom (kiri dan kanan), baca kolom sebelah kiri dari atas ke bawah terlebih dahulu sampai habis, baru kemudian pindah ke kolom sebelah kanan. Urutkan kembali berdasarkan nomor soal secara vertikal dan rapi.
+3. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
+4. Jika ada simbol atau rumus matematika kompleks, Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ atau $...$.
 Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
     
     let extractedText = "";
@@ -218,7 +219,7 @@ ${questionsInstruction && questions && questions.length > 0 ? questionsInstructi
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR:
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Pastikan array 'analysis' berisi penilaian untuk semua soal.
-1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
+1. PEMETAAN BAGIAN & NOMOR SOAL (SMART MAPPING): Jawaban siswa mungkin terbagi menjadi beberapa bagian (misal [Bagian A], [Bagian B]) dengan nomor urut yang mengulang dari angka 1 di setiap bagiannya. Anda harus mencocokkan tipe soal (Pilihan Ganda, Benar/Salah, Isian) dari bagian tersebut dengan urutan kunci jawaban secara keseluruhan. Pastikan nomor soal (questionNumber) diisi dengan nomor urut global (misal: 1 sampai 25) sesuai 'order' pada Konfigurasi Soal, JANGAN sekadar menyalin nomor 1 dari Bagian B jika itu sebenarnya adalah soal ke-11 secara global.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
 3. KRITERIA BENAR/SALAH - PILIHAN GANDA (ATURAN MUTLAK - SANGAT KETAT):
    - EKSTRAKSI HURUF PERTAMA: Hal PERTAMA yang WAJIB Anda lakukan adalah mencari dan MENGAMBIL HANYA HURUF (A/B/C/D/E) yang menjadi pilihan siswa.

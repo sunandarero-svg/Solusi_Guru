@@ -145,9 +145,10 @@ export class OpenRouterProvider implements AIProvider {
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---
     const visionPrompt = `Tugas Anda adalah membaca tulisan tangan siswa pada gambar-gambar ini. 
 SANGAT PENTING: 
-1. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
-2. Jika ada simbol atau rumus matematika kompleks (seperti pecahan bersusun, akar, integral, limit, dll), Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ (untuk blok rumus terpisah) atau $...$ (untuk rumus sebaris).
-3. Pisahkan setiap jawaban atau nomor soal dengan baris baru agar strukturnya sangat jelas dibaca.
+1. DETEKSI BAGIAN (SECTIONING): Siswa sering membagi jawaban ke dalam beberapa bagian (misal: Bagian A. Pilgan, Bagian B. Benar/Salah). Anda WAJIB mengenali dan mempertahankan judul/header bagian tersebut dalam hasil transkripsi. Letakkan header bagian di dalam kurung siku, contoh: [Bagian A: Pilgan].
+2. BACA KOLOM VERTIKAL: Jika jawaban ditulis dalam dua kolom (kiri dan kanan), baca kolom sebelah kiri dari atas ke bawah terlebih dahulu sampai habis, baru kemudian pindah ke kolom sebelah kanan. Urutkan kembali berdasarkan nomor soal secara vertikal dan rapi.
+3. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
+4. Jika ada simbol atau rumus matematika kompleks, Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ atau $...$.
 Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
 
     const extractedText = await this._extractVision(visionPrompt, pages);
@@ -183,7 +184,7 @@ ${questionsInstruction && questions && questions.length > 0 ? questionsInstructi
 INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
 0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. JANGAN PERNAH menjadi malas atau berhenti di tengah jalan!
 1. Baca SELURUH tulisan siswa dari awal hingga akhir.
-2. PENCOCOKAN NOMOR SOAL: Anda WAJIB MENGKAITKAN SETIAP JAWABAN SISWA DENGAN NOMOR SOAL YANG BENAR DI KUNCI JAWABAN.
+2. PEMETAAN BAGIAN & NOMOR SOAL (SMART MAPPING): Jawaban siswa mungkin terbagi menjadi beberapa bagian (misal [Bagian A], [Bagian B]) dengan nomor urut yang mengulang dari angka 1 di setiap bagiannya. Anda WAJIB mencocokkan tipe soal dari bagian tersebut dengan urutan kunci jawaban secara keseluruhan. Pastikan nomor soal (questionNumber) pada JSON diisi dengan nomor urut global (misal: 1 sampai 25) sesuai Konfigurasi Soal guru, BUKAN sekadar menyalin nomor 1 dari Bagian B jika itu sebenarnya adalah soal ke-11 secara global.
 ${!questions || questions.length === 0 ? questionsInstruction : ""}
 4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
    - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
