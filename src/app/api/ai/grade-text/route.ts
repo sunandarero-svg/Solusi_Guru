@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { extractedText, assignmentId, studentId } = await req.json();
-    
+
     if (!extractedText || !assignmentId || !studentId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -68,7 +68,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI!
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
-3. KRITERIA BENAR/SALAH - PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
+3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
 4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY: Kesamaan makna/konsep minimal 80% = BENAR SEMPURNA (100% maxScore). Abaikan typo.
 5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
 6. UMPAN BALIK EDUKATIF ('analysisText'): Berikan apresiasi jika benar. Jelaskan alasan jika salah.
@@ -139,18 +139,18 @@ Output WAJIB berupa JSON murni dengan struktur:
     const normalizedAnalyses = assessmentResult.analysis.map((analysis: any) => {
       const questionOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
       let maxScore = Number(analysis.maxScore) || 10;
-      
+
       const matchedQuestion = questions.find(q => q.order === questionOrder);
       if (matchedQuestion && matchedQuestion.maxScore !== undefined) {
         maxScore = matchedQuestion.maxScore;
       }
-      
+
       let finalScore = Number(analysis.score) || 0;
       if (finalScore > maxScore) finalScore = maxScore;
       if (finalScore < 0) finalScore = 0;
-      
+
       actualTotalScore += finalScore;
-      
+
       return {
         ...analysis,
         questionNumber: String(analysis.questionNumber),

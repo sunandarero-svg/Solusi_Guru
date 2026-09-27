@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { groqRateLimiter } from "@/modules/ai/rateLimiter";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,41 +42,70 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (
     const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
 
-    const { key } = await groqRateLimiter.waitForKey(30000);
-    
-    // We will use qwen3.8-27b or llama-3.2-90b-vision-preview
-    const visionModel = "qwen/qwen3.8-27b"; // Fast and reliable on Groq for OCR
+    let extractedText = "";
 
-    const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const visionModel = "gemini-2.5-flash"; // Cepat dan mumpuni untuk OCR
+      console.log(`[Extract Text API] Memanggil model (Primary): ${visionModel}`);
+
+      const response = await ai.models.generateContent({
         model: visionModel,
-        messages: [
+        contents: [
+          prompt,
           {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-            ]
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
           }
         ],
-        temperature: 0.1,
-        max_tokens: 800,
-      }),
-    });
+        config: {
+          temperature: 0.1,
+        }
+      });
 
-    if (!visionResponse.ok) {
-      const errBody = await visionResponse.text();
-      console.error("[Extract Text API] Groq Error:", errBody);
-      throw new Error(`Groq API returned ${visionResponse.status}`);
+      extractedText = response.text || "";
+      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model: ${visionModel}`);
+    } catch (geminiError: any) {
+      console.warn("[Extract Text API] Gemini gagal, mencoba fallback ke Groq Qwen...", geminiError?.message || geminiError);
+      
+      const { key } = await groqRateLimiter.waitForKey(30000);
+      const fallbackModel = "qwen/qwen3.8-27b";
+      console.log(`[Extract Text API] Memanggil model (Fallback): ${fallbackModel}`);
+
+      const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: fallbackModel,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+              ]
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 800,
+        }),
+      });
+
+      if (!groqResponse.ok) {
+        const errBody = await groqResponse.text();
+        console.error("[Extract Text API] Groq Fallback Error:", errBody);
+        throw new Error(`Groq API returned ${groqResponse.status}`);
+      }
+
+      const groqData = await groqResponse.json();
+      extractedText = groqData.choices?.[0]?.message?.content || "";
+      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model fallback: ${fallbackModel}`);
     }
-
-    const visionData = await visionResponse.json();
-    const extractedText = visionData.choices?.[0]?.message?.content || "";
 
     return NextResponse.json({ text: extractedText });
   } catch (error: any) {
