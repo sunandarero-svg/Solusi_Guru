@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    const prompt = "Tugas Anda adalah membaca seluruh tulisan tangan pada gambar ini. Transkripsikan semua teks dan angka persis seperti yang tertulis. Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja.";
+    const prompt = "Tugas Anda adalah membaca seluruh tulisan tangan pada gambar ini. Transkripsikan semua teks dan angka persis seperti yang tertulis. Aturan tambahan penting:\n1. Jangan memprediksi atau menuliskan kata yang memiliki banyak coretan sehingga menutupi hampir semua huruf dalam kata tersebut (abaikan kata yang dicoret).\n2. Jika ada kata yang salah ketik (typo) dan tidak memiliki makna dalam bahasa Indonesia, Anda boleh memperbaikinya dengan menyesuaikan berdasarkan kata sebelumnya atau setelahnya, sehingga kalimat tersebut memiliki makna yang utuh sesuai konteks.\nSelain dua poin di atas, jangan ubah makna tulisan, jangan berikan penilaian, dan jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja.";
     
     const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
     const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
