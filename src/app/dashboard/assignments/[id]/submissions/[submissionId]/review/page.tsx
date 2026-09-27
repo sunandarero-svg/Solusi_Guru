@@ -2,6 +2,8 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
 
 export default function TeacherReviewPage({ 
   params 
@@ -339,7 +341,7 @@ export default function TeacherReviewPage({
                   {showAnswerKey && (
                     <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 max-h-64 overflow-y-auto mb-2">
                       <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {answerKey}
+                        <Latex>{answerKey}</Latex>
                       </div>
                       <div className="mt-3 pt-2 border-t border-purple-100">
                         <p className="text-xs text-purple-500 italic">
@@ -401,7 +403,7 @@ export default function TeacherReviewPage({
                             <span className={`font-bold text-sm ${isWrong ? 'text-orange-700' : 'text-emerald-700'}`}>Soal {a.questionNumber}</span>
                             <span className="text-gray-300">|</span>
                             <span className="text-sm font-medium text-gray-700 truncate max-w-[120px] sm:max-w-[200px]" title={a.studentAnswer}>
-                              {a.studentAnswer || "(Kosong)"}
+                              <Latex>{a.studentAnswer || "(Kosong)"}</Latex>
                             </span>
                             
                             <div className="flex gap-1 ml-1 sm:ml-2">
@@ -469,7 +471,9 @@ export default function TeacherReviewPage({
                               <>
                                 <div className="mb-3">
                                   <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-1">Analisis AI</p>
-                                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{a.analysis || "(Tidak ada penjelasan AI)"}</p>
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                    <Latex>{a.analysis || "(Tidak ada penjelasan AI)"}</Latex>
+                                  </p>
                                 </div>
                                 <div className="flex justify-end mt-2">
                                   <button 

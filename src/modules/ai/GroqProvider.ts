@@ -93,10 +93,11 @@ export class GroqProvider implements AIProvider {
   ): Promise<AIAssessmentResult> {
     
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---
-    const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan tangan pada gambar-gambar ini. Transkripsikan semua teks dan angka persis seperti yang tertulis. 
+    const visionPrompt = `Tugas Anda adalah membaca tulisan tangan siswa pada gambar-gambar ini. 
 SANGAT PENTING: 
-- PASTIKAN Anda menangkap dan mempertahankan NOMOR SOAL (1, 2, 3, dst) yang ditulis oleh siswa. 
-- Pisahkan setiap jawaban atau nomor soal dengan baris baru agar strukturnya sangat jelas dibaca.
+1. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
+2. Jika ada simbol atau rumus matematika kompleks (seperti pecahan bersusun, akar, integral, limit, dll), Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ (untuk blok rumus terpisah) atau $...$ (untuk rumus sebaris).
+3. Pisahkan setiap jawaban atau nomor soal dengan baris baru agar strukturnya sangat jelas dibaca.
 Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
     
     let extractedText = "";
