@@ -245,23 +245,23 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
    - JANGAN PERNAH memprediksi, menebak, atau mengasumsikan kata/kalimat yang TIDAK DAPAT DIBACA atau TIDAK MEMILIKI MAKNA.
    - Jika transkripsi mengandung teks yang sama sekali tidak bisa dipahami maknanya (bukan typo biasa, melainkan karakter acak atau kata yang benar-benar tidak bermakna), anggap bagian tersebut sebagai tidak terjawab.
    - Jika 'UNREADABLE', berikan skor 0, analysisText "Tulisan kurang jelas terbaca, silakan coba foto ulang ya.", dan status "UNREADABLE".
-6. UMPAN BALIK EDUKATIF ('analysisText') - SANGAT PENTING:
-   - Jika jawaban BENAR SEMPURNA: Berikan apresiasi atau pujian singkat (1 kalimat).
-   - Jika jawaban SALAH atau BENAR SEBAGIAN (nilai < maxScore): WAJIB berikan analisis singkat kenapa salah/kurang tepat, DAN jelaskan jawaban yang seharusnya benar berdasarkan Kunci Jawaban (dengan bahasa yang memotivasi siswa).
+6. UMPAN BALIK EDUKATIF ('analysisText') & PENALARAN ('reasoning'):
+   - Jika jawaban BENAR SEMPURNA (100% maxScore): Berikan 'reasoning' dan 'analysisText' berupa string kosong "" untuk menghemat output token (Conditional Output).
+   - Jika jawaban SALAH atau BENAR SEBAGIAN: WAJIB berikan 'reasoning' (1 kalimat) dan 'analysisText' yang menjelaskan letak kesalahan serta kunci jawaban yang benar.
 
-Output WAJIB berupa JSON murni dengan struktur:
+Output WAJIB berupa JSON murni tanpa narasi pembuka/penutup. Struktur JSON harus persis seperti ini:
 {
   "totalScore": number,
-  "generalFeedback": "Apresiasi/umpan balik singkat keseluruhan",
+  "generalFeedback": "Umpan balik keseluruhan secara singkat",
   "analysis": [
     {
       "questionNumber": "string",
       "studentAnswer": "teks jawaban siswa",
-      "reasoning": "1 kalimat perbandingan",
+      "reasoning": "string (Kosongkan jika BENAR SEMPURNA)",
       "score": number,
       "maxScore": number,
-      "analysisText": "Penjelasan singkat",
-      "status": "OK"
+      "analysisText": "string (Kosongkan jika BENAR SEMPURNA)",
+      "status": "OK | UNREADABLE"
     }
   ]
 }`;

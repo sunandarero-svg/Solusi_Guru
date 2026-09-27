@@ -197,7 +197,23 @@ export class AIService {
           analysis.typos.map((t: any) => `- "${t.salah}" ➡️ "${t.perbaikan}"`).join("\n");
       }
 
-      const combinedAnalysis = (analysis.reasoning_steps ? `**Penalaran AI:**\n${analysis.reasoning_steps}\n\n**Umpan Balik:**\n` : '') + (analysis.analysisText || analysis.analysis || "Tidak ada analisis.") + typoFeedback;
+      let reasoningPart = "";
+      if (analysis.reasoning) {
+        reasoningPart = `**Penalaran:**\n${analysis.reasoning}\n\n`;
+      } else if (analysis.reasoning_steps) {
+        reasoningPart = `**Penalaran AI:**\n${analysis.reasoning_steps}\n\n`;
+      }
+
+      let feedbackPart = analysis.analysisText || analysis.analysis || "";
+      
+      // Jika kosong (krn conditional prompting untuk jawaban benar)
+      if (!reasoningPart && !feedbackPart && analysis.score === analysis.maxScore) {
+        feedbackPart = "✅ Sesuai dengan kunci jawaban.";
+      } else if (!feedbackPart) {
+        feedbackPart = "Tidak ada umpan balik.";
+      }
+
+      const combinedAnalysis = reasoningPart + (reasoningPart && feedbackPart !== "Tidak ada umpan balik." ? `**Umpan Balik:**\n` : '') + feedbackPart + typoFeedback;
       
       await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
