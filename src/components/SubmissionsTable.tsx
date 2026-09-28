@@ -34,6 +34,17 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
 
   // Class filtering state (Mocked/Derived from assignments since an assignment is for 1 class currently)
   const [selectedClassId, setSelectedClassId] = useState("all");
+  
+  // Status filtering state
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filteredSubmissions = submissions.filter(sub => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "has-ai") return sub.aiAssessment?.suggestedScore !== undefined;
+    if (statusFilter === "has-teacher") return sub.teacherReview?.finalScore !== undefined;
+    if (statusFilter === "unsubmitted") return sub.status === "UNSUBMITTED";
+    return true;
+  });
 
   const fetchSubmissions = () => {
     setLoading(true);
@@ -176,7 +187,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
       <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Antrean Review Guru</h2>
-          <p className="text-sm text-slate-500 mt-1">{submissions.length} Pengumpulan Total</p>
+          <p className="text-sm text-slate-500 mt-1">{filteredSubmissions.length} Pengumpulan Total</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -195,6 +206,17 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
           >
             <option value="all">Semua Kelas</option>
             <option value="class-current">Kelas Saat Ini</option>
+          </select>
+
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-700"
+          >
+            <option value="all">Semua Status</option>
+            <option value="has-ai">Sudah Dinilai AI</option>
+            <option value="has-teacher">Sudah Dinilai Guru</option>
+            <option value="unsubmitted">Belum Mengumpulkan</option>
           </select>
 
           {selectedIds.length > 0 && (
@@ -228,7 +250,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
               <th className="px-6 py-4 w-12 text-center">
                 <input 
                   type="checkbox"
-                  checked={submissions.length > 0 && selectedIds.length === submissions.length}
+                  checked={filteredSubmissions.length > 0 && selectedIds.length === filteredSubmissions.length}
                   onChange={toggleSelectAll}
                   className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
@@ -242,14 +264,14 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {submissions.length === 0 ? (
+            {filteredSubmissions.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                  Belum ada siswa yang mengumpulkan tugas.
+                  Tidak ada data yang sesuai filter.
                 </td>
               </tr>
             ) : (
-              submissions.map(sub => (
+              filteredSubmissions.map(sub => (
                 <tr key={sub.id} className={`transition-colors ${selectedIds.includes(sub.id) ? 'bg-emerald-50/30' : 'hover:bg-slate-50/50'}`}>
                   <td className="px-6 py-4 text-center">
                     <input 
@@ -272,7 +294,8 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     {sub.status === "PUBLISHED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Selesai</span>}
                     {sub.status === "PROCESSING" && <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse">⏳ AI Menganalisis...</span>}
                     {sub.status === "FAILED" && <span className="bg-red-100 text-red-800 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">❌ Gagal</span>}
-                    {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED", "PROCESSING", "FAILED"].includes(sub.status) && (
+                    {sub.status === "UNSUBMITTED" && <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">Belum Mengumpulkan</span>}
+                    {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED", "PROCESSING", "FAILED", "UNSUBMITTED"].includes(sub.status) && (
                       <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{sub.status}</span>
                     )}
                   </td>
@@ -295,30 +318,36 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     )}
                   </td>
                   <td className="px-6 py-4 text-right flex items-center justify-end space-x-3">
-                    {sub.status === "FAILED" && (
-                      <button
-                        onClick={() => handleRegrade(sub.id, sub.student.fullName)}
-                        disabled={regradingId === sub.id}
-                        className="px-3 py-1.5 bg-white border border-slate-200 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
-                        title="Koreksi Ulang dengan AI"
-                      >
-                        {regradingId === sub.id ? "⏳" : "🔄 Koreksi Ulang"}
-                      </button>
+                    {sub.status !== "UNSUBMITTED" ? (
+                      <>
+                        {sub.status === "FAILED" && (
+                          <button
+                            onClick={() => handleRegrade(sub.id, sub.student.fullName)}
+                            disabled={regradingId === sub.id}
+                            className="px-3 py-1.5 bg-white border border-slate-200 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
+                            title="Koreksi Ulang dengan AI"
+                          >
+                            {regradingId === sub.id ? "⏳" : "🔄 Koreksi Ulang"}
+                          </button>
+                        )}
+                        <Link 
+                          href={`/dashboard/assignments/${assignmentId}/submissions/${sub.id}/review`}
+                          className="px-3 py-1.5 bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
+                        >
+                          {sub.status === "PUBLISHED" ? "Lihat / Edit ✏️" : ["APPROVED"].includes(sub.status) ? "Lihat Hasil" : "Edit ✏️"}
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(sub.id, sub.student.fullName)}
+                          disabled={deletingId === sub.id}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Hapus Tugas"
+                        >
+                          {deletingId === sub.id ? "⏳" : <Trash2 size={16} />}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic font-medium px-2 py-1">Belum ada tugas</span>
                     )}
-                    <Link 
-                      href={`/dashboard/assignments/${assignmentId}/submissions/${sub.id}/review`}
-                      className="px-3 py-1.5 bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold text-xs transition-colors shadow-sm"
-                    >
-                      {sub.status === "PUBLISHED" ? "Lihat / Edit ✏️" : ["APPROVED"].includes(sub.status) ? "Lihat Hasil" : "Edit ✏️"}
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(sub.id, sub.student.fullName)}
-                      disabled={deletingId === sub.id}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                      title="Hapus Tugas"
-                    >
-                      {deletingId === sub.id ? "⏳" : <Trash2 size={16} />}
-                    </button>
                   </td>
                 </tr>
               ))

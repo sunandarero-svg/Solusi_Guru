@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTeacherSession } from "@/modules/auth/session";
 import dbConnect from "@/lib/mongoose";
 import { Submission, AIAssessment, TeacherReview } from "@/models/Submission";
+import { Assignment } from "@/models/Assignment";
 import { mapId } from "@/lib/mapId";
 
 export async function GET(
@@ -15,32 +16,60 @@ export async function GET(
     const resolvedParams = await props.params;
     await dbConnect();
 
-    // The frontend expects student, aiAssessment, and teacherReview included
-    // In mongoose, we could use populate if they were refs on submission, but aiAssessment/teacherReview
-    // are often queried with submissionId.
-    // Actually, in our Mongoose setup, aiAssessment and teacherReview don't have refs FROM Submission.
-    // So we need an aggregation or parallel find.
-    // Since this is an API route, let's keep it simple.
+    const assignment = await Assignment.findById(resolvedParams.id).lean();
+    if (!assignment) {
+      return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
+    }
 
-    const submissions = await Submission.find({ assignmentId: resolvedParams.id })
+    // Fetch all enrollments for this class
+    const { Enrollment } = await import("@/models/Class");
+    const { StudentProfile } = await import("@/models/Profile");
+    
+    // We need to register StudentProfile model if it isn't registered, 
+    // but importing it should register it.
+    const enrollments = await Enrollment.find({ classId: assignment.classId })
       .populate('studentId')
-      .sort({ updatedAt: -1 })
       .lean();
 
-    // Fetch related manually
-    const submissionIds = submissions.map(s => s._id);
+    const submissions = await Submission.find({ assignmentId: resolvedParams.id })
+      .lean();
+
+    const submissionIds = submissions.map((s: any) => s._id);
     const [aiAssessments, teacherReviews] = await Promise.all([
       AIAssessment.find({ submissionId: { $in: submissionIds } }).lean(),
       TeacherReview.find({ submissionId: { $in: submissionIds } }).lean()
     ]);
 
-    const formattedSubmissions = submissions.map(sub => {
-      return {
-        ...sub,
-        student: sub.studentId, // Note: Prisma returned student profile. Here we populate student user. May need adjustment if frontend expects profile.
-        aiAssessment: aiAssessments.find(a => a.submissionId.toString() === sub._id.toString()),
-        teacherReview: teacherReviews.find(r => r.submissionId.toString() === sub._id.toString()),
-      };
+    const formattedSubmissions = enrollments.map((enrollment: any) => {
+      const student = enrollment.studentId;
+      if (!student) return null; // Skip if student profile is somehow missing
+      
+      const sub = submissions.find((s: any) => s.studentId.toString() === student._id.toString());
+      
+      if (sub) {
+        return {
+          ...sub,
+          student: student,
+          aiAssessment: aiAssessments.find((a: any) => a.submissionId.toString() === sub._id.toString()),
+          teacherReview: teacherReviews.find((r: any) => r.submissionId.toString() === sub._id.toString()),
+        };
+      } else {
+        // Return dummy submission for students who haven't submitted
+        return {
+          id: `unsubmitted-${student._id}`,
+          _id: `unsubmitted-${student._id}`,
+          student: student,
+          status: "UNSUBMITTED",
+          updatedAt: new Date().toISOString()
+        };
+      }
+    }).filter(Boolean);
+
+    // Sort by name or submission status
+    formattedSubmissions.sort((a, b) => {
+      if (a.student.fullName < b.student.fullName) return -1;
+      if (a.student.fullName > b.student.fullName) return 1;
+      return 0;
     });
 
     return NextResponse.json(mapId(formattedSubmissions));
