@@ -150,6 +150,7 @@ SANGAT PENTING:
 2. BACA KOLOM VERTIKAL: Jika jawaban ditulis dalam dua kolom (kiri dan kanan), baca kolom sebelah kiri dari atas ke bawah terlebih dahulu sampai habis, baru kemudian pindah ke kolom sebelah kanan. Urutkan kembali berdasarkan nomor soal secara vertikal dan rapi.
 3. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
 4. Jika ada simbol atau rumus matematika kompleks, Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ atau $...$.
+5. WAJIB BAHASA INDONESIA PADA UMUMNYA: PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkannya ke bahasa Inggris atau bahasa lain.
 Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
 
     const extractedText = await this._extractVision(visionPrompt, pages);
@@ -270,6 +271,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
     // TAHAP 1: EKSTRAKSI GAMBAR DENGAN MAVERICK
     if (hasImages) {
       const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
+WAJIB BAHASA INDONESIA PADA UMUMNYA: PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan isi gambar tersebut ke bahasa Inggris atau bahasa lain.
 Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
       
       extractedText = await this._extractVision(visionPrompt, imageAttachments as any[]);
