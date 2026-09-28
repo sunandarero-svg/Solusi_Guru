@@ -25,7 +25,7 @@ export class OpenRouterProvider implements AIProvider {
 
   private async _extractVision(visionPrompt: string, pages: any[]): Promise<string> {
     const apiKey = this.getApiKey();
-    const visionModel = "openrouter/free";
+    const visionModel = "meta-llama/llama-4-maverick";
     
     console.log(`[OpenRouter Vision] Step 1: Extracting text using (${visionModel})...`);
     
@@ -78,6 +78,7 @@ export class OpenRouterProvider implements AIProvider {
 
   private async _executeTextWithFallback(apiKey: string, prompt: string, temperature: number, maxTokens: number): Promise<string> {
     const fallbackModels = [
+      "meta-llama/llama-4-scout",
       "qwen/qwen3.8-27b:free",
       "google/gemma-4-31b-it:free",
       "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",

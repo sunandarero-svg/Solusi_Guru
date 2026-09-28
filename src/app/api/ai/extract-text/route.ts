@@ -46,7 +46,7 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (
 
     // 1. PRIMARY: OpenRouter (Llama Maverick)
     try {
-      const openRouterModel = "meta-llama/llama-3.2-90b-vision-instruct";
+      const openRouterModel = "meta-llama/llama-4-maverick";
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
       if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is missing");
       
