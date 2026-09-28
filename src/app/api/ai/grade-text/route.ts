@@ -5,25 +5,22 @@ import dbConnect from "@/lib/mongoose";
 import { Assignment, AssignmentAttachment, AssignmentQuestion } from "@/models/Assignment";
 import { AIAssessment, StudentAnswerAnalysis, Submission } from "@/models/Submission";
 
-export async function POST(req: NextRequest) {
+/**
+ * Background grading function — runs after the HTTP response has been sent.
+ * Creates the AI assessment and updates the submission status to AI_COMPLETED or FAILED.
+ */
+async function processGradingInBackground(
+  extractedText: string,
+  assignmentId: string,
+  submissionId: string
+) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { extractedText, assignmentId, studentId } = await req.json();
-
-    if (!extractedText || !assignmentId || !studentId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
     await dbConnect();
 
     // 1. Fetch assignment details
     const assignment = await Assignment.findById(assignmentId).lean();
     if (!assignment) {
-      return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
+      throw new Error("Assignment not found");
     }
 
     // 2. Fetch answer key and questions
@@ -92,7 +89,7 @@ Output WAJIB berupa JSON murni dengan struktur:
     const textModel = "meta-llama/llama-4-maverick";
     const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
-    console.log(`[Grade Text API] Memanggil model (Primary): ${textModel}`);
+    console.log(`[Grade Text BG] Memanggil model (Primary): ${textModel} untuk submission ${submissionId}`);
 
     const textResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -113,34 +110,19 @@ Output WAJIB berupa JSON murni dengan struktur:
 
     if (!textResponse.ok) {
       const errBody = await textResponse.text();
-      console.error("[Grade Text API] OpenRouter Error:", errBody);
+      console.error("[Grade Text BG] OpenRouter Error:", errBody);
       throw new Error(`OpenRouter API returned ${textResponse.status}`);
     }
 
     const textData = await textResponse.json();
     const responseText = textData.choices?.[0]?.message?.content || "";
 
-    console.log(`[Grade Text API] Penilaian berhasil menggunakan model: ${textModel}`);
+    console.log(`[Grade Text BG] Penilaian berhasil menggunakan model: ${textModel}`);
 
     const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
     const assessmentResult = JSON.parse(cleanText);
 
-    // 4. Create Submission record (if not exists)
-    let submission = await Submission.findOne({ assignmentId, studentId });
-    if (!submission) {
-      submission = await Submission.create({
-        assignmentId,
-        studentId,
-        status: "AI_COMPLETED",
-        submittedAt: new Date()
-      });
-    } else {
-      submission.status = "AI_COMPLETED";
-      submission.submittedAt = new Date();
-      await submission.save();
-    }
-
-    // 5. Normalize and enforce scores
+    // 4. Normalize and enforce scores
     let actualTotalScore = 0;
     const normalizedAnalyses: any[] = [];
 
@@ -210,15 +192,15 @@ Output WAJIB berupa JSON murni dengan struktur:
       });
     }
 
-    // 6. Delete old assessment if exists to prevent E11000 duplicate key error
-    await AIAssessment.deleteMany({ submissionId: submission._id });
+    // 5. Delete old assessment if exists to prevent E11000 duplicate key error
+    await AIAssessment.deleteMany({ submissionId });
     // Note: We don't have direct link from submission to StudentAnswerAnalysis,
     // but StudentAnswerAnalysis is linked to assessmentId which we just orphaned/deleted.
     // To be clean, we should delete them, but deleting AIAssessment is enough to avoid the crash.
 
-    // 7. Save Assessment and Analysis to DB
+    // 6. Save Assessment and Analysis to DB
     const assessmentRecord = await AIAssessment.create({
-      submissionId: submission._id,
+      submissionId,
       provider: "OpenRouter-Text",
       suggestedScore: actualTotalScore,
       feedback: assessmentResult.generalFeedback,
@@ -244,11 +226,67 @@ Output WAJIB berupa JSON murni dengan struktur:
       });
     }
 
+    // 7. Update submission status to AI_COMPLETED
+    await Submission.findByIdAndUpdate(submissionId, {
+      status: "AI_COMPLETED",
+      submittedAt: new Date()
+    });
+
+    console.log(`[Grade Text BG] ✅ Submission ${submissionId} berhasil dinilai. Skor: ${actualTotalScore}`);
+
+  } catch (error: any) {
+    console.error(`[Grade Text BG] ❌ Gagal menilai submission ${submissionId}:`, error);
+    // Update submission status to FAILED so teacher knows it didn't work
+    try {
+      await Submission.findByIdAndUpdate(submissionId, { status: "FAILED" });
+    } catch (updateErr) {
+      console.error("[Grade Text BG] Gagal mengupdate status ke FAILED:", updateErr);
+    }
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { extractedText, assignmentId, studentId } = await req.json();
+
+    if (!extractedText || !assignmentId || !studentId) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    // 1. Create or update Submission with PROCESSING status immediately
+    let submission = await Submission.findOne({ assignmentId, studentId });
+    if (!submission) {
+      submission = await Submission.create({
+        assignmentId,
+        studentId,
+        status: "PROCESSING",
+        submittedAt: new Date()
+      });
+    } else {
+      submission.status = "PROCESSING";
+      submission.submittedAt = new Date();
+      await submission.save();
+    }
+
+    const submissionId = submission._id.toString();
+
+    // 2. Fire-and-forget: Start background grading (don't await)
+    processGradingInBackground(extractedText, assignmentId, submissionId)
+      .catch(err => console.error("[Grade Text API] Background processing error:", err));
+
+    // 3. Return immediately so teacher can continue scanning
     return NextResponse.json({
       success: true,
-      submissionId: submission._id,
-      score: actualTotalScore,
-      feedback: assessmentResult.generalFeedback
+      submissionId,
+      status: "PROCESSING",
+      message: "AI sedang menganalisis tugas. Anda bisa melanjutkan foto tugas siswa berikutnya."
     });
 
   } catch (error: any) {

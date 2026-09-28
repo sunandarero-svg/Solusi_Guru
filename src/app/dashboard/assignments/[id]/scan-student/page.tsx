@@ -43,7 +43,6 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
   const [isGrading, setIsGrading] = useState(false);
   const [isDone, setIsDone] = useState(false);
   
-  const [aiResultModal, setAiResultModal] = useState<{ type: 'success' | 'error', score: number, reason: string } | null>(null);
 
   const { isReady, detectCorners, processImage } = useDocumentScanner();
   const [isProcessingImage, setIsProcessingImage] = useState(false);
@@ -232,17 +231,12 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
       });
 
       if (!res.ok) {
-        throw new Error("Gagal mengoreksi tugas.");
+        throw new Error("Gagal mengirim tugas untuk dikoreksi.");
       }
 
-      const data = await res.json();
-      setIsGrading(false);
-      
-      setAiResultModal({
-        type: 'success',
-        score: data.score,
-        reason: data.feedback || "Tugas berhasil dikoreksi dan dinilai!"
-      });
+      // API now returns immediately with PROCESSING status.
+      // Navigate back to assignment detail so teacher can scan the next student.
+      router.push(`/dashboard/assignments/${resolvedParams.id}?grading=started`);
       
     } catch (err: any) {
       setIsGrading(false);
@@ -410,55 +404,6 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
         />
       )}
 
-      {/* AI Result Modal */}
-      {aiResultModal && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className={`bg-gray-900 border ${aiResultModal.type === 'error' ? 'border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'border-green-500/50 shadow-[0_0_40px_rgba(34,197,94,0.3)]'} rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 relative`}>
-            <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${aiResultModal.type === 'error' ? 'from-red-500 via-orange-500 to-red-500' : 'from-green-400 via-emerald-500 to-green-500'}`}></div>
-            
-            <div className="flex flex-col items-center text-center">
-              <div className="flex flex-col items-center mb-6 w-full p-4 bg-gray-800/50 border border-gray-700 rounded-2xl">
-                <span className="text-xl font-extrabold text-white mb-2">Nilai Rekomendasi AI</span>
-                <div className={`flex items-center justify-center px-4 py-1.5 rounded-full bg-gray-900 border-2 ${aiResultModal.type === 'error' ? 'border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]'}`}>
-                  <span className="text-xl font-bold">{aiResultModal.score}</span>
-                </div>
-              </div>
-              
-              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
-                {aiResultModal.type === 'error' ? 'Kualitas Foto Kurang Baik 🚀' : 'Berhasil Dikumpulkan! 🌟'}
-              </h2>
-              
-              <div className={`${aiResultModal.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-200' : 'bg-green-500/10 border-green-500/20 text-green-200'} border text-sm p-4 rounded-xl mb-6 text-left w-full leading-relaxed`}>
-                <p className="font-semibold mb-1 text-white">Pesan dari AI:</p>
-                {aiResultModal.reason}
-                {aiResultModal.type === 'error' && (
-                  <p className="mt-3 text-orange-300 italic text-xs">Akurasi penilaian mungkin tidak maksimal dengan kualitas foto ini. Silakan ambil ulang gambar jika perlu.</p>
-                )}
-                {aiResultModal.type === 'success' && (
-                  <div className="mt-4 p-3 bg-blue-900/40 border border-blue-500/50 rounded-lg">
-                    <p className="text-blue-200 text-sm font-medium leading-relaxed">
-                      💡 <strong>Pemberitahuan:</strong> Nilai ini bukan nilai Akhir. Masih ada Nilai Sikap serta Perilaku untuk menentukan Nilai Akhir dan itu hanya bisa dinilai oleh Guru.
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              <button 
-                onClick={() => {
-                  if (aiResultModal.type === 'error') {
-                    setAiResultModal(null);
-                  } else {
-                    router.push(`/dashboard/assignments/${resolvedParams.id}?success=1`);
-                  }
-                }}
-                className={`w-full ${aiResultModal.type === 'error' ? 'bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400' : 'bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400'} text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:-translate-y-1`}
-              >
-                {aiResultModal.type === 'error' ? 'Tutup & Perbaiki Foto' : 'Kembali ke Daftar Tugas'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Manual Cropper Modal */}
       {pendingCrop && (

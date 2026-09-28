@@ -47,8 +47,26 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
     if (statusFilter === "unsubmitted") return sub.status === "UNSUBMITTED";
     if (statusFilter === "has-appeal") return sub.hasAppeal;
     if (statusFilter === "has-changed-answer") return sub.hasChangedAnswer;
+    if (statusFilter === "processing") return sub.status === "PROCESSING";
     return true;
   });
+
+  // Auto-poll when there are PROCESSING submissions
+  const hasProcessing = submissions.some(sub => sub.status === "PROCESSING");
+  useEffect(() => {
+    if (!hasProcessing) return;
+    const interval = setInterval(() => {
+      fetch(`/api/assignments/${assignmentId}/submissions`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setSubmissions(data);
+          }
+        })
+        .catch(err => console.error("Auto-poll error:", err));
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [hasProcessing, assignmentId]);
 
   const fetchSubmissions = () => {
     setLoading(true);
@@ -220,6 +238,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
             <option value="all">Semua Status</option>
             <option value="has-ai">Sudah Dinilai AI</option>
             <option value="has-teacher">Sudah Dinilai Guru</option>
+            <option value="processing">⏳ Sedang Dianalisis AI</option>
             <option value="unsubmitted">Belum Mengumpulkan</option>
             <option value="has-appeal">Mengajukan Banding</option>
             <option value="has-changed-answer">Mengganti Jawaban</option>
@@ -298,10 +317,16 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     {sub.status === "NEEDS_TEACHER_REVIEW" && <span className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold">Perlu Diulas</span>}
                     {sub.status === "APPROVED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Disetujui</span>}
                     {sub.status === "PUBLISHED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Selesai</span>}
-                    {sub.status === "PROCESSING" && <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse">⏳ AI Menganalisis...</span>}
+                    {sub.status === "PROCESSING" && (
+                      <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse inline-flex items-center gap-1">
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                        AI Sedang Menganalisis...
+                      </span>
+                    )}
+                    {sub.status === "AI_COMPLETED" && <span className="bg-sky-100 text-sky-800 border border-sky-200 px-3 py-1 rounded-full text-xs font-bold">✅ Selesai Dinilai AI</span>}
                     {sub.status === "FAILED" && <span className="bg-red-100 text-red-800 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">❌ Gagal</span>}
                     {sub.status === "UNSUBMITTED" && <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">Belum Mengumpulkan</span>}
-                    {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED", "PROCESSING", "FAILED", "UNSUBMITTED"].includes(sub.status) && (
+                    {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED", "PROCESSING", "AI_COMPLETED", "FAILED", "UNSUBMITTED"].includes(sub.status) && (
                       <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{sub.status}</span>
                     )}
                     
@@ -335,7 +360,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     )}
                   </td>
                   <td className="px-6 py-4 text-right flex items-center justify-end space-x-3">
-                    {sub.status !== "UNSUBMITTED" ? (
+                    {sub.status !== "UNSUBMITTED" && sub.status !== "PROCESSING" ? (
                       <>
                         {sub.status === "FAILED" && (
                           <button
@@ -362,6 +387,11 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                           {deletingId === sub.id ? "⏳" : <Trash2 size={16} />}
                         </button>
                       </>
+                    ) : sub.status === "PROCESSING" ? (
+                      <span className="text-xs text-blue-500 italic font-medium px-2 py-1 inline-flex items-center gap-1">
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                        Sedang diproses AI...
+                      </span>
                     ) : (
                       <span className="text-xs text-slate-400 italic font-medium px-2 py-1">Belum ada tugas</span>
                     )}
