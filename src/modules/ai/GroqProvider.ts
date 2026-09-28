@@ -2,6 +2,7 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
 import { groqRateLimiter } from "./rateLimiter";
+import { GoogleGenAI } from "@google/genai";
 // Cache for dynamically fetched models per API key
 const modelCache: Record<string, string[]> = {};
 
@@ -133,52 +134,93 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
       let visionSuccess = false;
       let visionLastError: any = null;
 
-      for (const visionModel of visionModelsToTry) {
-        try {
-          console.log(`[Groq Fallback] Step 1: Extracting text using Vision (${visionModel})...`);
-          const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: visionModel,
-              messages: [{ role: "user", content: visionContentParts }],
-              temperature: 0.1,
-              max_tokens: 800,
-            }),
-          });
-
-          if (!visionResponse.ok) {
-            const errBody = await visionResponse.text();
-            throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
-          }
-
-          const visionData = await visionResponse.json();
-          extractedText = visionData.choices?.[0]?.message?.content;
-          
-          if (!extractedText) {
-            throw new Error("Fallback Vision API returned empty response.");
-          }
-          console.log(`[Groq Fallback] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
-          visionSuccess = true;
-          break; // Keluar loop jika sukses
-        } catch (err: any) {
-          visionLastError = err;
-          console.warn(`[Groq Fallback] Vision model ${visionModel} failed:`, err?.message || err);
-          if (err?.message?.includes("429") || String(err).includes("429")) {
-            // Lanjut ke model vision berikutnya di key ini.
-            continue;
+      try {
+        console.log(`[AI Vision] Step 1: Extracting text using Primary (Gemini gemini-3.8-flash)...`);
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const geminiContentParts: any[] = [visionPrompt];
+        
+        for (let i = 0; i < pages.length; i++) {
+          const page = pages[i];
+          let buffer: Buffer;
+          if (page.storageKey.startsWith("http")) {
+            const res = await fetch(page.storageKey);
+            buffer = Buffer.from(await res.arrayBuffer());
           } else {
-            // Jika bukan error rate limit, lemparkan error agar dicatch oleh assessSubmission
-            throw err;
+            const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
+            buffer = await readFile(filePath);
+          }
+          const mimeType = page.mimeType || "image/jpeg";
+          const base64Data = buffer.toString("base64");
+          geminiContentParts.push({
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
+          });
+        }
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: geminiContentParts,
+          config: {
+            temperature: 0.1,
+          }
+        });
+        extractedText = response.text || "";
+        if (!extractedText) throw new Error("Empty response from Gemini");
+        console.log(`[AI Vision] Step 1 Complete via Gemini. Extracted Text Length: ${extractedText.length}`);
+        visionSuccess = true;
+      } catch (geminiError: any) {
+        visionLastError = geminiError;
+        console.warn(`[AI Vision] Gemini failed, falling back to Groq (Qwen):`, geminiError?.message || geminiError);
+
+        for (const visionModel of visionModelsToTry) {
+          try {
+            console.log(`[Groq Fallback] Step 1: Extracting text using Vision (${visionModel})...`);
+            const visionResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: visionModel,
+                messages: [{ role: "user", content: visionContentParts }],
+                temperature: 0.1,
+                max_tokens: 800,
+              }),
+            });
+
+            if (!visionResponse.ok) {
+              const errBody = await visionResponse.text();
+              throw new Error(`Vision API returned ${visionResponse.status}: ${errBody}`);
+            }
+
+            const visionData = await visionResponse.json();
+            extractedText = visionData.choices?.[0]?.message?.content;
+            
+            if (!extractedText) {
+              throw new Error("Fallback Vision API returned empty response.");
+            }
+            console.log(`[Groq Fallback] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
+            visionSuccess = true;
+            break; // Keluar loop jika sukses
+          } catch (err: any) {
+            visionLastError = err;
+            console.warn(`[Groq Fallback] Vision model ${visionModel} failed:`, err?.message || err);
+            if (err?.message?.includes("429") || String(err).includes("429")) {
+              // Lanjut ke model vision berikutnya di key ini.
+              continue;
+            } else {
+              // Jika bukan error rate limit, lemparkan error agar dicatch oleh assessSubmission
+              throw err;
+            }
           }
         }
       }
 
       if (!visionSuccess) {
-        throw visionLastError || new Error("All Fallback Vision models failed.");
+        throw visionLastError || new Error("All Vision models failed.");
       }
 
 
@@ -267,15 +309,20 @@ Output WAJIB berupa JSON murni tanpa narasi pembuka/penutup. Struktur JSON harus
   ]
 }`;
 
-    console.log(`[Groq] Step 2: Grading with ${textModel}...`);
-    const textResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const openRouterModel = "openai/gpt-4o-mini";
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+    console.log(`[AI Grading] Step 2: Grading with OpenRouter (${openRouterModel})...`);
+
+    const textResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${openRouterApiKey}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+        "X-Title": "Solusi Guru",
       },
       body: JSON.stringify({
-        model: textModel,
+        model: openRouterModel,
         messages: [{ role: "user", content: textPrompt }],
         temperature: 0.2,
         max_tokens: 8192,
