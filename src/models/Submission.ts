@@ -22,6 +22,8 @@ export interface ISubmission extends Document {
   assignmentId: mongoose.Types.ObjectId;
   studentId: mongoose.Types.ObjectId;
   status: SubmissionStatus;
+  retryCount: number;
+  hasChangedAnswer: boolean;
   submittedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +33,8 @@ const SubmissionSchema: Schema = new Schema({
   assignmentId: { type: Schema.Types.ObjectId, ref: 'Assignment', required: true },
   studentId: { type: Schema.Types.ObjectId, ref: 'StudentProfile', required: true },
   status: { type: String, enum: Object.values(SubmissionStatus), default: SubmissionStatus.DRAFT },
+  retryCount: { type: Number, default: 0 },
+  hasChangedAnswer: { type: Boolean, default: false },
   submittedAt: { type: Date }
 }, {
   timestamps: true
@@ -136,6 +140,8 @@ export interface IStudentAnswerAnalysis extends Document {
   analysis: string;
   status: "OK" | "UNREADABLE" | "MANUAL_EDIT";
   typos?: Array<{ salah: string; perbaikan: string }>;
+  appealStatus: "NONE" | "PENDING" | "RESOLVED" | "REJECTED";
+  appealReason?: string;
 }
 
 const StudentAnswerAnalysisSchema: Schema = new Schema({
@@ -146,7 +152,9 @@ const StudentAnswerAnalysisSchema: Schema = new Schema({
   maxScore: { type: Number, required: true },
   analysis: { type: String, required: true },
   status: { type: String, enum: ["OK", "UNREADABLE", "MANUAL_EDIT"], default: "OK" },
-  typos: [{ salah: String, perbaikan: String }]
+  typos: [{ salah: String, perbaikan: String }],
+  appealStatus: { type: String, enum: ["NONE", "PENDING", "RESOLVED", "REJECTED"], default: "NONE" },
+  appealReason: { type: String }
 });
 
 export const StudentAnswerAnalysis = mongoose.models.StudentAnswerAnalysis || mongoose.model<IStudentAnswerAnalysis>('StudentAnswerAnalysis', StudentAnswerAnalysisSchema);

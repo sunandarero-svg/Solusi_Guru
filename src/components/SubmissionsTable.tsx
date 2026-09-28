@@ -20,6 +20,8 @@ interface Submission {
     status: string;
   };
   updatedAt: string;
+  hasChangedAnswer?: boolean;
+  hasAppeal?: boolean;
 }
 
 export default function SubmissionsTable({ assignmentId, assignmentClassName }: { assignmentId: string, assignmentClassName?: string }) {
@@ -43,6 +45,8 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
     if (statusFilter === "has-ai") return sub.aiAssessment?.suggestedScore !== undefined;
     if (statusFilter === "has-teacher") return sub.teacherReview?.finalScore !== undefined;
     if (statusFilter === "unsubmitted") return sub.status === "UNSUBMITTED";
+    if (statusFilter === "has-appeal") return sub.hasAppeal;
+    if (statusFilter === "has-changed-answer") return sub.hasChangedAnswer;
     return true;
   });
 
@@ -217,6 +221,8 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
             <option value="has-ai">Sudah Dinilai AI</option>
             <option value="has-teacher">Sudah Dinilai Guru</option>
             <option value="unsubmitted">Belum Mengumpulkan</option>
+            <option value="has-appeal">Mengajukan Banding</option>
+            <option value="has-changed-answer">Mengganti Jawaban</option>
           </select>
 
           {selectedIds.length > 0 && (
@@ -297,6 +303,17 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     {sub.status === "UNSUBMITTED" && <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">Belum Mengumpulkan</span>}
                     {!["NEEDS_TEACHER_REVIEW", "APPROVED", "PUBLISHED", "PROCESSING", "FAILED", "UNSUBMITTED"].includes(sub.status) && (
                       <span className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{sub.status}</span>
+                    )}
+                    
+                    {sub.hasChangedAnswer && (
+                      <div className="mt-2">
+                        <span className="bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded text-[10px] font-bold">⚠️ Ganti Jawaban</span>
+                      </div>
+                    )}
+                    {sub.hasAppeal && (
+                      <div className="mt-2">
+                        <span className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded text-[10px] font-bold">⚖️ Banding</span>
+                      </div>
                     )}
                   </td>
                   <td className="px-6 py-4">

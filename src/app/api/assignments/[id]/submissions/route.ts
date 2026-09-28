@@ -40,6 +40,10 @@ export async function GET(
       TeacherReview.find({ submissionId: { $in: submissionIds } }).lean()
     ]);
 
+    const assessmentIds = aiAssessments.map((a: any) => a._id);
+    const { StudentAnswerAnalysis } = await import("@/models/Submission");
+    const allAnalyses = await StudentAnswerAnalysis.find({ assessmentId: { $in: assessmentIds } }).lean();
+
     const formattedSubmissions = enrollments.map((enrollment: any) => {
       const student = enrollment.studentId;
       if (!student) return null; // Skip if student profile is somehow missing
@@ -47,10 +51,15 @@ export async function GET(
       const sub = submissions.find((s: any) => s.studentId.toString() === student._id.toString());
       
       if (sub) {
+        const aiAssessmentForSub = aiAssessments.find((a: any) => a.submissionId.toString() === sub._id.toString());
+        const hasAppeal = aiAssessmentForSub ? allAnalyses.some((an: any) => an.assessmentId.toString() === aiAssessmentForSub._id.toString() && an.appealStatus === "PENDING") : false;
+
         return {
           ...sub,
           student: student,
-          aiAssessment: aiAssessments.find((a: any) => a.submissionId.toString() === sub._id.toString()),
+          hasChangedAnswer: sub.hasChangedAnswer,
+          hasAppeal: hasAppeal,
+          aiAssessment: aiAssessmentForSub,
           teacherReview: teacherReviews.find((r: any) => r.submissionId.toString() === sub._id.toString()),
         };
       } else {

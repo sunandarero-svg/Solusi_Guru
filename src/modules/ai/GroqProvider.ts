@@ -59,7 +59,7 @@ export class GroqProvider implements AIProvider {
 
         console.log(`[AI] Attempt ${attempt + 1}/${maxRetries}: Vision=Hybrid, Text=${textModel} (Key Index: ${usedIndex + 1}/${totalKeys})`);
         
-        const result = await this._doAssessment(apiKey, textModel, pages, rubrics, answerKey, questions, availableModels);
+        const result = await this._doAssessment(apiKey, textModel, pages, rubrics, availableModels, answerKey, questions);
         return result;
       } catch (error: any) {
         lastError = error;
@@ -87,9 +87,9 @@ export class GroqProvider implements AIProvider {
     textModel: string,
     pages: any[],
     rubrics: any[],
+    availableModels: string[],
     answerKey?: string,
-    questions?: any[],
-    availableModels: string[]
+    questions?: any[]
   ): Promise<AIAssessmentResult> {
     
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---

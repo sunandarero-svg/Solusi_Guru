@@ -87,12 +87,20 @@ export const submissionService = {
   // Submit the assignment
   async submitAssignment(submissionId: string, status: any = SubmissionStatus.SUBMITTED) {
     await dbConnect();
+    const existing = await Submission.findById(submissionId).lean();
+    const newRetryCount = existing ? (existing.retryCount || 0) + 1 : 1;
+    
     const sub = await Submission.findByIdAndUpdate(
       submissionId,
-      { status, submittedAt: new Date() },
+      { status, submittedAt: new Date(), retryCount: newRetryCount },
       { returnDocument: 'after' }
     ).lean();
     return mapId(sub);
+  },
+
+  async markAsChangedAnswer(submissionId: string) {
+    await dbConnect();
+    return Submission.findByIdAndUpdate(submissionId, { hasChangedAnswer: true }).lean();
   },
 
   // Update submission status

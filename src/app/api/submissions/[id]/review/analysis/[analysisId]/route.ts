@@ -13,9 +13,9 @@ export async function PATCH(
 
     const resolvedParams = await params;
     const body = await req.json();
-    const { score, analysis } = body;
+    const { score, analysis, appealStatus } = body;
 
-    if (typeof score !== 'number' || typeof analysis !== 'string') {
+    if (score !== undefined && (typeof score !== 'number' || typeof analysis !== 'string')) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }
 
@@ -26,8 +26,9 @@ export async function PATCH(
       resolvedParams.analysisId,
       {
         $set: {
-          score,
-          analysis,
+          ...(score !== undefined && { score }),
+          ...(analysis !== undefined && { analysis }),
+          ...(appealStatus && { appealStatus }),
           status: "MANUAL_EDIT"
         }
       },

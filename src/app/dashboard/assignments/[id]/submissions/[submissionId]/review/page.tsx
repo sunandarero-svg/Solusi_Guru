@@ -127,7 +127,8 @@ export default function TeacherReviewPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           score: editScore,
-          analysis: editAnalysisText
+          analysis: editAnalysisText,
+          appealStatus: "RESOLVED"
         })
       });
       
@@ -155,6 +156,29 @@ export default function TeacherReviewPage({
       alert("Terjadi kesalahan jaringan.");
     } finally {
       setIsSavingAnalysis(false);
+    }
+  };
+
+
+  const handleRejectAppeal = async (analysisId: string) => {
+    if (!confirm("Tolak banding ini?")) return;
+    try {
+      const res = await fetch(`/api/submissions/${resolvedParams.submissionId}/review/analysis/${analysisId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appealStatus: "REJECTED" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const updatedSubmission = { ...submission };
+        const index = updatedSubmission.aiAssessment.analysis.findIndex((a: any) => a._id === analysisId);
+        if (index !== -1) {
+          updatedSubmission.aiAssessment.analysis[index] = data.updatedAnalysis;
+        }
+        setSubmission(updatedSubmission);
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan jaringan.");
     }
   };
 
@@ -384,7 +408,7 @@ export default function TeacherReviewPage({
                 {ai.analysis
                   ?.filter((a: any) => {
                     if (filterMode === "WRONG") return a.score < a.maxScore;
-                    if (filterMode === "MANUAL") return a.status === 'UNREADABLE' || a.status === 'MANUAL_EDIT';
+                    if (filterMode === "MANUAL") return a.status === 'UNREADABLE' || a.status === 'MANUAL_EDIT' || a.appealStatus === 'PENDING';
                     return true;
                   })
                   .map((a: any, idx: number) => {
@@ -412,6 +436,9 @@ export default function TeacherReviewPage({
                               )}
                               {a.status === 'MANUAL_EDIT' && (
                                 <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200 font-bold">✏️ Diedit</span>
+                              )}
+                              {a.appealStatus === 'PENDING' && (
+                                <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200 font-bold animate-pulse">⚖️ Banding</span>
                               )}
                             </div>
                           </div>
@@ -486,6 +513,26 @@ export default function TeacherReviewPage({
                                     ✏️ Koreksi Manual
                                   </button>
                                 </div>
+                                {a.appealStatus === "PENDING" && (
+                                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                    <p className="text-[11px] text-yellow-700 font-bold uppercase tracking-wider mb-1">Banding Siswa</p>
+                                    <p className="text-sm text-yellow-800 mb-2">{a.appealReason}</p>
+                                    <div className="flex gap-2">
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleStartEditAnalysis(a); }}
+                                        className="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 font-medium"
+                                      >
+                                        Terima & Koreksi
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleRejectAppeal(a._id); }}
+                                        className="text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 font-medium"
+                                      >
+                                        Tolak Banding
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>

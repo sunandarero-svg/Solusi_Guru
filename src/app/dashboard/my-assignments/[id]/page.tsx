@@ -47,6 +47,28 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
 
   const isOverdue = assignment.deadline && new Date(assignment.deadline) < new Date();
 
+  const handleAppeal = async (analysisId: string) => {
+    const reason = prompt("Silakan tulis alasan kenapa AI salah menilai (contoh: 'Huruf saya B tapi terbaca D'):");
+    if (!reason) return;
+    
+    try {
+      const res = await fetch(`/api/submissions/${resolvedParams.id}/appeal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisId, reason })
+      });
+      if (res.ok) {
+        alert("Banding berhasil diajukan!");
+        // Refresh data
+        window.location.reload();
+      } else {
+        alert("Gagal mengajukan banding.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan.");
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <div className="flex items-center mb-6 space-x-2 text-sm">
@@ -72,6 +94,16 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
                 <span>✅ Tugas Berhasil Dikumpul</span>
                 {submission.aiAssessment && (
                   <span className="text-xs font-medium mt-1">Nilai AI: {submission.aiAssessment.suggestedScore}/100</span>
+                )}
+                {submission.hasChangedAnswer && (
+                  <span className="text-[10px] mt-1 bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200">
+                    ⚠️ Peringatan: Jawaban Berubah
+                  </span>
+                )}
+                {(submission.retryCount || 1) < 3 && submission.status !== "PUBLISHED" && (
+                  <Link href={`/dashboard/my-assignments/${resolvedParams.id}/scan`} className="mt-2 text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700">
+                    📷 Foto Ulang (Sisa {3 - (submission.retryCount || 1)} Kali)
+                  </Link>
                 )}
               </div>
             ) : (
@@ -196,6 +228,26 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
                           </div>
                           
                           <p className={`text-sm mt-1 ${c.status === 'UNREADABLE' ? 'text-red-700' : 'text-gray-600'}`}>{c.analysis || c.reason}</p>
+                          
+                          {/* Tombol Banding */}
+                          {c.status !== 'UNREADABLE' && c.status !== 'MANUAL_EDIT' && (
+                            <div className="mt-3 text-right">
+                              {c.appealStatus === 'PENDING' ? (
+                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-medium border border-yellow-200">Banding Diajukan</span>
+                              ) : c.appealStatus === 'RESOLVED' ? (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium border border-green-200">Banding Diterima</span>
+                              ) : c.appealStatus === 'REJECTED' ? (
+                                <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-medium border border-red-200">Banding Ditolak</span>
+                              ) : (
+                                <button 
+                                  onClick={() => handleAppeal(c._id)}
+                                  className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded border border-blue-200 font-medium transition"
+                                >
+                                  ⚖️ Ajukan Banding
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
