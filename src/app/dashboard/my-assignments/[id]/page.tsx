@@ -195,9 +195,6 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
                             </span>
                           </div>
                           
-                          {c.status === 'UNREADABLE' && (
-                            <p className="text-xs text-red-600 mb-1 font-medium mt-1">Jawaban: {c.studentAnswer}</p>
-                          )}
                           <p className={`text-sm mt-1 ${c.status === 'UNREADABLE' ? 'text-red-700' : 'text-gray-600'}`}>{c.analysis || c.reason}</p>
                         </div>
                       );

@@ -14,7 +14,7 @@ export default function StudentReviewPage({
   const [submission, setSubmission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  const [viewMode, setViewMode] = useState<"PDF" | "OCR" | "HIGHLIGHTS">("PDF");
+  const [viewMode, setViewMode] = useState<"PDF" | "HIGHLIGHTS">("PDF");
 
   const [isProcessingAI, setIsProcessingAI] = useState(false);
 
@@ -125,12 +125,6 @@ export default function StudentReviewPage({
             >
               PDF Anda
             </button>
-            <button 
-              onClick={() => setViewMode("OCR")}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${viewMode === "OCR" ? 'bg-emerald-100 text-emerald-700' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              Teks Terbaca
-            </button>
             {submission?.pages?.some((p: any) => p.highlightedStorageKey) && (
               <button 
                 onClick={() => setViewMode("HIGHLIGHTS")}
@@ -169,10 +163,6 @@ export default function StudentReviewPage({
                   PDF tidak tersedia
                 </div>
               )
-            ) : viewMode === "OCR" ? (
-              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-300 min-h-full whitespace-pre-wrap font-mono text-sm text-gray-800">
-                {ocrText}
-              </div>
             ) : viewMode === "HIGHLIGHTS" ? (
               <div className="space-y-4 pb-12">
                 {submission?.pages?.filter((p: any) => p.highlightedStorageKey).map((p: any) => (
@@ -228,10 +218,6 @@ export default function StudentReviewPage({
                         <span className="text-sm font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
                           {a.score} <span className="text-gray-400 font-normal">/ {a.maxScore}</span>
                         </span>
-                      </div>
-                      <div className="mt-2 p-3 bg-white border border-gray-200 rounded-lg">
-                        <p className="text-xs text-gray-500 font-medium mb-1">Jawaban Anda Terbaca:</p>
-                        <p className="text-sm text-gray-800 font-medium">{a.studentAnswer}</p>
                       </div>
                       <p className="text-sm text-gray-600 mt-3 leading-relaxed whitespace-pre-wrap"><span className="font-medium text-gray-700">Analisis:</span> {a.analysis}</p>
                     </div>
