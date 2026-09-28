@@ -36,7 +36,7 @@ export class GroqProvider implements AIProvider {
 
 
   async assessSubmission(pages: any[], rubrics: any[], answerKey?: string, questions?: any[]): Promise<AIAssessmentResult> {
-    const textModels = ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it", "llama-3.1-8b-instant"];
+    const textModels = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen-2.5-72b"];
     const customModel = process.env.GROQ_MODEL?.trim();
     const baseTextModels = customModel ? [customModel, ...textModels] : textModels;
 
@@ -53,7 +53,7 @@ export class GroqProvider implements AIProvider {
         
         const availableModels = await getDynamicModels(apiKey);
         const activeTextModels = baseTextModels.filter(m => availableModels.includes(m) || m === customModel);
-        const textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["llama-3.3-70b-versatile"];
+        const textModelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-20b"];
 
         const textModel = textModelsToTry[attempt % textModelsToTry.length];
 
@@ -104,9 +104,9 @@ Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun
     let extractedText = "";
 
     // Fallback to Qwen VL or Llama Vision
-      const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
+      const visionModels = ["qwen/qwen3.8-27b", "llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
       const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
-      const visionModelsToTry = activeVisionModels.length > 0 ? activeVisionModels : ["llama-3.2-11b-vision-preview"];
+      const visionModelsToTry = activeVisionModels.length > 0 ? activeVisionModels : ["qwen/qwen3.8-27b"];
 
       const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
       for (let i = 0; i < pages.length; i++) {
@@ -323,9 +323,9 @@ Output WAJIB berupa JSON murni tanpa narasi pembuka/penutup. Struktur JSON harus
 Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
       
       // Priority: Qwen VL, fallback to Llama Vision
-        const visionModels = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
+        const visionModels = ["qwen/qwen3.8-27b", "llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
         const activeVisionModels = visionModels.filter(m => availableModels.includes(m));
-        const visionModel = activeVisionModels[0] || "llama-3.2-11b-vision-preview";
+        const visionModel = activeVisionModels[0] || "qwen/qwen3.8-27b";
 
         console.log(`[Groq Fallback] Step 1 (Answer Key): Extracting text using Vision (${visionModel})...`);
         const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
@@ -374,10 +374,10 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
       }
 
 
-    // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN LLAMA
-    const textModels = ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"];
+    // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN GPT-OSS-20B
+    const textModels = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile"];
     const activeTextModels = textModels.filter(m => availableModels.includes(m));
-    let modelsToTry = activeTextModels.length > 0 ? activeTextModels : ["llama-3.3-70b-versatile"];
+    let modelsToTry = activeTextModels.length > 0 ? activeTextModels : ["openai/gpt-oss-20b"];
 
     const customModel = process.env.GROQ_MODEL?.trim();
     if (customModel) {

@@ -50,7 +50,7 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
     // 1. PRIMARY: Gemini
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const visionModel = "gemini-1.5-flash"; 
+      const visionModel = "gemini-3.8-flash"; 
       console.log(`[Extract Text API] Memanggil model (Primary): ${visionModel}`);
 
       const response = await ai.models.generateContent({
@@ -121,9 +121,9 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       } catch (openRouterError: any) {
         console.warn("[Extract Text API] OpenRouter gagal, mencoba fallback ke Groq Qwen...", openRouterError?.message || openRouterError);
         
-        // 3. FALLBACK 2: Groq Vision (llama)
+        // 3. FALLBACK 2: Groq (Qwen)
         const { key } = await groqRateLimiter.waitForKey(30000);
-        const fallbackModel = "llama-3.2-11b-vision-preview";
+        const fallbackModel = "qwen/qwen3.8-27b";
         console.log(`[Extract Text API] Memanggil model (Fallback 2 - Groq): ${fallbackModel}`);
 
         const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {

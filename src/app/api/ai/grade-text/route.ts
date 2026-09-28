@@ -91,7 +91,7 @@ Output WAJIB berupa JSON murni dengan struktur:
 }`;
 
     const { key } = await groqRateLimiter.waitForKey(30000);
-    const textModel = "llama-3.3-70b-versatile";
+    const textModel = "openai/gpt-oss-20b";
 
     console.log(`[Grade Text API] Memanggil model (Primary): ${textModel}`);
 
