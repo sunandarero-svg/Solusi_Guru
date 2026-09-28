@@ -56,7 +56,7 @@ export class OpenRouterProvider implements AIProvider {
         model: visionModel,
         messages: [{ role: "user", content: visionContentParts }],
         temperature: 0.1,
-        max_tokens: 4096,
+        max_tokens: 8192,
       }),
     });
 
@@ -197,7 +197,7 @@ ${answerKeyInstruction}
 ${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
-0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. JANGAN PERNAH menjadi malas atau berhenti di tengah jalan!
+0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN PERNAH menjadi malas atau berhenti/memotong penilaian di tengah jalan!
 1. Baca SELURUH tulisan siswa dari awal hingga akhir.
 2. PEMETAAN BAGIAN & NOMOR SOAL (SMART MAPPING): Jawaban siswa mungkin terbagi menjadi beberapa bagian (misal [Bagian A], [Bagian B]) dengan nomor urut yang mengulang dari angka 1 di setiap bagiannya. Anda WAJIB mencocokkan tipe soal dari bagian tersebut dengan urutan kunci jawaban secara keseluruhan. Pastikan nomor soal (questionNumber) pada JSON diisi dengan nomor urut global (misal: 1 sampai 25) sesuai Konfigurasi Soal guru, BUKAN sekadar menyalin nomor 1 dari Bagian B jika itu sebenarnya adalah soal ke-11 secara global.
 ${!questions || questions.length === 0 ? questionsInstruction : ""}
@@ -263,7 +263,7 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
 }`;
 
     console.log(`[OpenRouter Scout] Step 2: Grading with fallback models...`);
-    const responseText = await this._executeTextWithFallback(apiKey, textPrompt, 0.2, 4096);
+    const responseText = await this._executeTextWithFallback(apiKey, textPrompt, 0.2, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -351,7 +351,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
 }`;
 
     console.log(`[OpenRouter Scout] Step 2: Generating answer key with fallback models...`);
-    const responseText = await this._executeTextWithFallback(apiKey, prompt, 0.3, 4096);
+    const responseText = await this._executeTextWithFallback(apiKey, prompt, 0.3, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {

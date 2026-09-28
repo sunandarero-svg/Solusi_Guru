@@ -218,7 +218,7 @@ ${answerKeyInstruction}
 ${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR:
-0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Pastikan array 'analysis' berisi penilaian untuk semua soal.
+0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
 1. PEMETAAN BAGIAN & NOMOR SOAL (SMART MAPPING): Jawaban siswa mungkin terbagi menjadi beberapa bagian (misal [Bagian A], [Bagian B]) dengan nomor urut yang mengulang dari angka 1 di setiap bagiannya. Anda harus mencocokkan tipe soal (Pilihan Ganda, Benar/Salah, Isian) dari bagian tersebut dengan urutan kunci jawaban secara keseluruhan. Pastikan nomor soal (questionNumber) diisi dengan nomor urut global (misal: 1 sampai 25) sesuai 'order' pada Konfigurasi Soal, JANGAN sekadar menyalin nomor 1 dari Bagian B jika itu sebenarnya adalah soal ke-11 secara global.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
 3. KRITERIA BENAR/SALAH - PILIHAN GANDA (ATURAN MUTLAK - SANGAT KETAT):
@@ -278,7 +278,7 @@ Output WAJIB berupa JSON murni tanpa narasi pembuka/penutup. Struktur JSON harus
         model: textModel,
         messages: [{ role: "user", content: textPrompt }],
         temperature: 0.2,
-        max_tokens: 4096,
+        max_tokens: 8192,
         response_format: { type: "json_object" },
       }),
     });
@@ -431,7 +431,7 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
                 model: modelName,
                 messages: [{ role: "user", content: contentParts }],
                 temperature: 0.3,
-                max_tokens: 4096,
+                max_tokens: 8192,
               }),
             });
 

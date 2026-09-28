@@ -65,7 +65,7 @@ ${answerKeyInstruction}
 ${questionsInstruction}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR:
-0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI!
+0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
 3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
@@ -105,7 +105,7 @@ Output WAJIB berupa JSON murni dengan struktur:
         model: textModel,
         messages: [{ role: "user", content: textPrompt }],
         temperature: 0.2,
-        max_tokens: 4096,
+        max_tokens: 8192,
         response_format: { type: "json_object" },
       }),
     });
