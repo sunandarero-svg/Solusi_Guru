@@ -1,10 +1,11 @@
 export interface StudentAnswerAnalysisResult {
   questionNumber: string;
   studentAnswer: string;
+  reasoning?: string;
   score: number;
   maxScore: number;
   analysisText: string;
-  status?: "OK" | "UNREADABLE";
+  status?: "OK" | "UNREADABLE" | "MANUAL_EDIT";
 }
 
 export interface AIErrorHighlight {

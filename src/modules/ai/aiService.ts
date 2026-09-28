@@ -152,32 +152,73 @@ export class AIService {
 
     // Normalize and strictly enforce scores based on teacher's config
     let actualTotalScore = 0;
-    const normalizedAnalyses = assessmentResult.analysis.map((analysis: any) => {
-      const questionNumberString = String(analysis.questionNumber);
-      const questionOrder = parseInt(questionNumberString.replace(/\D/g, '')) || 0;
-      
-      let maxScore = Number(analysis.maxScore) || 10;
-      
-      if (questions && questions.length > 0) {
-        const matchedQuestion = questions.find(q => q.order === questionOrder);
-        if (matchedQuestion && matchedQuestion.maxScore !== undefined) {
-          maxScore = matchedQuestion.maxScore;
+    const normalizedAnalyses: any[] = [];
+    
+    if (questions && questions.length > 0) {
+      for (const q of questions) {
+        const aiAnalysis = assessmentResult.analysis.find((a: any) => {
+          const qn = parseInt(String(a.questionNumber).replace(/\D/g, '')) || 0;
+          return qn === q.order;
+        });
+
+        let finalScore = 0;
+        let maxScore = q.maxScore || 10;
+        let reasoning = "";
+        let analysisText = "Jawaban tidak ditemukan pada hasil pembacaan tulisan.";
+        let validStatus = "UNREADABLE";
+        let studentAnswer = "[Kosong/Tidak Terjawab]";
+
+        if (aiAnalysis) {
+          finalScore = Number(aiAnalysis.score) || 0;
+          if (finalScore > maxScore) finalScore = maxScore;
+          if (finalScore < 0) finalScore = 0;
+          reasoning = aiAnalysis.reasoning || "";
+          analysisText = aiAnalysis.analysisText || "";
+          studentAnswer = aiAnalysis.studentAnswer || "[Kosong]";
+          if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
+            validStatus = aiAnalysis.status;
+          } else {
+            validStatus = "OK";
+          }
         }
+
+        actualTotalScore += finalScore;
+
+        normalizedAnalyses.push({
+          questionNumber: String(q.order),
+          score: finalScore,
+          maxScore,
+          reasoning,
+          analysisText,
+          studentAnswer,
+          status: validStatus
+        });
       }
-      
-      let finalScore = Number(analysis.score) || 0;
-      if (finalScore > maxScore) finalScore = maxScore;
-      if (finalScore < 0) finalScore = 0;
-      
-      actualTotalScore += finalScore;
-      
-      return {
-        ...analysis,
-        questionNumber: questionNumberString,
-        score: finalScore,
-        maxScore: maxScore
-      };
-    });
+    } else {
+      // Fallback if there are no structured questions
+      assessmentResult.analysis.forEach((analysis: any) => {
+        const questionOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
+        let maxScore = Number(analysis.maxScore) || 10;
+        let finalScore = Number(analysis.score) || 0;
+        if (finalScore > maxScore) finalScore = maxScore;
+        if (finalScore < 0) finalScore = 0;
+
+        actualTotalScore += finalScore;
+        
+        let validStatus = "OK";
+        if (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") {
+          validStatus = analysis.status;
+        }
+
+        normalizedAnalyses.push({
+          ...analysis,
+          questionNumber: String(analysis.questionNumber),
+          score: finalScore,
+          maxScore,
+          status: validStatus
+        });
+      });
+    }
 
     // Check for old assessment to compare answers
     const oldAssessment = await AIAssessment.findOne({ submissionId }).lean();
