@@ -70,7 +70,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
 4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY: Kesamaan makna/konsep minimal 80% = BENAR SEMPURNA (100% maxScore). Abaikan typo.
 5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
-6. UMPAN BALIK EDUKATIF ('analysisText'): Berikan apresiasi jika benar. Jelaskan alasan jika salah.
+7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
 Output WAJIB berupa JSON murni dengan struktur:
 {

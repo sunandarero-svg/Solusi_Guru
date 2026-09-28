@@ -291,6 +291,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 6. UMPAN BALIK EDUKATIF ('analysisText') & PENALARAN ('reasoning'):
    - Jika jawaban BENAR SEMPURNA (100% maxScore): Berikan 'reasoning' dan 'analysisText' berupa string kosong "" untuk menghemat output token (Conditional Output).
    - Jika jawaban SALAH atau BENAR SEBAGIAN: WAJIB berikan 'reasoning' (1 kalimat) dan 'analysisText' yang menjelaskan letak kesalahan serta kunci jawaban yang benar.
+7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
 Output WAJIB berupa JSON murni tanpa narasi pembuka/penutup. Struktur JSON harus persis seperti ini:
 {
