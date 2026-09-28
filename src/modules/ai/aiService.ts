@@ -243,6 +243,11 @@ export class AIService {
 
       const combinedAnalysis = reasoningPart + (reasoningPart && feedbackPart !== "Tidak ada umpan balik." ? `**Umpan Balik:**\n` : '') + feedbackPart + typoFeedback;
       
+      let validStatus = "OK";
+      if (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") {
+        validStatus = analysis.status;
+      }
+
       await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
         questionNumber: analysis.questionNumber,
@@ -250,7 +255,7 @@ export class AIService {
         score: analysis.score,
         maxScore: analysis.maxScore,
         analysis: combinedAnalysis,
-        status: analysis.status || "OK",
+        status: validStatus,
         typos: analysis.typos || [],
       });
     }

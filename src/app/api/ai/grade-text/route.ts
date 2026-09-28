@@ -182,6 +182,12 @@ Output WAJIB berupa JSON murni dengan struktur:
 
     for (const analysis of normalizedAnalyses) {
       const combinedAnalysis = (analysis.reasoning ? `**Penalaran AI:**\n${analysis.reasoning}\n\n**Umpan Balik:**\n` : '') + (analysis.analysisText || "Tidak ada analisis.");
+      
+      let validStatus = "OK";
+      if (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") {
+        validStatus = analysis.status;
+      }
+
       await StudentAnswerAnalysis.create({
         assessmentId: assessmentRecord._id,
         questionNumber: analysis.questionNumber,
@@ -189,7 +195,7 @@ Output WAJIB berupa JSON murni dengan struktur:
         score: analysis.score,
         maxScore: analysis.maxScore,
         analysis: combinedAnalysis,
-        status: analysis.status || "OK",
+        status: validStatus,
       });
     }
 
