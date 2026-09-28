@@ -144,14 +144,27 @@ export class OpenRouterProvider implements AIProvider {
     const apiKey = this.getApiKey();
 
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---
-    const visionPrompt = `Tugas Anda adalah membaca tulisan tangan siswa pada gambar-gambar ini. 
-SANGAT PENTING: 
-1. DETEKSI BAGIAN (SECTIONING): Siswa sering membagi jawaban ke dalam beberapa bagian (misal: Bagian A. Pilgan, Bagian B. Benar/Salah). Anda WAJIB mengenali dan mempertahankan judul/header bagian tersebut dalam hasil transkripsi. Letakkan header bagian di dalam kurung siku, contoh: [Bagian A: Pilgan].
-2. BACA KOLOM VERTIKAL: Jika jawaban ditulis dalam dua kolom (kiri dan kanan), baca kolom sebelah kiri dari atas ke bawah terlebih dahulu sampai habis, baru kemudian pindah ke kolom sebelah kanan. Urutkan kembali berdasarkan nomor soal secara vertikal dan rapi.
-3. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
-4. Jika ada simbol atau rumus matematika kompleks, Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ atau $...$.
-5. WAJIB BAHASA INDONESIA PADA UMUMNYA: PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkannya ke bahasa Inggris atau bahasa lain.
-Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
+    const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
+
+Patuhi aturan operasional ketat berikut:
+
+1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
+Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
+
+2. STRUKTUR & HIERARKI (MARKDOWN):
+Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:
+Gunakan huruf tebal (**teks**) untuk judul blok atau kategori (contoh: A. Pilihan Ganda, B. Isian).
+Gunakan penomoran (1, 2, 3) persis seperti urutan di dokumen.
+Jika ada teks yang diatur dalam dua kolom (seperti format nomor 1-5 di kiri dan 6-10 di kanan), susun agar tetap sejajar menggunakan spasi atau tabulasi yang rapi.
+
+3. TRANSKRIPSI VERBATIM (APA ADANYA):
+Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis (misalnya, jika tertulis "documen" alih-alih "document", atau "Pilgan" alih-alih "Pilihan Ganda", pertahankan ejaan aslinya). Jangan melakukan koreksi tata bahasa pada teks yang valid.
+
+4. KELUARAN MURNI (TANPA BASA-BASI):
+Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (seperti 'Berikut adalah hasil ekstraksinya:'), penjelasan, atau kalimat penutup. Mulai dari baris pertama dokumen dan akhiri di baris terakhir.
+
+5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
+PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. Terlepas dari setelan bahasa pada modelmu, JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain. Tuliskan persis sebagaimana makna aslinya dalam bahasa Indonesia.`;
 
     const extractedText = await this._extractVision(visionPrompt, pages);
 
@@ -270,9 +283,27 @@ Output Anda HARUS berupa JSON murni dengan struktur berikut:
 
     // TAHAP 1: EKSTRAKSI GAMBAR DENGAN MAVERICK
     if (hasImages) {
-      const visionPrompt = `Tugas Anda adalah membaca seluruh tulisan pada gambar-gambar soal/tugas ini. Transkripsikan semua teks, soal, pilihan ganda, dan angka persis seperti yang tertulis.
-WAJIB BAHASA INDONESIA PADA UMUMNYA: PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan isi gambar tersebut ke bahasa Inggris atau bahasa lain.
-Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi teks soalnya saja. Jika gambar tidak berisi teks soal yang relevan, jelaskan dengan singkat.`;
+      const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
+
+Patuhi aturan operasional ketat berikut:
+
+1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
+Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
+
+2. STRUKTUR & HIERARKI (MARKDOWN):
+Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:
+Gunakan huruf tebal (**teks**) untuk judul blok atau kategori (contoh: A. Pilihan Ganda, B. Isian).
+Gunakan penomoran (1, 2, 3) persis seperti urutan di dokumen.
+Jika ada teks yang diatur dalam dua kolom (seperti format nomor 1-5 di kiri dan 6-10 di kanan), susun agar tetap sejajar menggunakan spasi atau tabulasi yang rapi.
+
+3. TRANSKRIPSI VERBATIM (APA ADANYA):
+Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis (misalnya, jika tertulis "documen" alih-alih "document", atau "Pilgan" alih-alih "Pilihan Ganda", pertahankan ejaan aslinya). Jangan melakukan koreksi tata bahasa pada teks yang valid.
+
+4. KELUARAN MURNI (TANPA BASA-BASI):
+Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (seperti 'Berikut adalah hasil ekstraksinya:'), penjelasan, atau kalimat penutup. Mulai dari baris pertama dokumen dan akhiri di baris terakhir.
+
+5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
+PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. Terlepas dari setelan bahasa pada modelmu, JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain. Tuliskan persis sebagaimana makna aslinya dalam bahasa Indonesia.`;
       
       extractedText = await this._extractVision(visionPrompt, imageAttachments as any[]);
     }
