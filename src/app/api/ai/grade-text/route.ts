@@ -89,7 +89,7 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    const textModel = "Llama 4 Maverick 17B Instruct (128E)";
+    const textModel = "Llama 4 Maverick";
     const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
     console.log(`[Grade Text API] Memanggil model (Primary): ${textModel}`);
