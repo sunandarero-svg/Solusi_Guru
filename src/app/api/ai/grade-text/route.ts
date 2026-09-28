@@ -89,7 +89,7 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    const textModel = "openai/gpt-4o-mini";
+    const textModel = "Llama 4 Maverick 17B Instruct (128E)";
     const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
     console.log(`[Grade Text API] Memanggil model (Primary): ${textModel}`);
@@ -119,7 +119,7 @@ Output WAJIB berupa JSON murni dengan struktur:
 
     const textData = await textResponse.json();
     const responseText = textData.choices?.[0]?.message?.content || "";
-    
+
     console.log(`[Grade Text API] Penilaian berhasil menggunakan model: ${textModel}`);
 
     const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -143,7 +143,7 @@ Output WAJIB berupa JSON murni dengan struktur:
     // 5. Normalize and enforce scores
     let actualTotalScore = 0;
     const normalizedAnalyses: any[] = [];
-    
+
     if (questions && questions.length > 0) {
       for (const q of questions) {
         const aiAnalysis = assessmentResult.analysis.find((a: any) => {
@@ -194,7 +194,7 @@ Output WAJIB berupa JSON murni dengan struktur:
         if (finalScore < 0) finalScore = 0;
 
         actualTotalScore += finalScore;
-        
+
         let validStatus = "OK";
         if (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") {
           validStatus = analysis.status;
@@ -227,7 +227,7 @@ Output WAJIB berupa JSON murni dengan struktur:
 
     for (const analysis of normalizedAnalyses) {
       const combinedAnalysis = (analysis.reasoning ? `**Penalaran AI:**\n${analysis.reasoning}\n\n**Umpan Balik:**\n` : '') + (analysis.analysisText || "Tidak ada analisis.");
-      
+
       let validStatus = "OK";
       if (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") {
         validStatus = analysis.status;
