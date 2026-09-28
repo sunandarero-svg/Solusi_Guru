@@ -91,29 +91,28 @@ Output WAJIB berupa JSON murni dengan struktur:
 }`;
 
     const { key } = await groqRateLimiter.waitForKey(30000);
-    const textModel = "meta-llama/llama-4-scout";
+    const textModel = "openai/gpt-oss-20b";
 
     console.log(`[Grade Text API] Memanggil model (Primary): ${textModel}`);
 
-    const textResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const textResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-        "X-Title": "Solusi Guru",
       },
       body: JSON.stringify({
         model: textModel,
         messages: [{ role: "user", content: textPrompt }],
         temperature: 0.2,
         max_tokens: 4096,
+        response_format: { type: "json_object" },
       }),
     });
 
     if (!textResponse.ok) {
       const errBody = await textResponse.text();
-      console.error("[Grade Text API] OpenRouter Error:", errBody);
+      console.error("[Grade Text API] Groq Error:", errBody);
       throw new Error(`Groq API returned ${textResponse.status}`);
     }
 
