@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { groqRateLimiter } from "@/modules/ai/rateLimiter";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongoose";
@@ -90,16 +89,18 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    const { key } = await groqRateLimiter.waitForKey(30000);
-    const textModel = "openai/gpt-oss-20b";
+    const textModel = "openai/gpt-4o-mini";
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
     console.log(`[Grade Text API] Memanggil model (Primary): ${textModel}`);
 
-    const textResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const textResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${key}`,
+        Authorization: `Bearer ${openRouterApiKey}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+        "X-Title": "Solusi Guru",
       },
       body: JSON.stringify({
         model: textModel,
@@ -112,8 +113,8 @@ Output WAJIB berupa JSON murni dengan struktur:
 
     if (!textResponse.ok) {
       const errBody = await textResponse.text();
-      console.error("[Grade Text API] Groq Error:", errBody);
-      throw new Error(`Groq API returned ${textResponse.status}`);
+      console.error("[Grade Text API] OpenRouter Error:", errBody);
+      throw new Error(`OpenRouter API returned ${textResponse.status}`);
     }
 
     const textData = await textResponse.json();
@@ -173,7 +174,7 @@ Output WAJIB berupa JSON murni dengan struktur:
     // 7. Save Assessment and Analysis to DB
     const assessmentRecord = await AIAssessment.create({
       submissionId: submission._id,
-      provider: "Groq-Text",
+      provider: "OpenRouter-Text",
       suggestedScore: actualTotalScore,
       feedback: assessmentResult.generalFeedback,
       status: "SUCCESS",

@@ -74,90 +74,44 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       
       console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model: ${visionModel}`);
     } catch (geminiError: any) {
-      console.warn("[Extract Text API] Gemini gagal, mencoba fallback ke OpenRouter...", geminiError?.message || geminiError);
+      console.warn("[Extract Text API] Gemini gagal, mencoba fallback ke Groq Qwen...", geminiError?.message || geminiError);
       
-      // 2. FALLBACK 1: OpenRouter (gpt-4o-mini)
-      try {
-        const openRouterModel = "openai/gpt-4o-mini";
-        const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-        if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is missing");
-        
-        console.log(`[Extract Text API] Memanggil model (Fallback 1 - OpenRouter): ${openRouterModel}`);
+      // 2. FALLBACK 1: Groq (Qwen)
+      const { key } = await groqRateLimiter.waitForKey(30000);
+      const fallbackModel = "qwen/qwen3.8-27b";
+      console.log(`[Extract Text API] Memanggil model (Fallback 1 - Groq): ${fallbackModel}`);
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openRouterApiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-            "X-Title": "Solusi Guru",
-          },
-          body: JSON.stringify({
-            model: openRouterModel,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-                ]
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 4096,
-          }),
-        });
+      const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: fallbackModel,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+              ]
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 800,
+        }),
+      });
 
-        if (!response.ok) {
-          const errBody = await response.text();
-          throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
-        }
-
-        const data = await response.json();
-        extractedText = data.choices?.[0]?.message?.content || "";
-        if (!extractedText) throw new Error("Empty response from OpenRouter");
-        
-        console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model OpenRouter: ${openRouterModel}`);
-      } catch (openRouterError: any) {
-        console.warn("[Extract Text API] OpenRouter gagal, mencoba fallback ke Groq Qwen...", openRouterError?.message || openRouterError);
-        
-        // 3. FALLBACK 2: Groq (Qwen)
-        const { key } = await groqRateLimiter.waitForKey(30000);
-        const fallbackModel = "qwen/qwen3.8-27b";
-        console.log(`[Extract Text API] Memanggil model (Fallback 2 - Groq): ${fallbackModel}`);
-
-        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${key}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: fallbackModel,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-                ]
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 800,
-          }),
-        });
-
-        if (!groqResponse.ok) {
-          const errBody = await groqResponse.text();
-          console.error("[Extract Text API] Groq Fallback Error:", errBody);
-          throw new Error(`Groq API returned ${groqResponse.status}`);
-        }
-
-        const groqData = await groqResponse.json();
-        extractedText = groqData.choices?.[0]?.message?.content || "";
-        console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Groq Qwen: ${fallbackModel}`);
+      if (!groqResponse.ok) {
+        const errBody = await groqResponse.text();
+        console.error("[Extract Text API] Groq Fallback Error:", errBody);
+        throw new Error(`Groq API returned ${groqResponse.status}`);
       }
+
+      const groqData = await groqResponse.json();
+      extractedText = groqData.choices?.[0]?.message?.content || "";
+      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Groq Qwen: ${fallbackModel}`);
     }
 
     return NextResponse.json({ text: extractedText });
