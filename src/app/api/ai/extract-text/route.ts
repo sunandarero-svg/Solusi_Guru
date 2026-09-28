@@ -44,44 +44,24 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (
 
     let extractedText = "";
 
+    // 1. PRIMARY: OpenRouter (Llama Maverick)
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const visionModel = "gemini-3.8-flash"; // Versi terbaru yang direkomendasikan API
-      console.log(`[Extract Text API] Memanggil model (Primary): ${visionModel}`);
-
-      const response = await ai.models.generateContent({
-        model: visionModel,
-        contents: [
-          prompt,
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
-            }
-          }
-        ],
-        config: {
-          temperature: 0.1,
-        }
-      });
-
-      extractedText = response.text || "";
-      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model: ${visionModel}`);
-    } catch (geminiError: any) {
-      console.warn("[Extract Text API] Gemini gagal, mencoba fallback ke Groq Qwen...", geminiError?.message || geminiError);
+      const openRouterModel = "meta-llama/llama-3.2-90b-vision-instruct";
+      const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+      if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is missing");
       
-      const { key } = await groqRateLimiter.waitForKey(30000);
-      const fallbackModel = "qwen/qwen3.8-27b";
-      console.log(`[Extract Text API] Memanggil model (Fallback): ${fallbackModel}`);
+      console.log(`[Extract Text API] Memanggil model (Primary - Maverick): ${openRouterModel}`);
 
-      const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${key}`,
+          Authorization: `Bearer ${openRouterApiKey}`,
           "Content-Type": "application/json",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+          "X-Title": "Solusi Guru",
         },
         body: JSON.stringify({
-          model: fallbackModel,
+          model: openRouterModel,
           messages: [
             {
               role: "user",
@@ -92,19 +72,89 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (
             }
           ],
           temperature: 0.1,
-          max_tokens: 800,
+          max_tokens: 4096,
         }),
       });
 
-      if (!groqResponse.ok) {
-        const errBody = await groqResponse.text();
-        console.error("[Extract Text API] Groq Fallback Error:", errBody);
-        throw new Error(`Groq API returned ${groqResponse.status}`);
+      if (!response.ok) {
+        const errBody = await response.text();
+        throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
       }
 
-      const groqData = await groqResponse.json();
-      extractedText = groqData.choices?.[0]?.message?.content || "";
-      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model fallback: ${fallbackModel}`);
+      const data = await response.json();
+      extractedText = data.choices?.[0]?.message?.content || "";
+      if (!extractedText) throw new Error("Empty response from OpenRouter");
+      
+      console.log(`[Scout 4] Ekstraksi berhasil menggunakan model Maverick: ${openRouterModel}`);
+    } catch (maverickError: any) {
+      console.warn("[Extract Text API] OpenRouter (Maverick) gagal, mencoba fallback ke Gemini...", maverickError?.message || maverickError);
+      
+      // 2. FALLBACK 1: Gemini
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const visionModel = "gemini-3.8-flash"; 
+        console.log(`[Extract Text API] Memanggil model (Fallback 1): ${visionModel}`);
+
+        const response = await ai.models.generateContent({
+          model: visionModel,
+          contents: [
+            prompt,
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: mimeType
+              }
+            }
+          ],
+          config: {
+            temperature: 0.1,
+          }
+        });
+
+        extractedText = response.text || "";
+        if (!extractedText) throw new Error("Empty response from Gemini");
+        
+        console.log(`[Scout 4] Ekstraksi berhasil menggunakan model Gemini: ${visionModel}`);
+      } catch (geminiError: any) {
+        console.warn("[Extract Text API] Gemini gagal, mencoba fallback ke Groq Qwen...", geminiError?.message || geminiError);
+        
+        // 3. FALLBACK 2: Groq (Qwen)
+        const { key } = await groqRateLimiter.waitForKey(30000);
+        const fallbackModel = "qwen/qwen3.8-27b";
+        console.log(`[Extract Text API] Memanggil model (Fallback 2): ${fallbackModel}`);
+
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: fallbackModel,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                ]
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 800,
+          }),
+        });
+
+        if (!groqResponse.ok) {
+          const errBody = await groqResponse.text();
+          console.error("[Extract Text API] Groq Fallback Error:", errBody);
+          throw new Error(`Groq API returned ${groqResponse.status}`);
+        }
+
+        const groqData = await groqResponse.json();
+        extractedText = groqData.choices?.[0]?.message?.content || "";
+        console.log(`[Scout 4] Ekstraksi berhasil menggunakan model Groq Qwen: ${fallbackModel}`);
+      }
     }
 
     return NextResponse.json({ text: extractedText });
