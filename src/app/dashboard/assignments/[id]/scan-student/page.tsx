@@ -30,11 +30,34 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // SessionStorage key scoped to this assignment to persist state across camera app re-mounts
+  const storageKey = `scan-student-${resolvedParams.id}`;
+
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem(`${storageKey}-student`);
+        return saved || "";
+      } catch { return ""; }
+    }
+    return "";
+  });
   
-  const [images, setImages] = useState<PageImage[]>([]);
+  const [images, setImages] = useState<PageImage[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem(`${storageKey}-images`);
+        if (saved) {
+          const parsed = JSON.parse(saved) as Array<{ id: string; dataUrl: string }>;
+          // Restore images (file will be null since File objects can't be serialized)
+          return parsed.map(item => ({ id: item.id, file: null, dataUrl: item.dataUrl }));
+        }
+      } catch { /* ignore parse errors */ }
+    }
+    return [];
+  });
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
   
   // New Flow States
@@ -49,6 +72,23 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
   
   const [fileQueue, setFileQueue] = useState<File[]>([]);
   const [pendingCrop, setPendingCrop] = useState<{ file: File, dataUrl: string, corners: CornerPoints | null } | null>(null);
+
+  // Persist images to sessionStorage whenever they change (survives mobile camera re-mount)
+  useEffect(() => {
+    try {
+      const toSave = images.map(img => ({ id: img.id, dataUrl: img.dataUrl }));
+      sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(toSave));
+    } catch { /* quota exceeded — ignore */ }
+  }, [images, storageKey]);
+
+  // Persist selected student to sessionStorage
+  useEffect(() => {
+    try {
+      if (selectedStudentId) {
+        sessionStorage.setItem(`${storageKey}-student`, selectedStudentId);
+      }
+    } catch { /* ignore */ }
+  }, [selectedStudentId, storageKey]);
 
   useEffect(() => {
     // Fetch assignment details to get class ID
@@ -180,7 +220,7 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
         
-        let fileToUpload: File | Blob = img.file!;
+        let fileToUpload: File | Blob | null = img.file;
         let base64Image = img.dataUrl;
 
         // Ensure we have a base64
@@ -217,6 +257,14 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  // Clear persisted scan state from sessionStorage
+  const clearScanStorage = () => {
+    try {
+      sessionStorage.removeItem(`${storageKey}-images`);
+      sessionStorage.removeItem(`${storageKey}-student`);
+    } catch { /* ignore */ }
+  };
+
   const handleGrade = async () => {
     setIsGrading(true);
     try {
@@ -233,6 +281,9 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
       if (!res.ok) {
         throw new Error("Gagal mengirim tugas untuk dikoreksi.");
       }
+
+      // Clear persisted state since this student is done
+      clearScanStorage();
 
       // API now returns immediately with PROCESSING status.
       // Navigate back to assignment detail so teacher can scan the next student.
@@ -251,7 +302,7 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-center p-4 bg-black shadow-md z-10 gap-4">
         <div className="flex items-center space-x-4 w-full sm:w-auto">
-          <button onClick={() => router.back()} className="p-2 text-gray-400 hover:text-white font-medium">
+          <button onClick={() => { clearScanStorage(); router.back(); }} className="p-2 text-gray-400 hover:text-white font-medium">
             Tutup
           </button>
           
