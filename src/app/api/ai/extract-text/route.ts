@@ -95,31 +95,78 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
     } catch (groqError: any) {
       console.warn("[Extract Text API] Groq gagal, mencoba fallback ke Gemini 3.8 Flash...", groqError?.message || groqError);
       
-      // 2. FALLBACK: Gemini 3.8 Flash
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const fallbackModel = "gemini-3.8-flash";
-      console.log(`[Extract Text API] Memanggil model (Fallback - Gemini): ${fallbackModel}`);
+      // 2. FALLBACK 1: Gemini 3.8 Flash
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const fallbackModel1 = "gemini-3.8-flash";
+        console.log(`[Extract Text API] Memanggil model (Fallback 1 - Gemini): ${fallbackModel1}`);
 
-      const response = await ai.models.generateContent({
-        model: fallbackModel,
-        contents: [
-          prompt,
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
+        const response = await ai.models.generateContent({
+          model: fallbackModel1,
+          contents: [
+            prompt,
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: mimeType
+              }
             }
+          ],
+          config: {
+            temperature: 0.1,
           }
-        ],
-        config: {
-          temperature: 0.1,
+        });
+
+        extractedText = response.text || "";
+        if (!extractedText) throw new Error("Empty response from Gemini fallback");
+
+        console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Gemini fallback: ${fallbackModel1}`);
+      } catch (geminiError: any) {
+        console.warn("[Extract Text API] Gemini juga gagal, mencoba fallback ke OpenRouter Llama 4 Maverick...", geminiError?.message || geminiError);
+
+        // 3. FALLBACK 2: OpenRouter (Llama 4 Maverick)
+        const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+        if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
+
+        const fallbackModel2 = "meta-llama/llama-4-maverick";
+        console.log(`[Extract Text API] Memanggil model (Fallback 2 - OpenRouter): ${fallbackModel2}`);
+
+        const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openRouterApiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+            "X-Title": "Solusi Guru",
+          },
+          body: JSON.stringify({
+            model: fallbackModel2,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                ]
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 2048,
+          }),
+        });
+
+        if (!orResponse.ok) {
+          const errBody = await orResponse.text();
+          console.error("[Extract Text API] OpenRouter Fallback Error:", errBody);
+          throw new Error(`OpenRouter API returned ${orResponse.status}`);
         }
-      });
 
-      extractedText = response.text || "";
-      if (!extractedText) throw new Error("Empty response from Gemini fallback");
+        const orData = await orResponse.json();
+        extractedText = orData.choices?.[0]?.message?.content || "";
+        if (!extractedText) throw new Error("Empty response from OpenRouter fallback");
 
-      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Gemini fallback: ${fallbackModel}`);
+        console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model OpenRouter: ${fallbackModel2}`);
+      }
     }
 
     return NextResponse.json({ text: extractedText });

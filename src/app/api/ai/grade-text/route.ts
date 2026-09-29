@@ -32,7 +32,8 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, 
 PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
 
 /**
- * Extract text from a single base64 image using Groq Qwen (primary) or Gemini 3.8 Flash (fallback).
+ * Extract text from a single base64 image.
+ * Fallback chain: Groq Qwen (primary) → Gemini 3.8 Flash → OpenRouter Llama 4 Maverick
  */
 async function extractTextFromImage(base64Image: string): Promise<string> {
   const rawBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
@@ -44,7 +45,7 @@ async function extractTextFromImage(base64Image: string): Promise<string> {
     await compressImageForOCR(rawBase64, rawMimeType);
   console.log(`[Grade BG] Kompresi gambar OCR: ${savings}`);
 
-  // PRIMARY: Groq (Qwen)
+  // 1. PRIMARY: Groq (Qwen)
   try {
     const { groqRateLimiter } = await import("@/modules/ai/rateLimiter");
     const { key } = await groqRateLimiter.waitForKey(30000);
@@ -84,30 +85,74 @@ async function extractTextFromImage(base64Image: string): Promise<string> {
   } catch (groqError: any) {
     console.warn("[Grade BG] Groq OCR gagal, mencoba fallback Gemini 3.8 Flash...", groqError?.message);
 
-    // FALLBACK: Gemini 3.8 Flash
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const fallbackModel = "gemini-3.8-flash";
-    console.log(`[Grade BG] OCR menggunakan model (Fallback - Gemini): ${fallbackModel}`);
+    // 2. FALLBACK 1: Gemini 3.8 Flash
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const fallbackModel1 = "gemini-3.8-flash";
+      console.log(`[Grade BG] OCR menggunakan model (Fallback 1 - Gemini): ${fallbackModel1}`);
 
-    const response = await ai.models.generateContent({
-      model: fallbackModel,
-      contents: [
-        OCR_PROMPT,
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
+      const response = await ai.models.generateContent({
+        model: fallbackModel1,
+        contents: [
+          OCR_PROMPT,
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
           }
+        ],
+        config: {
+          temperature: 0.1,
         }
-      ],
-      config: {
-        temperature: 0.1,
-      }
-    });
+      });
 
-    const text = response.text || "";
-    if (!text) throw new Error("Empty response from Gemini fallback");
-    return text;
+      const text = response.text || "";
+      if (!text) throw new Error("Empty response from Gemini fallback");
+      return text;
+    } catch (geminiError: any) {
+      console.warn("[Grade BG] Gemini OCR juga gagal, mencoba fallback OpenRouter Llama 4 Maverick...", geminiError?.message);
+
+      // 3. FALLBACK 2: OpenRouter (Llama 4 Maverick)
+      const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+      if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
+
+      const fallbackModel2 = "meta-llama/llama-4-maverick";
+      console.log(`[Grade BG] OCR menggunakan model (Fallback 2 - OpenRouter): ${fallbackModel2}`);
+
+      const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openRouterApiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+          "X-Title": "Solusi Guru",
+        },
+        body: JSON.stringify({
+          model: fallbackModel2,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: OCR_PROMPT },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+            ]
+          }],
+          temperature: 0.1,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!orResponse.ok) {
+        const errBody = await orResponse.text();
+        console.error("[Grade BG] OpenRouter Fallback Error:", errBody);
+        throw new Error(`OpenRouter API returned ${orResponse.status} - ${errBody}`);
+      }
+
+      const orData = await orResponse.json();
+      const text = orData.choices?.[0]?.message?.content || "";
+      if (!text) throw new Error("Empty response from OpenRouter fallback");
+      return text;
+    }
   }
 }
 
@@ -209,7 +254,7 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    const textModel = "meta-llama/llama-4-maverick";
+    const textModel = "meta-llama/llama-4-scout";
     const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
     console.log(`[Grade BG] Memanggil model grading: ${textModel} untuk submission ${submissionId}`);
