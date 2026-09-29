@@ -158,13 +158,13 @@ Gunakan penomoran (1, 2, 3) persis seperti urutan di dokumen.
 Jika ada teks yang diatur dalam dua kolom (seperti format nomor 1-5 di kiri dan 6-10 di kanan), susun agar tetap sejajar menggunakan spasi atau tabulasi yang rapi.
 
 3. TRANSKRIPSI VERBATIM (APA ADANYA):
-Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis (misalnya, jika tertulis "documen" alih-alih "document", atau "Pilgan" alih-alih "Pilihan Ganda", pertahankan ejaan aslinya). Jangan melakukan koreksi tata bahasa pada teks yang valid.
+Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
 
 4. KELUARAN MURNI (TANPA BASA-BASI):
-Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (seperti 'Berikut adalah hasil ekstraksinya:'), penjelasan, atau kalimat penutup. Mulai dari baris pertama dokumen dan akhiri di baris terakhir.
+Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, penjelasan, atau kalimat penutup.
 
 5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
-PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. Terlepas dari setelan bahasa pada modelmu, JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain. Tuliskan persis sebagaimana makna aslinya dalam bahasa Indonesia.`;
+PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
 
     const extractedText = await this._extractVision(visionPrompt, pages);
 
@@ -185,8 +185,8 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
     }
 
-    const textPrompt = `Anda adalah seorang asisten guru (AI) yang ahli dalam menilai tugas siswa secara bijak, objektif, dan suportif.
-Tugas Anda adalah membaca *hasil transkripsi tulisan siswa* yang sudah diekstrak, lalu menilainya secara akurat berdasarkan Kunci Jawaban.
+    const textPrompt = `Anda adalah asisten guru (AI) penilai tugas siswa.
+Tugas Anda menilai transkripsi tulisan siswa secara akurat berdasarkan Kunci Jawaban.
 
 BERIKUT ADALAH HASIL TRANSKRIPSI JAWABAN SISWA:
 """
@@ -196,70 +196,30 @@ ${extractedText}
 ${answerKeyInstruction}
 ${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
 
-INSTRUKSI PENILAIAN & ALOKASI SKOR (SANGAT PENTING):
-0. PERINGATAN KERAS: ANDA WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! Terdapat total ${questions && questions.length > 0 ? questions.length : "semua"} soal yang harus dinilai. PASTIKAN array 'analysis' pada JSON berisi tepat ${questions && questions.length > 0 ? questions.length : "seluruh"} item soal. SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN PERNAH menjadi malas atau berhenti/memotong penilaian di tengah jalan!
-1. Baca SELURUH tulisan siswa dari awal hingga akhir.
-2. PEMETAAN BAGIAN & NOMOR SOAL (SMART MAPPING): Jawaban siswa mungkin terbagi menjadi beberapa bagian (misal [Bagian A], [Bagian B]) dengan nomor urut yang mengulang dari angka 1 di setiap bagiannya. Anda WAJIB mencocokkan tipe soal dari bagian tersebut dengan urutan kunci jawaban secara keseluruhan. Pastikan nomor soal (questionNumber) pada JSON diisi dengan nomor urut global (misal: 1 sampai 25) sesuai Konfigurasi Soal guru, BUKAN sekadar menyalin nomor 1 dari Bagian B jika itu sebenarnya adalah soal ke-11 secara global.
-${!questions || questions.length === 0 ? questionsInstruction : ""}
-4. TAHAP PENALARAN (CHAIN-OF-THOUGHT):
-   - JANGAN langsung memberikan nilai. Anda WAJIB membandingkan inti argumen siswa dengan inti Kunci Jawaban terlebih dahulu.
-   - Tuliskan langkah penalaran Anda di properti 'reasoning_steps' pada JSON.
+INSTRUKSI PENILAIAN & ALOKASI SKOR:
+0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
+1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
+2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
+3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
+4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY: Kesamaan makna/konsep minimal 80% = BENAR SEMPURNA (100% maxScore). Abaikan typo.
+5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
+7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
-5. KRITERIA PENILAIAN - PILIHAN GANDA (ATURAN MUTLAK - SANGAT KETAT):
-   - EKSTRAKSI HURUF PERTAMA: Hal PERTAMA yang WAJIB Anda lakukan adalah mencari dan MENGAMBIL HANYA HURUF (A/B/C/D/E) yang menjadi pilihan siswa.
-   - ABAIKAN SEMUA TEKS LAINNYA: Setelah mendapatkan huruf pilihan, ABAIKAN SEPENUHNYA semua kata, kalimat, salah ejaan, typo, atau tulisan apapun yang mengikuti huruf tersebut. Teks tambahan itu BUKAN ALASAN UNTUK MENYALAHKAN JAWABAN.
-   - PENCOCOKAN HURUF SAJA: Bandingkan HANYA huruf pilihan siswa tersebut dengan huruf di Kunci Jawaban (abaikan huruf besar/kecil).
-   - JIKA HURUF COCOK = BENAR 100%: Jika huruf pilihan siswa sama dengan huruf Kunci Jawaban, WAJIB BERIKAN NILAI PENUH (maxScore). TIDAK ADA PENGECUALIAN.
-   - MESKIPUN TEKS SETELAH HURUF SALAH/BERBEDA/NGASAL = TETAP BENAR selama huruf pilihannya cocok.
-   - CONTOH BENAR SEMPURNA:
-     * Kunci "A. Fotosintesis" -> Siswa "A. Potosintesis" ✅ BENAR (Huruf A cocok)
-     * Kunci "B. Jakarta" -> Siswa "B. Salah total" ✅ BENAR (Huruf B cocok, abaikan teksnya)
-     * Kunci "C. Soekarno" -> Siswa "c. .... " ✅ BENAR (Huruf c=C cocok)
-     * Kunci "D. 1945" -> Siswa "d" ✅ BENAR (Huruf d=D cocok)
-   - CONTOH SALAH (HANYA JIKA HURUF BERBEDA):
-     * Kunci "A. Fotosintesis" -> Siswa "B. Fotosintesis" ❌ SALAH (Huruf B ≠ A, nilai 0)
-     * Kunci "C. Proklamasi" -> Siswa "D. Proklamasi" ❌ SALAH (Huruf D ≠ C, nilai 0)
-
-6. KRITERIA PENILAIAN - ISIAN SINGKAT & ESSAY (SANGAT PENTING - WAJIB DIPATUHI):
-   - Untuk soal ISIAN SINGKAT dan ESSAY: Gunakan pencocokan KESAMAAN MAKNA/KONSEP dengan toleransi tinggi.
-   - Jika jawaban siswa memiliki KESAMAAN MAKNA/KONSEP minimal 80% dari Kunci Jawaban, maka jawaban siswa WAJIB dinilai BENAR SEMPURNA (100% maxScore).
-   - Abaikan perbedaan ejaan, typo, tata bahasa, urutan kata, atau penggunaan sinonim selama MAKNA/KONSEP utamanya sama.
-   - BENAR SEMPURNA (100% maxScore): Makna/konsep jawaban siswa sama atau setara ≥80% dengan kunci jawaban.
-   - BENAR SEBAGIAN (50% maxScore): Jawaban siswa mengandung sebagian konsep benar namun kesamaan <80%.
-   - SALAH (0): Jawaban salah, melenceng jauh, atau tidak ada hubungannya dengan kunci jawaban.
-
-7. ATURAN TEKS TIDAK TERBACA (SANGAT PENTING):
-   - JANGAN PERNAH memprediksi, menebak, atau mengasumsikan kata/kalimat yang TIDAK DAPAT DIBACA atau TIDAK MEMILIKI MAKNA.
-   - Jika transkripsi mengandung teks yang sama sekali tidak bisa dipahami maknanya (bukan typo biasa, melainkan karakter acak atau kata yang benar-benar tidak bermakna), anggap bagian tersebut sebagai tidak terjawab.
-   - JIKA TRANSKRIPSI SISWA MENGANDUNG KATA "UNREADABLE": Berikan nilai 0, tuliskan "Tulisan tidak dapat dibaca" pada 'analysisText', dan WAJIB set 'status' menjadi "UNREADABLE". Jika terbaca, set 'status' menjadi "OK".
-
-ATURAN UMPAN BALIK EDUKATIF (FEEDBACK):
-- Pada 'analysisText' di setiap soal:
-- JELASKAN ALASAN MENGAPA JAWABAN TERSEBUT MENDAPATKAN SKOR TERSEBUT secara singkat (maksimal 2 kalimat).
-- Jika jawaban BENAR SEMPURNA: Berikan apresiasi atau pujian singkat.
-- Jika jawaban SALAH atau KURANG TEPAT: WAJIB berikan analisis kesalahan dan arahan yang membangun tanpa menyalahkan serta berikan motivasi.
-
-ATURAN BAHASA:
-- Gunakan bahasa Indonesia yang baik dan benar sesuai KBBI.
-- Kosongkan array 'errorHighlights' ([]).
-
-Output Anda HARUS berupa JSON murni dengan struktur berikut:
+Output WAJIB berupa JSON murni dengan struktur:
 {
   "totalScore": number,
-  "generalFeedback": "Apresiasi dan umpan balik singkat keseluruhan untuk siswa",
+  "generalFeedback": "Apresiasi/umpan balik singkat keseluruhan",
   "analysis": [
     {
       "questionNumber": "string",
-      "studentAnswer": "string (teks pertanyaan & jawaban siswa)",
-      "reasoning_steps": "string (Kosongkan jika BENAR SEMPURNA)",
-      "typos": [{"salah": "kata typo", "perbaikan": "prediksi kata yang benar"}],
+      "studentAnswer": "teks jawaban siswa",
+      "reasoning": "1 kalimat perbandingan",
       "score": number,
       "maxScore": number,
-      "analysisText": "string (Kosongkan jika BENAR SEMPURNA)",
+      "analysisText": "Penjelasan singkat",
       "status": "OK"
     }
-  ],
-  "errorHighlights": []
+  ]
 }`;
 
     console.log(`[OpenRouter Scout] Step 2: Grading with fallback models...`);

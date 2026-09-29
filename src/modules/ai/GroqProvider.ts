@@ -94,13 +94,27 @@ export class GroqProvider implements AIProvider {
   ): Promise<AIAssessmentResult> {
     
     // --- TAHAP 1: VISION (Ekstraksi Teks) ---
-    const visionPrompt = `Tugas Anda adalah membaca tulisan tangan siswa pada gambar-gambar ini. 
-SANGAT PENTING: 
-1. DETEKSI BAGIAN (SECTIONING): Siswa sering membagi jawaban ke dalam beberapa bagian (misal: Bagian A. Pilgan, Bagian B. Benar/Salah). Anda WAJIB mengenali dan mempertahankan judul/header bagian tersebut dalam hasil transkripsi. Letakkan header bagian di dalam kurung siku, contoh: [Bagian A: Pilgan].
-2. BACA KOLOM VERTIKAL: Jika jawaban ditulis dalam dua kolom (kiri dan kanan), baca kolom sebelah kiri dari atas ke bawah terlebih dahulu sampai habis, baru kemudian pindah ke kolom sebelah kanan. Urutkan kembali berdasarkan nomor soal secara vertikal dan rapi.
-3. EKSTRAK HANYA jawaban yang memiliki "Nomor Soal" (misal: 1, 2, 3, dst). Abaikan coretan atau tulisan lain yang tidak memiliki nomor urut yang jelas.
-4. Jika ada simbol atau rumus matematika kompleks, Anda WAJIB menggunakan format LaTeX. Bungkus rumus tersebut dengan tanda $$...$$ atau $...$.
-Jangan ubah makna, jangan berikan penilaian, jangan menambahkan komentar apa pun. Cukup kembalikan hasil transkripsi teksnya saja. Jika tulisan sangat buram dan sama sekali tidak bisa dibaca, tulis "UNREADABLE".`;
+    const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
+
+Patuhi aturan operasional ketat berikut:
+
+1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
+Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
+
+2. STRUKTUR & HIERARKI (MARKDOWN):
+Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:
+Gunakan huruf tebal (**teks**) untuk judul blok atau kategori (contoh: A. Pilihan Ganda, B. Isian).
+Gunakan penomoran (1, 2, 3) persis seperti urutan di dokumen.
+Jika ada teks yang diatur dalam dua kolom (seperti format nomor 1-5 di kiri dan 6-10 di kanan), susun agar tetap sejajar menggunakan spasi atau tabulasi yang rapi.
+
+3. TRANSKRIPSI VERBATIM (APA ADANYA):
+Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
+
+4. KELUARAN MURNI (TANPA BASA-BASI):
+Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, penjelasan, atau kalimat penutup.
+
+5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
+PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
     
     let extractedText = "";
 
@@ -261,56 +275,31 @@ ${questionsInstruction && questions && questions.length > 0 ? questionsInstructi
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR:
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
-1. PEMETAAN BAGIAN & NOMOR SOAL (SMART MAPPING): Jawaban siswa mungkin terbagi menjadi beberapa bagian (misal [Bagian A], [Bagian B]) dengan nomor urut yang mengulang dari angka 1 di setiap bagiannya. Anda harus mencocokkan tipe soal (Pilihan Ganda, Benar/Salah, Isian) dari bagian tersebut dengan urutan kunci jawaban secara keseluruhan. Pastikan nomor soal (questionNumber) diisi dengan nomor urut global (misal: 1 sampai 25) sesuai 'order' pada Konfigurasi Soal, JANGAN sekadar menyalin nomor 1 dari Bagian B jika itu sebenarnya adalah soal ke-11 secara global.
+1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
-3. KRITERIA BENAR/SALAH - PILIHAN GANDA (ATURAN MUTLAK - SANGAT KETAT):
-   - EKSTRAKSI HURUF PERTAMA: Hal PERTAMA yang WAJIB Anda lakukan adalah mencari dan MENGAMBIL HANYA HURUF (A/B/C/D/E) yang menjadi pilihan siswa.
-   - ABAIKAN SEMUA TEKS LAINNYA: Setelah mendapatkan huruf pilihan, ABAIKAN SEPENUHNYA semua kata, kalimat, salah ejaan, typo, atau tulisan apapun yang mengikuti huruf tersebut. Teks tambahan itu BUKAN ALASAN UNTUK MENYALAHKAN JAWABAN.
-   - PENCOCOKAN HURUF SAJA: Bandingkan HANYA huruf pilihan siswa tersebut dengan huruf di Kunci Jawaban (abaikan huruf besar/kecil).
-   - JIKA HURUF COCOK = BENAR 100%: Jika huruf pilihan siswa sama dengan huruf Kunci Jawaban, WAJIB BERIKAN NILAI PENUH (maxScore). TIDAK ADA PENGECUALIAN.
-   - MESKIPUN TEKS SETELAH HURUF SALAH/BERBEDA/NGASAL = TETAP BENAR selama huruf pilihannya cocok.
-   - CONTOH BENAR SEMPURNA:
-     * Kunci "A. Fotosintesis" -> Siswa "A. Potosintesis" ✅ BENAR (Huruf A cocok)
-     * Kunci "B. Jakarta" -> Siswa "B. Salah total" ✅ BENAR (Huruf B cocok, abaikan teksnya)
-     * Kunci "C. Soekarno" -> Siswa "c. .... " ✅ BENAR (Huruf c=C cocok)
-     * Kunci "D. 1945" -> Siswa "d" ✅ BENAR (Huruf d=D cocok)
-   - CONTOH SALAH (HANYA JIKA HURUF BERBEDA):
-     * Kunci "A. Fotosintesis" -> Siswa "B. Fotosintesis" ❌ SALAH (Huruf B ≠ A, nilai 0)
-     * Kunci "C. Proklamasi" -> Siswa "D. Proklamasi" ❌ SALAH (Huruf D ≠ C, nilai 0)
-4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY (SANGAT PENTING - WAJIB DIPATUHI):
-   - Untuk soal ISIAN SINGKAT dan ESSAY: Gunakan pencocokan KESAMAAN MAKNA/KONSEP dengan toleransi tinggi.
-   - Jika jawaban siswa memiliki KESAMAAN MAKNA/KONSEP minimal 80% dari Kunci Jawaban, maka jawaban siswa WAJIB dinilai BENAR SEMPURNA (100% maxScore).
-   - Abaikan perbedaan ejaan, typo, tata bahasa, urutan kata, atau penggunaan sinonim selama MAKNA/KONSEP utamanya sama.
-   - BENAR SEMPURNA (100% maxScore): Makna/konsep jawaban siswa sama atau setara ≥80% dengan kunci jawaban.
-   - BENAR SEBAGIAN (50% maxScore): Jawaban siswa mengandung sebagian konsep benar namun kesamaan <80%.
-   - SALAH (0): Jawaban salah, melenceng jauh, atau tidak ada hubungannya dengan kunci jawaban.
-5. ATURAN TEKS TIDAK TERBACA (SANGAT PENTING):
-   - JANGAN PERNAH memprediksi, menebak, atau mengasumsikan kata/kalimat yang TIDAK DAPAT DIBACA atau TIDAK MEMILIKI MAKNA.
-   - Jika transkripsi mengandung teks yang sama sekali tidak bisa dipahami maknanya (bukan typo biasa, melainkan karakter acak atau kata yang benar-benar tidak bermakna), anggap bagian tersebut sebagai tidak terjawab.
-   - Jika 'UNREADABLE', berikan skor 0, analysisText "Tulisan kurang jelas terbaca, silakan coba foto ulang ya.", dan status "UNREADABLE".
-6. UMPAN BALIK EDUKATIF ('analysisText') & PENALARAN ('reasoning'):
-   - Jika jawaban BENAR SEMPURNA (100% maxScore): Berikan 'reasoning' dan 'analysisText' berupa string kosong "" untuk menghemat output token (Conditional Output).
-   - Jika jawaban SALAH atau BENAR SEBAGIAN: WAJIB berikan 'reasoning' (1 kalimat) dan 'analysisText' yang menjelaskan letak kesalahan serta kunci jawaban yang benar.
+3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
+4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY: Kesamaan makna/konsep minimal 80% = BENAR SEMPURNA (100% maxScore). Abaikan typo.
+5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
 7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
-Output WAJIB berupa JSON murni tanpa narasi pembuka/penutup. Struktur JSON harus persis seperti ini:
+Output WAJIB berupa JSON murni dengan struktur:
 {
   "totalScore": number,
-  "generalFeedback": "Umpan balik keseluruhan secara singkat",
+  "generalFeedback": "Apresiasi/umpan balik singkat keseluruhan",
   "analysis": [
     {
       "questionNumber": "string",
       "studentAnswer": "teks jawaban siswa",
-      "reasoning": "string (Kosongkan jika BENAR SEMPURNA)",
+      "reasoning": "1 kalimat perbandingan",
       "score": number,
       "maxScore": number,
-      "analysisText": "string (Kosongkan jika BENAR SEMPURNA)",
-      "status": "OK | UNREADABLE"
+      "analysisText": "Penjelasan singkat",
+      "status": "OK"
     }
   ]
 }`;
 
-    const openRouterModel = "openai/gpt-4o-mini";
+    const openRouterModel = "meta-llama/llama-4-maverick";
     const openRouterApiKey = process.env.OPENROUTER_API_KEY;
     console.log(`[AI Grading] Step 2: Grading with OpenRouter (${openRouterModel})...`);
 
