@@ -64,7 +64,7 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
     
     try {
       const processedFile = await processImage(currentCrop.dataUrl, corners, currentCrop.file.name);
-      const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1920, useWebWorker: true };
+      const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
       const compressedFile = await imageCompression(processedFile, options);
       
       const reader = new FileReader();

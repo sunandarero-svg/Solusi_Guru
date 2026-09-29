@@ -32,7 +32,26 @@ export async function POST(
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    let buffer = Buffer.from(bytes);
+
+    // Kompres gambar server-side untuk hemat storage dan ukuran base64 saat grading
+    if (file.type.startsWith("image/")) {
+      try {
+        const sharp = (await import("sharp")).default;
+        const metadata = await sharp(buffer).metadata();
+        let pipeline = sharp(buffer);
+
+        // Resize to max 1280px — sufficient for OCR, reduces base64 size significantly
+        if ((metadata.width && metadata.width > 1280) || (metadata.height && metadata.height > 1280)) {
+          pipeline = pipeline.resize({ width: 1280, height: 1280, fit: "inside", withoutEnlargement: true });
+        }
+
+        buffer = await pipeline.jpeg({ quality: 70, mozjpeg: true }).toBuffer();
+        console.log(`[Pages Upload] Kompresi gambar: ${(bytes.byteLength / 1024).toFixed(0)}KB → ${(buffer.length / 1024).toFixed(0)}KB`);
+      } catch (compressErr) {
+        console.warn("[Pages Upload] Kompresi gagal, menggunakan original:", compressErr);
+      }
+    }
 
     // Save locally
     const uploadDir = path.join(process.cwd(), "public", "uploads", "submissions");

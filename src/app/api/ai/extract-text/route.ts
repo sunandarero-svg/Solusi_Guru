@@ -3,6 +3,7 @@ import { groqRateLimiter } from "@/modules/ai/rateLimiter";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { GoogleGenAI } from "@google/genai";
+import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,9 +42,14 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka (
 5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
 PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. Terlepas dari setelan bahasa pada modelmu, JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain. Tuliskan persis sebagaimana makna aslinya dalam bahasa Indonesia.`;
     
-    const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+    const rawBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
     const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
-    const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const rawMimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+
+    // Kompres gambar sebelum kirim ke AI untuk hemat token
+    const { compressedBase64: base64Data, compressedMimeType: mimeType, savings } = 
+      await compressImageForOCR(rawBase64, rawMimeType);
+    console.log(`[Extract Text API] Kompresi gambar: ${savings}`);
 
     let extractedText = "";
 

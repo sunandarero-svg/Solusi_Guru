@@ -6,6 +6,7 @@ import { Assignment, AssignmentAttachment, AssignmentQuestion } from "@/models/A
 import { AIAssessment, StudentAnswerAnalysis, Submission } from "@/models/Submission";
 import { GoogleGenAI } from "@google/genai";
 import { attachmentService } from "@/modules/attachment/attachmentService";
+import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
 
 // OCR prompt — same as extract-text API
 const OCR_PROMPT = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
@@ -34,9 +35,14 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
  * Extract text from a single base64 image using Groq Qwen (primary) or Gemini 3.8 Flash (fallback).
  */
 async function extractTextFromImage(base64Image: string): Promise<string> {
-  const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+  const rawBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
   const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
-  const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+  const rawMimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+
+  // Kompres gambar sebelum kirim ke AI untuk hemat token
+  const { compressedBase64: base64Data, compressedMimeType: mimeType, savings } = 
+    await compressImageForOCR(rawBase64, rawMimeType);
+  console.log(`[Grade BG] Kompresi gambar OCR: ${savings}`);
 
   // PRIMARY: Groq (Qwen)
   try {
