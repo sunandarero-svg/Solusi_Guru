@@ -47,14 +47,55 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
     let extractedText = "";
 
-    // 1. PRIMARY: Gemini
+    // 1. PRIMARY: Groq (Qwen)
     try {
+      const { key } = await groqRateLimiter.waitForKey(30000);
+      const primaryModel = "qwen/qwen3.8-27b";
+      console.log(`[Extract Text API] Memanggil model (Primary - Groq): ${primaryModel}`);
+
+      const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: primaryModel,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+              ]
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!groqResponse.ok) {
+        const errBody = await groqResponse.text();
+        console.error("[Extract Text API] Groq Primary Error:", errBody);
+        throw new Error(`Groq API returned ${groqResponse.status}`);
+      }
+
+      const groqData = await groqResponse.json();
+      extractedText = groqData.choices?.[0]?.message?.content || "";
+      if (!extractedText) throw new Error("Empty response from Groq");
+
+      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Groq Qwen: ${primaryModel}`);
+    } catch (groqError: any) {
+      console.warn("[Extract Text API] Groq gagal, mencoba fallback ke Gemini 3.8 Flash...", groqError?.message || groqError);
+      
+      // 2. FALLBACK: Gemini 3.8 Flash
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const visionModel = "gemini-3.8-flash"; 
-      console.log(`[Extract Text API] Memanggil model (Primary): ${visionModel}`);
+      const fallbackModel = "gemini-3.8-flash";
+      console.log(`[Extract Text API] Memanggil model (Fallback - Gemini): ${fallbackModel}`);
 
       const response = await ai.models.generateContent({
-        model: visionModel,
+        model: fallbackModel,
         contents: [
           prompt,
           {
@@ -70,48 +111,9 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       });
 
       extractedText = response.text || "";
-      if (!extractedText) throw new Error("Empty response from Gemini");
-      
-      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model: ${visionModel}`);
-    } catch (geminiError: any) {
-      console.warn("[Extract Text API] Gemini gagal, mencoba fallback ke Groq Qwen...", geminiError?.message || geminiError);
-      
-      // 2. FALLBACK 1: Groq (Qwen)
-      const { key } = await groqRateLimiter.waitForKey(30000);
-      const fallbackModel = "qwen/qwen3.8-27b";
-      console.log(`[Extract Text API] Memanggil model (Fallback 1 - Groq): ${fallbackModel}`);
+      if (!extractedText) throw new Error("Empty response from Gemini fallback");
 
-      const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: fallbackModel,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-              ]
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 800,
-        }),
-      });
-
-      if (!groqResponse.ok) {
-        const errBody = await groqResponse.text();
-        console.error("[Extract Text API] Groq Fallback Error:", errBody);
-        throw new Error(`Groq API returned ${groqResponse.status}`);
-      }
-
-      const groqData = await groqResponse.json();
-      extractedText = groqData.choices?.[0]?.message?.content || "";
-      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Groq Qwen: ${fallbackModel}`);
+      console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Gemini fallback: ${fallbackModel}`);
     }
 
     return NextResponse.json({ text: extractedText });

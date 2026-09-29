@@ -31,21 +31,60 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, 
 PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
 
 /**
- * Extract text from a single base64 image using Gemini (primary) or Groq (fallback).
+ * Extract text from a single base64 image using Groq Qwen (primary) or Gemini 3.8 Flash (fallback).
  */
 async function extractTextFromImage(base64Image: string): Promise<string> {
   const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
   const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
   const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
 
-  // PRIMARY: Gemini
+  // PRIMARY: Groq (Qwen)
   try {
+    const { groqRateLimiter } = await import("@/modules/ai/rateLimiter");
+    const { key } = await groqRateLimiter.waitForKey(30000);
+    const primaryModel = "qwen/qwen3.8-27b";
+    console.log(`[Grade BG] OCR menggunakan model (Primary - Groq): ${primaryModel}`);
+
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: primaryModel,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: OCR_PROMPT },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+          ]
+        }],
+        temperature: 0.1,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!groqResponse.ok) {
+      const errBody = await groqResponse.text();
+      console.error("[Grade BG] Groq Primary Error:", errBody);
+      throw new Error(`Groq API returned ${groqResponse.status} - ${errBody}`);
+    }
+
+    const groqData = await groqResponse.json();
+    const text = groqData.choices?.[0]?.message?.content || "";
+    if (!text) throw new Error("Empty response from Groq");
+    return text;
+  } catch (groqError: any) {
+    console.warn("[Grade BG] Groq OCR gagal, mencoba fallback Gemini 3.8 Flash...", groqError?.message);
+
+    // FALLBACK: Gemini 3.8 Flash
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const visionModel = "gemini-3.8-flash";
-    console.log(`[Grade BG] OCR menggunakan model: ${visionModel}`);
+    const fallbackModel = "gemini-3.8-flash";
+    console.log(`[Grade BG] OCR menggunakan model (Fallback - Gemini): ${fallbackModel}`);
 
     const response = await ai.models.generateContent({
-      model: visionModel,
+      model: fallbackModel,
       contents: [
         OCR_PROMPT,
         {
@@ -61,43 +100,8 @@ async function extractTextFromImage(base64Image: string): Promise<string> {
     });
 
     const text = response.text || "";
-    if (!text) throw new Error("Empty response from Gemini");
+    if (!text) throw new Error("Empty response from Gemini fallback");
     return text;
-  } catch (geminiError: any) {
-    console.warn("[Grade BG] Gemini OCR gagal, mencoba fallback Groq...", geminiError?.message);
-
-    // FALLBACK: Groq
-    const { groqRateLimiter } = await import("@/modules/ai/rateLimiter");
-    const { key } = await groqRateLimiter.waitForKey(30000);
-    const fallbackModel = "qwen/qwen3.8-27b";
-
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: fallbackModel,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: OCR_PROMPT },
-            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-          ]
-        }],
-        temperature: 0.1,
-        max_tokens: 800,
-      }),
-    });
-
-    if (!groqResponse.ok) {
-      const errBody = await groqResponse.text();
-      throw new Error(`Groq OCR fallback failed: ${groqResponse.status} - ${errBody}`);
-    }
-
-    const groqData = await groqResponse.json();
-    return groqData.choices?.[0]?.message?.content || "";
   }
 }
 
