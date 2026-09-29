@@ -205,10 +205,7 @@ export const attachmentService = {
    */
   async saveAnswerKey(assignmentId: string, answerKey: string) {
     await dbConnect();
-    await AssignmentAttachment.updateMany(
-      { assignmentId },
-      { $set: { aiAnswerKey: answerKey } }
-    );
+    await Assignment.findByIdAndUpdate(assignmentId, { $set: { aiAnswerKey: answerKey } });
   },
 
   /**
@@ -216,13 +213,8 @@ export const attachmentService = {
    */
   async getAnswerKey(assignmentId: string): Promise<string | null> {
     await dbConnect();
-    const attachment = await AssignmentAttachment.findOne({
-      assignmentId,
-      aiAnswerKey: { $exists: true, $nin: [null, ""] },
-    })
-      .select("aiAnswerKey")
-      .lean();
-    return attachment?.aiAnswerKey || null;
+    const assignment = await Assignment.findById(assignmentId).select("aiAnswerKey").lean();
+    return assignment?.aiAnswerKey || null;
   },
 
   /**

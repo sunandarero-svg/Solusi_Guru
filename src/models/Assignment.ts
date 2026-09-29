@@ -18,6 +18,7 @@ export interface IAssignment extends Document {
   deadline?: Date;
   maxPages: number;
   status: AssignmentStatus;
+  aiAnswerKey?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +33,8 @@ const AssignmentSchema: Schema = new Schema({
   instructions: { type: String },
   deadline: { type: Date },
   maxPages: { type: Number, default: 5 },
-  status: { type: String, enum: Object.values(AssignmentStatus), default: AssignmentStatus.DRAFT }
+  status: { type: String, enum: Object.values(AssignmentStatus), default: AssignmentStatus.DRAFT },
+  aiAnswerKey: { type: String }
 }, {
   timestamps: true
 });

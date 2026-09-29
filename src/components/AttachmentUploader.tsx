@@ -422,129 +422,144 @@ export default function AttachmentUploader({ assignmentId, isPublished }: Attach
         </div>
       )}
 
-      {/* Generate Answer Key Button */}
-      {attachments.length > 0 && (
-        <div className="border-t border-gray-100 pt-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700">
-                🤖 Kunci Jawaban AI
-              </p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                AI akan menganalisis soal dari lampiran dan menghasilkan kunci jawaban referensi
-              </p>
-            </div>
-            <button
-              onClick={handleGenerateAnswerKey}
-              disabled={generating || attachments.length === 0}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-2"
-            >
-              {generating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  ✨ {answerKey ? "Re-generate Kunci Jawaban" : "Generate Kunci Jawaban"}
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Answer Key Display */}
-          {answerKey && (
-            <div className="mt-4">
-              <button
-                onClick={() => setShowAnswerKey(!showAnswerKey)}
-                className="flex items-center gap-2 text-sm font-medium text-purple-700 hover:text-purple-900 transition"
-              >
-                <span className={`transform transition-transform ${showAnswerKey ? "rotate-90" : ""}`}>
-                  ▶
-                </span>
-                {showAnswerKey ? "Sembunyikan" : "Lihat"} Kunci Jawaban AI
-              </button>
-
-              {showAnswerKey && (
-                <div className="mt-3 p-4 bg-purple-50 rounded-xl border border-purple-100 flex flex-col max-h-[500px]">
-                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-100 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-600 font-bold text-sm">🔑 Kunci Jawaban Referensi</span>
-                      <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
-                        Dibuat oleh AI
-                      </span>
-                    </div>
-                    {!isEditingKey ? (
-                      <button
-                        onClick={() => {
-                          setEditedAnswerKey(answerKey);
-                          setIsEditingKey(true);
-                        }}
-                        className="text-xs font-medium text-purple-700 bg-white border border-purple-200 px-3 py-1.5 rounded-md hover:bg-purple-100 transition"
-                      >
-                        ✏️ Edit Kunci Jawaban
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            setIsEditingKey(false);
-                            setEditedAnswerKey(answerKey); // Reset
-                          }}
-                          className="text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-md hover:bg-gray-100 transition"
-                          disabled={savingKey}
-                        >
-                          Batal
-                        </button>
-                        <button
-                          onClick={handleSaveEditedKey}
-                          disabled={savingKey}
-                          className="text-xs font-medium text-white bg-purple-600 px-3 py-1.5 rounded-md hover:bg-purple-700 transition disabled:opacity-50"
-                        >
-                          {savingKey ? "Menyimpan..." : "💾 Simpan"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {isEditingKey ? (
-                    <textarea
-                      value={editedAnswerKey}
-                      onChange={(e) => setEditedAnswerKey(e.target.value)}
-                      className="w-full h-64 p-3 text-sm text-gray-800 bg-white border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none resize-y"
-                      placeholder="Ketik atau edit kunci jawaban di sini..."
-                    />
-                  ) : (
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed overflow-y-auto">
-                      {answerKey}
-                    </div>
-                  )}
-
-                  <div className="mt-3 pt-2 border-t border-purple-100 shrink-0">
-                    <p className="text-xs text-purple-500 italic">
-                      ⚠️ Kunci jawaban ini adalah referensi. Jawaban siswa tidak harus sama persis, 
-                      yang dinilai adalah kesesuaian konteks.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Question Configurator */}
-          <QuestionConfigurator 
-            assignmentId={assignmentId} 
-            initialQuestions={parsedQuestions}
-          />
-        </div>
-      )}
-
-      {/* Empty State */}
+      {/* Empty State for Attachments */}
       {attachments.length === 0 && !uploading && (
         <div className="text-center py-4 text-gray-400 text-sm">
           Belum ada lampiran soal. Upload dokumen soal untuk memulai.
         </div>
       )}
+
+      {/* Answer Key & Question Configurator (Always Visible) */}
+      <div className="border-t border-gray-100 pt-4 mt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">
+              🤖 Kunci Jawaban AI
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              AI akan menganalisis soal dari lampiran dan menghasilkan kunci jawaban referensi
+            </p>
+          </div>
+          <button
+            onClick={handleGenerateAnswerKey}
+            disabled={generating || attachments.length === 0}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-2"
+          >
+            {generating ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                ✨ {answerKey ? "Re-generate Kunci Jawaban" : "Generate Kunci Jawaban"}
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Answer Key Display */}
+        {(answerKey || isEditingKey) && (
+          <div className="mt-4">
+            <button
+              onClick={() => setShowAnswerKey(!showAnswerKey)}
+              className="flex items-center gap-2 text-sm font-medium text-purple-700 hover:text-purple-900 transition"
+            >
+              <span className={`transform transition-transform ${showAnswerKey ? "rotate-90" : ""}`}>
+                ▶
+              </span>
+              {showAnswerKey ? "Sembunyikan" : "Lihat"} Kunci Jawaban AI
+            </button>
+
+            {showAnswerKey && (
+              <div className="mt-3 p-4 bg-purple-50 rounded-xl border border-purple-100 flex flex-col max-h-[500px]">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-100 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-600 font-bold text-sm">🔑 Kunci Jawaban Referensi</span>
+                    {answerKey && (
+                      <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
+                        Dibuat oleh AI
+                      </span>
+                    )}
+                  </div>
+                  {!isEditingKey ? (
+                    <button
+                      onClick={() => {
+                        setEditedAnswerKey(answerKey || "");
+                        setIsEditingKey(true);
+                      }}
+                      className="text-xs font-medium text-purple-700 bg-white border border-purple-200 px-3 py-1.5 rounded-md hover:bg-purple-100 transition"
+                    >
+                      ✏️ Edit Kunci Jawaban
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setIsEditingKey(false);
+                          setEditedAnswerKey(answerKey || ""); // Reset
+                        }}
+                        className="text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-md hover:bg-gray-100 transition"
+                        disabled={savingKey}
+                      >
+                        Batal
+                      </button>
+                      <button
+                        onClick={handleSaveEditedKey}
+                        disabled={savingKey}
+                        className="text-xs font-medium text-white bg-purple-600 px-3 py-1.5 rounded-md hover:bg-purple-700 transition disabled:opacity-50"
+                      >
+                        {savingKey ? "Menyimpan..." : "💾 Simpan"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                {isEditingKey ? (
+                  <textarea
+                    value={editedAnswerKey}
+                    onChange={(e) => setEditedAnswerKey(e.target.value)}
+                    className="w-full h-64 p-3 text-sm text-gray-800 bg-white border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none resize-y"
+                    placeholder="Ketik atau edit kunci jawaban di sini..."
+                  />
+                ) : (
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed overflow-y-auto">
+                    {answerKey}
+                  </div>
+                )}
+
+                <div className="mt-3 pt-2 border-t border-purple-100 shrink-0">
+                  <p className="text-xs text-purple-500 italic">
+                    ⚠️ Kunci jawaban ini adalah referensi. Jawaban siswa tidak harus sama persis, 
+                    yang dinilai adalah kesesuaian konteks.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!answerKey && !isEditingKey && (
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                setEditedAnswerKey("");
+                setIsEditingKey(true);
+                setShowAnswerKey(true);
+              }}
+              className="text-sm text-purple-600 font-medium hover:text-purple-700 flex items-center gap-2"
+            >
+              + Tambah Kunci Jawaban Manual
+            </button>
+          </div>
+        )}
+
+        {/* Question Configurator */}
+        <QuestionConfigurator 
+          assignmentId={assignmentId} 
+          initialQuestions={parsedQuestions}
+        />
+      </div>
     </div>
   );
 }

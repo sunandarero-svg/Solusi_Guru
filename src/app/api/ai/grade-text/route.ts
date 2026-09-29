@@ -142,14 +142,8 @@ async function processFullGradingInBackground(
     }
 
     // 2. Fetch answer key and questions
-    let answerKey = "";
-    const attachment = await AssignmentAttachment.findOne({
-      assignmentId,
-      aiAnswerKey: { $exists: true, $nin: [null, ""] },
-    }).select("aiAnswerKey").lean();
-    if (attachment?.aiAnswerKey) {
-      answerKey = attachment.aiAnswerKey;
-    }
+    const existingAnswerKey = await attachmentService.getAnswerKey(assignmentId);
+    let answerKey = existingAnswerKey || "";
 
     const questions = await AssignmentQuestion.find({ assignmentId }).sort({ order: 1 }).lean();
 
