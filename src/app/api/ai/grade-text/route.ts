@@ -5,6 +5,7 @@ import dbConnect from "@/lib/mongoose";
 import { Assignment, AssignmentAttachment, AssignmentQuestion } from "@/models/Assignment";
 import { AIAssessment, StudentAnswerAnalysis, Submission } from "@/models/Submission";
 import { GoogleGenAI } from "@google/genai";
+import { attachmentService } from "@/modules/attachment/attachmentService";
 
 // OCR prompt — same as extract-text API
 const OCR_PROMPT = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
