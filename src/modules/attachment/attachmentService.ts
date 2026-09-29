@@ -4,8 +4,8 @@ import { mapId } from "@/lib/mapId";
 import path from "path";
 import { readFile, writeFile, mkdir, unlink, copyFile } from "fs/promises";
 
-// Maximum file size: 300KB
-export const MAX_ATTACHMENT_SIZE = 300 * 1024;
+// Maximum file size: 10MB (10000KB)
+export const MAX_ATTACHMENT_SIZE = 10000 * 1024;
 export const MAX_ATTACHMENTS_PER_ASSIGNMENT = 5;
 
 export const ALLOWED_MIME_TYPES: Record<string, string[]> = {

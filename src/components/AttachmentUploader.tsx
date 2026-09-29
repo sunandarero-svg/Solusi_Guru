@@ -21,7 +21,7 @@ interface AttachmentUploaderProps {
 }
 
 const ALLOWED_EXTENSIONS = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
-const MAX_FILE_SIZE_KB = 300;
+const MAX_FILE_SIZE_KB = 10000;
 const MAX_ATTACHMENTS = 5;
 
 function getFileIcon(mimeType: string): string {
