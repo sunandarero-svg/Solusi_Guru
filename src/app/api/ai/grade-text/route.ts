@@ -237,7 +237,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
 7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
-Output WAJIB berupa JSON murni dengan struktur:
+Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMAT PEMBUKA/PENUTUP seperti 'Berikut adalah...'. DILARANG KERAS menambahkan teks di luar struktur JSON ini:
 {
   "totalScore": number,
   "generalFeedback": "Apresiasi/umpan balik singkat keseluruhan",
@@ -286,7 +286,13 @@ Output WAJIB berupa JSON murni dengan struktur:
 
     console.log(`[Grade BG] Penilaian berhasil menggunakan model: ${textModel}`);
 
-    const cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    let jsonString = responseText;
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonString = jsonMatch[0];
+    }
+    
+    const cleanText = jsonString.replace(/```json/gi, "").replace(/```/g, "").trim();
     const assessmentResult = JSON.parse(cleanText);
 
     // 4. Normalize and enforce scores
