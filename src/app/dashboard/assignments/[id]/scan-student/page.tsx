@@ -51,7 +51,6 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
         const saved = sessionStorage.getItem(`${storageKey}-images`);
         if (saved) {
           const parsed = JSON.parse(saved) as Array<{ id: string; dataUrl: string }>;
-          // Restore images (file will be null since File objects can't be serialized)
           return parsed.map(item => ({ id: item.id, file: null, dataUrl: item.dataUrl }));
         }
       } catch { /* ignore parse errors */ }
@@ -60,12 +59,7 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
   });
   const [previewImageId, setPreviewImageId] = useState<string | null>(null);
   
-  // New Flow States
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractedText, setExtractedText] = useState("");
-  const [isGrading, setIsGrading] = useState(false);
-  const [isDone, setIsDone] = useState(false);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { isReady, detectCorners, processImage } = useDocumentScanner();
   const [isProcessingImage, setIsProcessingImage] = useState(false);
@@ -91,13 +85,11 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
   }, [selectedStudentId, storageKey]);
 
   useEffect(() => {
-    // Fetch assignment details to get class ID
     fetch(`/api/assignments/${resolvedParams.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.id) {
           setAssignment(data);
-          // Fetch students for this class
           if (data.class && data.class._id) {
             fetch(`/api/classes/${data.class._id}/students`)
               .then(res => res.json())
@@ -203,60 +195,6 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
     setImages(newImages);
   };
 
-  const handleExtractText = async () => {
-    if (!selectedStudentId) {
-      alert("Pilih siswa terlebih dahulu.");
-      return;
-    }
-
-    if (images.length === 0) {
-      alert("Ambil setidaknya 1 foto halaman.");
-      return;
-    }
-
-    setIsExtracting(true);
-    try {
-      let combinedText = "";
-      for (let i = 0; i < images.length; i++) {
-        const img = images[i];
-        
-        let fileToUpload: File | Blob | null = img.file;
-        let base64Image = img.dataUrl;
-
-        // Ensure we have a base64
-        if (!base64Image && fileToUpload) {
-            const reader = new FileReader();
-            base64Image = await new Promise((resolve) => {
-                reader.onload = (e) => resolve(e.target?.result as string);
-                reader.readAsDataURL(fileToUpload);
-            });
-        }
-
-        const res = await fetch(`/api/ai/extract-text`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64Image })
-        });
-        
-        if (!res.ok) {
-          throw new Error("Gagal mengekstrak teks dari gambar.");
-        }
-        
-        const data = await res.json();
-        if (data.text) {
-          combinedText += `\n\n--- Halaman ${i + 1} ---\n${data.text}`;
-        }
-      }
-      
-      setExtractedText(combinedText.trim());
-      setIsExtracting(false);
-      setIsDone(true);
-    } catch (err: any) {
-      setIsExtracting(false);
-      alert(err.message || "Terjadi kesalahan saat mengekstrak teks.");
-    }
-  };
-
   // Clear persisted scan state from sessionStorage
   const clearScanStorage = () => {
     try {
@@ -265,14 +203,27 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
     } catch { /* ignore */ }
   };
 
-  const handleGrade = async () => {
-    setIsGrading(true);
+  // Single action: send all images to API for background extract + grade
+  const handleSubmitForGrading = async () => {
+    if (!selectedStudentId) {
+      alert("Pilih siswa terlebih dahulu.");
+      return;
+    }
+    if (images.length === 0) {
+      alert("Ambil setidaknya 1 foto halaman.");
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
+      // Collect all base64 images
+      const base64Images = images.map(img => img.dataUrl);
+
       const res = await fetch(`/api/ai/grade-text`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          extractedText,
+          base64Images,
           assignmentId: resolvedParams.id,
           studentId: selectedStudentId
         })
@@ -285,13 +236,12 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
       // Clear persisted state since this student is done
       clearScanStorage();
 
-      // API now returns immediately with PROCESSING status.
-      // Navigate back to assignment detail so teacher can scan the next student.
+      // Navigate back to assignment detail
       router.push(`/dashboard/assignments/${resolvedParams.id}?grading=started`);
       
     } catch (err: any) {
-      setIsGrading(false);
-      alert(err.message || "Terjadi kesalahan saat mengoreksi tugas.");
+      setIsSubmitting(false);
+      alert(err.message || "Terjadi kesalahan saat mengirim tugas.");
     }
   };
 
@@ -323,35 +273,32 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <span className="font-bold hidden sm:inline">{images.length} Halaman</span>
-          {!isDone && (
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-semibold text-gray-300 bg-gray-800 px-3 py-1 rounded-lg">{images.length} Halaman</span>
+          
+          {images.length > 0 && (
             <button 
-              onClick={handleExtractText} 
-              disabled={isExtracting || images.length === 0 || !selectedStudentId}
-              className="bg-emerald-600 px-4 py-2 rounded-full font-medium disabled:opacity-50 text-sm"
+              onClick={handleSubmitForGrading} 
+              disabled={isSubmitting || !selectedStudentId}
+              className="bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 px-5 py-2 rounded-full font-bold disabled:opacity-50 text-sm shadow-lg shadow-blue-500/30 transition transform hover:scale-105 active:scale-95"
             >
-              {isExtracting ? "Mengekstrak Teks..." : "Ekstrak Teks & Periksa"}
-            </button>
-          )}
-          {isDone && (
-            <button 
-              onClick={handleGrade} 
-              disabled={isGrading || !extractedText || !selectedStudentId}
-              className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full font-medium disabled:opacity-50 text-sm shadow-lg shadow-blue-500/50"
-            >
-              {isGrading ? "Mengoreksi..." : "Koreksi Tugas"}
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                  Mengirim...
+                </span>
+              ) : "✅ Koreksi Tugas"}
             </button>
           )}
         </div>
       </div>
 
-      {/* Grid of scanned pages and Textarea */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
+      {/* Grid of scanned pages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-40">
         {images.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-500">
-            <span className="text-4xl mb-4">📄</span>
-            <p className="text-center px-6">Pilih nama siswa di atas, lalu tekan tombol Kamera di bawah untuk mulai memindai tugas mereka.</p>
+            <span className="text-5xl mb-4">📄</span>
+            <p className="text-center px-6 text-lg font-medium">Pilih nama siswa di atas, lalu tekan tombol Kamera di bawah untuk mulai memindai tugas mereka.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-6">
@@ -393,25 +340,19 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
             ))}
-            </div>
             
-            {/* TEXTAREA FOR EXTRACTED TEXT */}
-            {isDone && (
-              <div className="flex flex-col space-y-2 mt-4 bg-gray-800 p-4 rounded-xl border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-emerald-400 font-bold flex items-center">
-                    <span>📝 Teks Terbaca</span>
-                  </h3>
-                  <span className="text-xs text-gray-400 bg-gray-900 px-2 py-1 rounded-md">Edit jika ada yang salah</span>
-                </div>
-                <textarea
-                  value={extractedText}
-                  onChange={(e) => setExtractedText(e.target.value)}
-                  className="w-full h-64 bg-slate-50 text-slate-900 p-4 rounded-lg border-2 border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 text-sm font-medium resize-y"
-                  placeholder="Teks dari gambar akan muncul di sini..."
-                />
+            {/* Tambah Halaman Card */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!selectedStudentId || isProcessingImage || !isReady}
+              className="relative bg-gray-800/50 rounded-xl overflow-hidden aspect-[3/4] border-2 border-dashed border-gray-600 hover:border-emerald-500 hover:bg-gray-800 transition-all flex flex-col items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed group"
+            >
+              <div className="w-14 h-14 rounded-full bg-gray-700 group-hover:bg-emerald-600/20 flex items-center justify-center transition-colors">
+                <span className="text-3xl">➕</span>
               </div>
-            )}
+              <span className="text-sm font-semibold text-gray-400 group-hover:text-emerald-400 transition-colors">Tambah Halaman</span>
+            </button>
+            </div>
           </div>
         )}
       </div>
@@ -425,25 +366,29 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      {/* Floating Action Button (Camera) */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          disabled={!selectedStudentId || isProcessingImage || !isReady}
-          className={`bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center transition transform border-4 border-emerald-50 ${(!selectedStudentId || isProcessingImage || !isReady) ? 'opacity-50' : 'cursor-pointer pointer-events-auto hover:bg-gray-100 hover:scale-105'}`}
-        >
-          <span className="text-3xl">📷</span>
-        </button>
-        <input 
-          type="file" 
-          accept="image/*" 
-          capture="environment" 
-          ref={fileInputRef} 
-          onChange={handleCapture} 
-          className="hidden" 
-          multiple 
-        />
-      </div>
+      {/* Floating Action Buttons — Camera (initial capture) */}
+      {images.length === 0 && (
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!selectedStudentId || isProcessingImage || !isReady}
+            className={`bg-white text-emerald-600 shadow-xl w-20 h-20 rounded-full flex items-center justify-center transition transform border-4 border-emerald-50 ${(!selectedStudentId || isProcessingImage || !isReady) ? 'opacity-50' : 'cursor-pointer pointer-events-auto hover:bg-gray-100 hover:scale-105'}`}
+          >
+            <span className="text-3xl">📷</span>
+          </button>
+        </div>
+      )}
+      
+      {/* Hidden file input */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        ref={fileInputRef} 
+        onChange={handleCapture} 
+        className="hidden" 
+        multiple 
+      />
 
       {/* Preview Modal */}
       {previewImage && (
@@ -454,7 +399,6 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
           onDelete={() => handleDelete(previewImage.id)}
         />
       )}
-
 
       {/* Manual Cropper Modal */}
       {pendingCrop && (
