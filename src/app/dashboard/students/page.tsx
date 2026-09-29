@@ -136,8 +136,9 @@ export default function StudentsManagementPage() {
       skipEmptyLines: true,
       complete: async function(results) {
         const parsedStudents = results.data.map((row: any) => ({
-          fullName: row.NamaLengkap || row.Nama || row.name || Object.values(row)[0]
-        })).filter(s => s.fullName);
+          fullName: row.NamaLengkap || row.Nama || row.name || Object.values(row)[0],
+          studentNumber: row.Username || row.username || row.NIS || row.studentNumber || undefined
+        })).filter((s: any) => s.fullName);
 
         if (parsedStudents.length === 0) {
           setMessage({ type: "error", text: "Format CSV tidak sesuai. Pastikan ada kolom NamaLengkap." });
@@ -170,7 +171,7 @@ export default function StudentsManagementPage() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap\nBudi Santoso\nSiti Aminah";
+    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap,Username\nBudi Santoso,budi01\nSiti Aminah,siti02";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -389,8 +390,8 @@ export default function StudentsManagementPage() {
                   <div className="bg-emerald-50/50 rounded-xl p-5 border border-emerald-100 text-center">
                     <p className="text-sm text-emerald-800 font-bold mb-2">Panduan Upload CSV</p>
                     <p className="text-xs text-emerald-600 mb-4 leading-relaxed">
-                      Format CSV (Comma delimited) dengan 1 kolom: <strong>NamaLengkap</strong>.<br/>
-                      Username akan otomatis di-generate (4 digit).<br/>
+                      Format CSV (Comma delimited) dengan 2 kolom: <strong>NamaLengkap, Username</strong>.<br/>
+                      Username (opsional) akan digunakan sebagai NIS untuk login. Jika dikosongkan, akan otomatis di-generate.<br/>
                       Password default: <strong className="font-mono">siswa123</strong>
                     </p>
                     <button 

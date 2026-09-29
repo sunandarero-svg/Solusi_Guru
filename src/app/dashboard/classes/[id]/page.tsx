@@ -129,8 +129,8 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
       complete: async function(results) {
         const parsedStudents = results.data.map((row: any) => ({
           fullName: row.NamaLengkap || row.Nama || row.name || Object.values(row)[0],
-          studentNumber: row.NIS || row.nis || row.studentNumber || Object.values(row)[1]
-        })).filter(s => s.fullName && s.studentNumber);
+          studentNumber: row.Username || row.username || row.NIS || row.studentNumber || Object.values(row)[1]
+        })).filter((s: any) => s.fullName);
 
         if (parsedStudents.length === 0) {
           setMessage({ type: "error", text: "Format CSV tidak sesuai. Pastikan ada kolom NamaLengkap dan NIS." });
@@ -164,7 +164,7 @@ export default function ClassDetailsPage({ params }: { params: Promise<{ id: str
   };
 
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap,NIS,Username,Password\nBudi Santoso,1001,1001@siswa.com,siswa123\nSiti Aminah,1002,1002@siswa.com,siswa123";
+    const csvContent = "data:text/csv;charset=utf-8,NamaLengkap,Username\nBudi Santoso,budi01\nSiti Aminah,siti02";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
