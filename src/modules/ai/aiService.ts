@@ -220,31 +220,11 @@ export class AIService {
       });
     }
 
-    // Check for old assessment to compare answers
+    // Check for old assessment and clean up to avoid duplicates
     const oldAssessment = await AIAssessment.findOne({ submissionId }).lean();
     const { StudentAnswerAnalysis } = await import("@/models/Submission");
     
     if (oldAssessment) {
-      const oldAnalyses = await StudentAnswerAnalysis.find({ assessmentId: oldAssessment._id }).lean();
-      
-      let answersChanged = false;
-      for (const newAnalysis of normalizedAnalyses) {
-        const oldAnalysis = oldAnalyses.find((a: any) => a.questionNumber === newAnalysis.questionNumber);
-        if (oldAnalysis) {
-          const oldAns = (oldAnalysis.studentAnswer || "").trim().toLowerCase();
-          const newAns = (newAnalysis.studentAnswer || "").trim().toLowerCase();
-          if (oldAns !== newAns) {
-            answersChanged = true;
-            break;
-          }
-        }
-      }
-      
-      if (answersChanged) {
-        await Submission.findByIdAndUpdate(submissionId, { hasChangedAnswer: true });
-      }
-      
-      // Clean up old assessment and its analyses to avoid duplicates
       await StudentAnswerAnalysis.deleteMany({ assessmentId: oldAssessment._id });
       await AIAssessment.deleteMany({ submissionId });
     }

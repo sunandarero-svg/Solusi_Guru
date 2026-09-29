@@ -95,16 +95,6 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
                 {submission.aiAssessment && (
                   <span className="text-xs font-medium mt-1">Nilai AI: {submission.aiAssessment.suggestedScore}/100</span>
                 )}
-                {submission.hasChangedAnswer && (
-                  <span className="text-[10px] mt-1 bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200">
-                    ⚠️ Peringatan: Jawaban Berubah
-                  </span>
-                )}
-                {(submission.retryCount || 1) < 3 && submission.status !== "PUBLISHED" && (
-                  <Link href={`/dashboard/my-assignments/${resolvedParams.id}/scan`} className="mt-2 text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700">
-                    📷 Foto Ulang (Sisa {3 - (submission.retryCount || 1)} Kali)
-                  </Link>
-                )}
               </div>
             ) : (
               <Link 
