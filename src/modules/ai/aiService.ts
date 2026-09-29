@@ -35,19 +35,10 @@ export class AIService {
       throw new Error(`No pages found for submission ID ${submissionId}`);
     }
 
-    // 2b. Fetch AI Answer Key from teacher attachments (if available)
-    let answerKey: string | undefined;
-    try {
-      const attachment = await AssignmentAttachment.findOne({
-        assignmentId: assignment._id,
-        aiAnswerKey: { $exists: true, $nin: [null, ""] },
-      }).select("aiAnswerKey").lean();
-      if (attachment?.aiAnswerKey) {
-        answerKey = attachment.aiAnswerKey;
-        console.log(`[AI] Found answer key for assignment ${assignment._id}, will use for concept-based comparison.`);
-      }
-    } catch (err) {
-      console.warn("[AI] Failed to fetch answer key, proceeding without it:", err);
+    // 2b. Fetch AI Answer Key from assignment (if available)
+    let answerKey: string | undefined = assignment.aiAnswerKey;
+    if (answerKey) {
+      console.log(`[AI] Found answer key for assignment ${assignment._id}, will use for concept-based comparison.`);
     }
 
     // 2c. Fetch Assignment Questions (teacher configuration)
