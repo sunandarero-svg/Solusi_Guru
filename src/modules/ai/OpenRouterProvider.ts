@@ -173,16 +173,15 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
-      answerKeyInstruction = `\nKUNCI JAWABAN REFERENSI (dari soal yang dilampirkan guru):\n${answerKey}\n`;
+      answerKeyInstruction = `KUNCI JAWABAN REFERENSI:\n${answerKey}\n`;
     }
 
     let questionsInstruction = "";
     if (questions && questions.length > 0) {
       const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
-      questionsInstruction = `\nKONFIGURASI SOAL & BOBOT (DARI GURU):\nBerikut adalah struktur dan pedoman bobot maksimal untuk setiap soal:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
+      questionsInstruction = `KONFIGURASI SOAL & BOBOT:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
     } else {
-      questionsInstruction = `2. Identifikasi jumlah total soal (N) yang dijawab oleh siswa atau yang ada di Kunci Jawaban.
-3. Alokasikan nilai maksimal ('maxScore') untuk masing-masing soal secara proporsional, yaitu 100 / N (dibulatkan agar total seluruh 'maxScore' = 100).`;
+      questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
     }
 
     const textPrompt = `Anda adalah asisten guru (AI) penilai tugas siswa.
@@ -194,7 +193,7 @@ ${extractedText}
 """
 
 ${answerKeyInstruction}
-${questionsInstruction && questions && questions.length > 0 ? questionsInstruction : ""}
+${questionsInstruction}
 
 INSTRUKSI PENILAIAN & ALOKASI SKOR:
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
