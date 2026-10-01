@@ -8,222 +8,61 @@ import { GoogleGenAI } from "@google/genai";
 import { attachmentService } from "@/modules/attachment/attachmentService";
 import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
 
-// OCR prompt — same as extract-text API
-const OCR_PROMPT = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
-
-Patuhi aturan operasional ketat berikut:
-
-1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
-Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
-
-2. STRUKTUR & HIERARKI (MARKDOWN):
-Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:
-Gunakan huruf tebal (**teks**) untuk judul blok atau kategori (contoh: A. Pilihan Ganda, B. Isian).
-Gunakan penomoran (1, 2, 3) persis seperti urutan di dokumen.
-Jika ada teks yang diatur dalam dua kolom (seperti format nomor 1-5 di kiri dan 6-10 di kanan), susun agar tetap sejajar menggunakan spasi atau tabulasi yang rapi.
-
-3. TRANSKRIPSI VERBATIM (APA ADANYA):
-Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
-
-4. KELUARAN MURNI (TANPA BASA-BASI):
-Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, penjelasan, atau kalimat penutup.
-
-5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
-PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
+interface CompressedImage {
+  base64Data: string;
+  mimeType: string;
+}
 
 /**
- * Extract text from a single base64 image.
- * Fallback chain: Groq Qwen (primary) → Gemini 3.8 Flash → OpenRouter Llama 4 Maverick
+ * Compress a single base64 image for AI processing.
  */
-async function extractTextFromImage(base64Image: string): Promise<string> {
+async function compressSingleImage(base64Image: string): Promise<CompressedImage> {
   const rawBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
   const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
   const rawMimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
 
-  // Kompres gambar sebelum kirim ke AI untuk hemat token
-  const { compressedBase64: base64Data, compressedMimeType: mimeType, savings } = 
+  const { compressedBase64, compressedMimeType, savings } =
     await compressImageForOCR(rawBase64, rawMimeType);
-  console.log(`[Grade BG] Kompresi gambar OCR: ${savings}`);
+  console.log(`[Grade BG] Kompresi gambar: ${savings}`);
 
-  // 1. PRIMARY: Groq (Qwen)
-  try {
-    const { groqRateLimiter } = await import("@/modules/ai/rateLimiter");
-    const { key } = await groqRateLimiter.waitForKey(30000);
-    const primaryModel = "qwen/qwen3.8-27b";
-    console.log(`[Grade BG] OCR menggunakan model (Primary - Groq): ${primaryModel}`);
-
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: primaryModel,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: OCR_PROMPT },
-            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-          ]
-        }],
-        temperature: 0.1,
-        max_tokens: 2048,
-      }),
-    });
-
-    if (!groqResponse.ok) {
-      const errBody = await groqResponse.text();
-      console.error("[Grade BG] Groq Primary Error:", errBody);
-      throw new Error(`Groq API returned ${groqResponse.status} - ${errBody}`);
-    }
-
-    const groqData = await groqResponse.json();
-    const text = groqData.choices?.[0]?.message?.content || "";
-    if (!text) throw new Error("Empty response from Groq");
-    return text;
-  } catch (groqError: any) {
-    console.warn("[Grade BG] Groq OCR gagal, mencoba fallback Gemini 3.8 Flash...", groqError?.message);
-
-    // 2. FALLBACK 1: Gemini 3.8 Flash
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const fallbackModel1 = "gemini-3.8-flash";
-      console.log(`[Grade BG] OCR menggunakan model (Fallback 1 - Gemini): ${fallbackModel1}`);
-
-      const response = await ai.models.generateContent({
-        model: fallbackModel1,
-        contents: [
-          OCR_PROMPT,
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
-            }
-          }
-        ],
-        config: {
-          temperature: 0.1,
-        }
-      });
-
-      const text = response.text || "";
-      if (!text) throw new Error("Empty response from Gemini fallback");
-      return text;
-    } catch (geminiError: any) {
-      console.warn("[Grade BG] Gemini OCR juga gagal, mencoba fallback OpenRouter Llama 4 Maverick...", geminiError?.message);
-
-      // 3. FALLBACK 2: OpenRouter (Llama 4 Maverick)
-      const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-      if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
-
-      const fallbackModel2 = "meta-llama/llama-4-maverick";
-      console.log(`[Grade BG] OCR menggunakan model (Fallback 2 - OpenRouter): ${fallbackModel2}`);
-
-      const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openRouterApiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-          "X-Title": "Solusi Guru",
-        },
-        body: JSON.stringify({
-          model: fallbackModel2,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: OCR_PROMPT },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-            ]
-          }],
-          temperature: 0.1,
-          max_tokens: 2048,
-        }),
-      });
-
-      if (!orResponse.ok) {
-        const errBody = await orResponse.text();
-        console.error("[Grade BG] OpenRouter Fallback Error:", errBody);
-        throw new Error(`OpenRouter API returned ${orResponse.status} - ${errBody}`);
-      }
-
-      const orData = await orResponse.json();
-      const text = orData.choices?.[0]?.message?.content || "";
-      if (!text) throw new Error("Empty response from OpenRouter fallback");
-      return text;
-    }
-  }
+  return { base64Data: compressedBase64, mimeType: compressedMimeType };
 }
 
 /**
- * Background function: Extract text from all images, then grade, then save results.
- * Runs after HTTP response has been sent.
+ * Build the unified prompt that combines OCR reading + grading in one step.
  */
-async function processFullGradingInBackground(
-  base64Images: string[],
-  assignmentId: string,
-  submissionId: string
-) {
-  try {
-    await dbConnect();
+function buildUnifiedPrompt(
+  answerKey: string,
+  questions: any[],
+  imageCount: number
+): string {
+  let answerKeyInstruction = "";
+  if (answerKey && answerKey.trim().length > 0) {
+    answerKeyInstruction = `KUNCI JAWABAN REFERENSI:\n${answerKey}\n`;
+  }
 
-    // === PHASE 1: Extract text from all images ===
-    console.log(`[Grade BG] Mulai ekstraksi teks dari ${base64Images.length} gambar untuk submission ${submissionId}`);
-    let combinedText = "";
-    for (let i = 0; i < base64Images.length; i++) {
-      try {
-        const pageText = await extractTextFromImage(base64Images[i]);
-        if (pageText) {
-          combinedText += `\n\n--- Halaman ${i + 1} ---\n${pageText}`;
-        }
-      } catch (err: any) {
-        console.error(`[Grade BG] Gagal OCR halaman ${i + 1}:`, err.message);
-        combinedText += `\n\n--- Halaman ${i + 1} ---\n[GAGAL MEMBACA HALAMAN INI]`;
-      }
-    }
-    combinedText = combinedText.trim();
+  let questionsInstruction = "";
+  if (questions && questions.length > 0) {
+    const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
+    questionsInstruction = `KONFIGURASI SOAL & BOBOT:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
+  } else {
+    questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
+  }
 
-    if (!combinedText) {
-      throw new Error("Tidak ada teks yang berhasil diekstrak dari semua gambar.");
-    }
+  return `Anda adalah asisten guru (AI) penilai tugas siswa. Tugas Anda terdiri dari DUA TAHAP yang harus dilakukan secara berurutan:
 
-    console.log(`[Grade BG] Ekstraksi selesai. Mulai penilaian AI untuk submission ${submissionId}`);
+=== TAHAP 1: BACA TULISAN TANGAN (OCR) ===
+${imageCount > 1 ? `Terdapat ${imageCount} gambar halaman jawaban siswa yang harus dibaca semuanya secara BERURUTAN (Halaman 1, 2, dst).` : 'Terdapat 1 gambar halaman jawaban siswa.'}
 
-    // === PHASE 2: Grade the extracted text ===
-    // 1. Fetch assignment details
-    const assignment = await Assignment.findById(assignmentId).lean();
-    if (!assignment) {
-      throw new Error("Assignment not found");
-    }
+Patuhi aturan OCR berikut:
+1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING): Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks FINAL yang dipertahankan/dimaksudkan oleh penulis.
+2. STRUKTUR & HIERARKI: Pertahankan hierarki dokumen asli. Pertahankan penomoran persis seperti urutan di dokumen.
+3. TRANSKRIPSI VERBATIM (APA ADANYA): Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
+4. TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), tandai sebagai tidak terbaca. Jangan menebak.
+5. WAJIB BAHASA INDONESIA: PASTIKAN seluruh hasil pembacaan teks ditulis menggunakan bahasa Indonesia. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.
 
-    // 2. Fetch answer key and questions
-    const existingAnswerKey = await attachmentService.getAnswerKey(assignmentId);
-    let answerKey = existingAnswerKey || "";
-
-    const questions = await AssignmentQuestion.find({ assignmentId }).sort({ order: 1 }).lean();
-
-    // 3. Prepare Prompt for AI Grading
-    let answerKeyInstruction = "";
-    if (answerKey && answerKey.trim().length > 0) {
-      answerKeyInstruction = `KUNCI JAWABAN REFERENSI:\n${answerKey}\n`;
-    }
-
-    let questionsInstruction = "";
-    if (questions && questions.length > 0) {
-      const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
-      questionsInstruction = `KONFIGURASI SOAL & BOBOT:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
-    } else {
-      questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
-    }
-
-    const textPrompt = `Anda adalah asisten guru (AI) penilai tugas siswa.
-Tugas Anda menilai transkripsi tulisan siswa secara akurat berdasarkan Kunci Jawaban.
-
-BERIKUT ADALAH HASIL TRANSKRIPSI JAWABAN SISWA:
-"""
-${combinedText}
-"""
+=== TAHAP 2: NILAI JAWABAN SISWA ===
+Setelah membaca SEMUA halaman, cocokkan jawaban siswa dengan kunci jawaban dan berikan penilaian.
 
 ${answerKeyInstruction}
 ${questionsInstruction}
@@ -253,49 +92,200 @@ Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMA
     }
   ]
 }`;
+}
 
-    const textModel = "meta-llama/llama-4-scout";
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+/**
+ * Call AI with multi-image support using fallback chain.
+ * Fallback chain (unchanged): Groq Qwen (primary) → Gemini 3.8 Flash → OpenRouter Llama 4 Maverick
+ */
+async function callUnifiedAI(
+  prompt: string,
+  compressedImages: CompressedImage[]
+): Promise<string> {
+  // 1. PRIMARY: Groq (Qwen)
+  try {
+    const { groqRateLimiter } = await import("@/modules/ai/rateLimiter");
+    const { key } = await groqRateLimiter.waitForKey(30000);
+    const primaryModel = "qwen/qwen3.8-27b";
+    console.log(`[Grade BG] Memanggil model unified (Primary - Groq): ${primaryModel}`);
 
-    console.log(`[Grade BG] Memanggil model grading: ${textModel} untuk submission ${submissionId}`);
+    const contentParts: any[] = [{ type: "text", text: prompt }];
+    for (const img of compressedImages) {
+      contentParts.push({
+        type: "image_url",
+        image_url: { url: `data:${img.mimeType};base64,${img.base64Data}` }
+      });
+    }
 
-    const textResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${openRouterApiKey}`,
+        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-        "X-Title": "Solusi Guru",
       },
       body: JSON.stringify({
-        model: textModel,
-        messages: [{ role: "user", content: textPrompt }],
+        model: primaryModel,
+        messages: [{ role: "user", content: contentParts }],
         temperature: 0.2,
-        max_tokens: 8192,
+        max_tokens: 16384,
       }),
     });
 
-    if (!textResponse.ok) {
-      const errBody = await textResponse.text();
-      console.error("[Grade BG] OpenRouter Error:", errBody);
-      throw new Error(`OpenRouter API returned ${textResponse.status}`);
+    if (!groqResponse.ok) {
+      const errBody = await groqResponse.text();
+      console.error("[Grade BG] Groq Primary Error:", errBody);
+      throw new Error(`Groq API returned ${groqResponse.status} - ${errBody}`);
     }
 
-    const textData = await textResponse.json();
-    const responseText = textData.choices?.[0]?.message?.content || "";
+    const groqData = await groqResponse.json();
+    const text = groqData.choices?.[0]?.message?.content || "";
+    if (!text) throw new Error("Empty response from Groq");
+    console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Groq: ${primaryModel}`);
+    return text;
+  } catch (groqError: any) {
+    console.warn("[Grade BG] Groq unified gagal, mencoba fallback Gemini 3.8 Flash...", groqError?.message);
 
-    console.log(`[Grade BG] Penilaian berhasil menggunakan model: ${textModel}`);
+    // 2. FALLBACK 1: Gemini 3.8 Flash
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const fallbackModel1 = "gemini-3.8-flash";
+      console.log(`[Grade BG] Memanggil model unified (Fallback 1 - Gemini): ${fallbackModel1}`);
 
+      const contents: any[] = [prompt];
+      for (const img of compressedImages) {
+        contents.push({
+          inlineData: {
+            data: img.base64Data,
+            mimeType: img.mimeType
+          }
+        });
+      }
+
+      const response = await ai.models.generateContent({
+        model: fallbackModel1,
+        contents,
+        config: {
+          temperature: 0.2,
+          maxOutputTokens: 16384,
+        }
+      });
+
+      const text = response.text || "";
+      if (!text) throw new Error("Empty response from Gemini fallback");
+      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Gemini: ${fallbackModel1}`);
+      return text;
+    } catch (geminiError: any) {
+      console.warn("[Grade BG] Gemini unified juga gagal, mencoba fallback OpenRouter Llama 4 Maverick...", geminiError?.message);
+
+      // 3. FALLBACK 2: OpenRouter (Llama 4 Maverick)
+      const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+      if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
+
+      const fallbackModel2 = "meta-llama/llama-4-maverick";
+      console.log(`[Grade BG] Memanggil model unified (Fallback 2 - OpenRouter): ${fallbackModel2}`);
+
+      const contentParts: any[] = [{ type: "text", text: prompt }];
+      for (const img of compressedImages) {
+        contentParts.push({
+          type: "image_url",
+          image_url: { url: `data:${img.mimeType};base64,${img.base64Data}` }
+        });
+      }
+
+      const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openRouterApiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+          "X-Title": "Solusi Guru",
+        },
+        body: JSON.stringify({
+          model: fallbackModel2,
+          messages: [{ role: "user", content: contentParts }],
+          temperature: 0.2,
+          max_tokens: 16384,
+        }),
+      });
+
+      if (!orResponse.ok) {
+        const errBody = await orResponse.text();
+        console.error("[Grade BG] OpenRouter Fallback Error:", errBody);
+        throw new Error(`OpenRouter API returned ${orResponse.status} - ${errBody}`);
+      }
+
+      const orData = await orResponse.json();
+      const text = orData.choices?.[0]?.message?.content || "";
+      if (!text) throw new Error("Empty response from OpenRouter fallback");
+      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter: ${fallbackModel2}`);
+      return text;
+    }
+  }
+}
+
+/**
+ * Background function: Unified Extract + Grade in ONE AI call per student, then save results.
+ * Runs after HTTP response has been sent.
+ */
+async function processFullGradingInBackground(
+  base64Images: string[],
+  assignmentId: string,
+  submissionId: string
+) {
+  try {
+    await dbConnect();
+
+    // === STEP 1: Compress all images ===
+    console.log(`[Grade BG] Mulai kompresi ${base64Images.length} gambar untuk submission ${submissionId}`);
+    const compressedImages: CompressedImage[] = [];
+    for (let i = 0; i < base64Images.length; i++) {
+      try {
+        const compressed = await compressSingleImage(base64Images[i]);
+        compressedImages.push(compressed);
+        console.log(`[Grade BG] Halaman ${i + 1}/${base64Images.length} berhasil dikompres`);
+      } catch (err: any) {
+        console.error(`[Grade BG] Gagal kompresi halaman ${i + 1}:`, err.message);
+        // Skip gambar yang gagal dikompres
+      }
+    }
+
+    if (compressedImages.length === 0) {
+      throw new Error("Tidak ada gambar yang berhasil diproses.");
+    }
+
+    // === STEP 2: Fetch assignment data (parallel) ===
+    console.log(`[Grade BG] Mengambil data tugas untuk assignment ${assignmentId}`);
+    const [assignment, existingAnswerKey, questions] = await Promise.all([
+      Assignment.findById(assignmentId).lean(),
+      attachmentService.getAnswerKey(assignmentId),
+      AssignmentQuestion.find({ assignmentId }).sort({ order: 1 }).lean()
+    ]);
+
+    if (!assignment) {
+      throw new Error("Assignment not found");
+    }
+
+    const answerKey = existingAnswerKey || "";
+
+    // === STEP 3: Build unified prompt & call AI (1 panggilan untuk OCR + Grade) ===
+    const unifiedPrompt = buildUnifiedPrompt(answerKey, questions, compressedImages.length);
+
+    console.log(`[Grade BG] Memanggil AI unified (OCR+Grade) untuk submission ${submissionId} dengan ${compressedImages.length} gambar`);
+    const responseText = await callUnifiedAI(unifiedPrompt, compressedImages);
+
+    console.log(`[Grade BG] Respons AI diterima. Parsing JSON...`);
+
+    // === STEP 4: Parse JSON response ===
     let jsonString = responseText;
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       jsonString = jsonMatch[0];
     }
-    
+
     const cleanText = jsonString.replace(/```json/gi, "").replace(/```/g, "").trim();
     const assessmentResult = JSON.parse(cleanText);
 
-    // 4. Normalize and enforce scores
+    // === STEP 5: Normalize and enforce scores ===
     let actualTotalScore = 0;
     const normalizedAnalyses: any[] = [];
 
@@ -364,13 +354,13 @@ Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMA
       });
     }
 
-    // 5. Delete old assessment if exists to prevent E11000 duplicate key error
+    // === STEP 6: Delete old assessment if exists to prevent E11000 duplicate key error ===
     await AIAssessment.deleteMany({ submissionId });
 
-    // 6. Save Assessment and Analysis to DB
+    // === STEP 7: Save Assessment and Analysis to DB ===
     const assessmentRecord = await AIAssessment.create({
       submissionId,
-      provider: "OpenRouter-Text",
+      provider: "Unified-OCR-Grade",
       suggestedScore: actualTotalScore,
       feedback: assessmentResult.generalFeedback,
       status: "SUCCESS",
@@ -395,13 +385,13 @@ Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMA
       });
     }
 
-    // 7. Update submission status to AI_COMPLETED
+    // === STEP 8: Update submission status to AI_COMPLETED ===
     await Submission.findByIdAndUpdate(submissionId, {
       status: "AI_COMPLETED",
       submittedAt: new Date()
     });
 
-    console.log(`[Grade BG] ✅ Submission ${submissionId} berhasil dinilai. Skor: ${actualTotalScore}`);
+    console.log(`[Grade BG] ✅ Submission ${submissionId} berhasil dinilai (unified OCR+Grade). Skor: ${actualTotalScore}`);
 
   } catch (error: any) {
     console.error(`[Grade BG] ❌ Gagal memproses submission ${submissionId}:`, error);
@@ -454,7 +444,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Fire-and-forget: Start background processing (don't await)
     if (base64Images && base64Images.length > 0) {
-      // New flow: extract + grade all in background
+      // Unified flow: OCR + Grade all in ONE AI call in background
       processFullGradingInBackground(base64Images, assignmentId, submissionId)
         .catch(err => console.error("[Grade API] Background processing error:", err));
     }
