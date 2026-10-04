@@ -295,7 +295,8 @@ INSTRUKSI FORMAT TULISAN (SANGAT PENTING):
 3. Pertahankan struktur poin-poin agar tetap rapi.
 
 Anda JUGA harus menebak struktur soal dari input di atas (ada berapa soal, dan tipenya). Tipe soal yang didukung: "PILIHAN_GANDA", "BENAR_SALAH", "ISIAN_SINGKAT", "ESSAY", "PILIHAN_GANDA_KOMPLEKS".
-Berikan bobot maksimal merata (misal 100/N).
+Hitung total soal (N), lalu berikan bobot maksimal merata (yaitu 100 / N).
+Untuk soal tipe PILIHAN_GANDA, BENAR_SALAH, dan PILIHAN_GANDA_KOMPLEKS, Anda WAJIB mengisi field "correctAnswer" dengan kunci jawabannya (misal: "A", "Benar", "A,C,E").
 
 Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
 {
@@ -303,8 +304,9 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
   "parsedQuestions": [
     {
       "order": 1,
-      "questionType": "ESSAY",
-      "maxScore": 20
+      "questionType": "PILIHAN_GANDA",
+      "maxScore": 20,
+      "correctAnswer": "A"
     }
   ]
 }`;

@@ -432,19 +432,32 @@ INSTRUKSI UMUM:
 7. DILARANG KERAS menggunakan kalimat pengantar atau penutup. Langsung berikan isi kunci jawaban saja.
 
 INSTRUKSI FORMAT TULISAN (SANGAT PENTING):
-1. Hasil teks harus persis seperti format ketikan standar pada Microsoft Word (teks biasa/plain text).
-2. DILARANG KERAS menggunakan simbol Markdown untuk menebalkan teks (seperti **teks**) atau memiringkan teks (seperti *teks*).
-3. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural. 
-4. PASTIKAN rumus ditulis BERSIH tanpa ada simbol tambahan seperti menebalkan (**rumus**) atau pemformatan lain di sekitarnya. 
-5. Pertahankan struktur poin-poin agar tetap rapi, gunakan spasi baris yang jelas, dan penomoran standar yang sesuai dengan soal.
+1. DILARANG KERAS menggunakan simbol Markdown untuk menebalkan teks (seperti **teks**) atau memiringkan teks (seperti *teks*).
+2. Jika terdapat rumus matematika, fisika, atau simbol ilmiah, tuliskan rumus sesuai kaidah penulisan yang baku secara natural.
+3. Pertahankan struktur poin-poin agar tetap rapi.
 
-Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebihan).`;
+Anda JUGA harus menebak struktur soal dari input di atas (ada berapa soal, dan tipenya). Tipe soal yang didukung: "PILIHAN_GANDA", "BENAR_SALAH", "ISIAN_SINGKAT", "ESSAY", "PILIHAN_GANDA_KOMPLEKS".
+Hitung total soal (N), lalu berikan bobot maksimal merata (yaitu 100 / N).
+Untuk soal tipe PILIHAN_GANDA, BENAR_SALAH, dan PILIHAN_GANDA_KOMPLEKS, Anda WAJIB mengisi field "correctAnswer" dengan kunci jawabannya (misal: "A", "Benar", "A,C,E").
+
+Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
+{
+  "answerKey": "Teks lengkap kunci jawaban (plain text, dipisahkan newline \\n)",
+  "parsedQuestions": [
+    {
+      "order": 1,
+      "questionType": "PILIHAN_GANDA",
+      "maxScore": 20,
+      "correctAnswer": "A"
+    }
+  ]
+}`;
 
     const contentParts: any[] = [{ type: "text", text: prompt }];
 
         let modelLastError: any = null;
         let success = false;
-        let generatedAnswer = "";
+        let generatedAnswer: any = null;
 
         for (const modelName of modelsToTry) {
           try {
@@ -460,6 +473,7 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
                 messages: [{ role: "user", content: contentParts }],
                 temperature: 0.3,
                 max_tokens: 8192,
+                response_format: { type: "json_object" }
               }),
             });
 
@@ -475,7 +489,14 @@ Berikan kunci jawaban dalam format teks biasa (bukan JSON atau Markdown berlebih
             }
 
             console.log(`[Groq] Answer key generated successfully with ${modelName}.`);
-            generatedAnswer = answerKeyStr.trim();
+            
+            const jsonMatch = answerKeyStr.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+              throw new Error("Groq API returned invalid JSON for answer key.");
+            }
+            
+            const parsedData = JSON.parse(jsonMatch[0].trim());
+            generatedAnswer = parsedData; // Sekarang mengembalikan object utuh
             success = true;
             break;
           } catch (error: any) {
