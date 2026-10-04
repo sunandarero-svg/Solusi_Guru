@@ -6,6 +6,7 @@ interface Question {
   order: number;
   questionType: string;
   maxScore: number;
+  correctAnswer?: string;
 }
 
 interface QuestionConfiguratorProps {
@@ -29,6 +30,92 @@ const QUESTION_TYPE_LABELS: Record<string, string> = {
   ESSAY: "Essay",
   PILIHAN_GANDA_KOMPLEKS: "Pilihan Ganda Kompleks"
 };
+
+// Tipe soal yang dinilai oleh sistem (bukan AI)
+const OBJECTIVE_TYPES = ["PILIHAN_GANDA", "BENAR_SALAH", "PILIHAN_GANDA_KOMPLEKS"];
+
+const PG_OPTIONS = ["A", "B", "C", "D", "E"];
+
+/**
+ * Render input kunci jawaban berdasarkan tipe soal.
+ * - PG: dropdown A-E
+ * - BS: dropdown Benar/Salah
+ * - PG Kompleks: multi-checkbox A-E (disimpan sebagai "A,C,E")
+ */
+function CorrectAnswerInput({ question, onChange }: { question: Question; onChange: (val: string) => void }) {
+  const { questionType, correctAnswer } = question;
+
+  if (questionType === "PILIHAN_GANDA") {
+    return (
+      <select
+        value={correctAnswer || ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm"
+      >
+        <option value="">-- Pilih --</option>
+        {PG_OPTIONS.map(opt => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    );
+  }
+
+  if (questionType === "BENAR_SALAH") {
+    return (
+      <select
+        value={correctAnswer || ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm"
+      >
+        <option value="">-- Pilih --</option>
+        <option value="Benar">Benar</option>
+        <option value="Salah">Salah</option>
+      </select>
+    );
+  }
+
+  if (questionType === "PILIHAN_GANDA_KOMPLEKS") {
+    const selectedAnswers = correctAnswer ? correctAnswer.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+    const toggleOption = (opt: string) => {
+      let newSelected: string[];
+      if (selectedAnswers.includes(opt)) {
+        newSelected = selectedAnswers.filter(a => a !== opt);
+      } else {
+        newSelected = [...selectedAnswers, opt].sort();
+      }
+      onChange(newSelected.join(","));
+    };
+
+    return (
+      <div className="flex gap-1.5 flex-wrap">
+        {PG_OPTIONS.map(opt => (
+          <label
+            key={opt}
+            className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer text-xs font-medium transition-all ${
+              selectedAnswers.includes(opt)
+                ? "bg-blue-100 border-blue-400 text-blue-700"
+                : "bg-white border-gray-300 text-gray-500 hover:border-gray-400"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={selectedAnswers.includes(opt)}
+              onChange={() => toggleOption(opt)}
+              className="sr-only"
+            />
+            {opt}
+          </label>
+        ))}
+      </div>
+    );
+  }
+
+  // Untuk ESSAY dan ISIAN_SINGKAT: tidak ada input kunci jawaban
+  return (
+    <span className="text-xs text-gray-400 italic">Dinilai AI</span>
+  );
+}
 
 export default function QuestionConfigurator({ assignmentId, initialQuestions = [], onSaveSuccess }: QuestionConfiguratorProps) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
@@ -66,7 +153,7 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
 
   const handleAddQuestion = () => {
     const nextOrder = questions.length > 0 ? Math.max(...questions.map(q => q.order)) + 1 : 1;
-    setQuestions([...questions, { order: nextOrder, questionType: "PILIHAN_GANDA", maxScore: 10 }]);
+    setQuestions([...questions, { order: nextOrder, questionType: "PILIHAN_GANDA", maxScore: 10, correctAnswer: "" }]);
   };
 
   const handleRemoveQuestion = (index: number) => {
@@ -78,10 +165,30 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
   const handleChange = (index: number, field: keyof Question, value: any) => {
     const newQs = [...questions];
     newQs[index] = { ...newQs[index], [field]: value };
+    // Reset correctAnswer saat tipe soal berubah
+    if (field === 'questionType') {
+      newQs[index].correctAnswer = "";
+    }
+    setQuestions(newQs);
+  };
+
+  const handleCorrectAnswerChange = (index: number, value: string) => {
+    const newQs = [...questions];
+    newQs[index] = { ...newQs[index], correctAnswer: value };
     setQuestions(newQs);
   };
 
   const handleSave = async () => {
+    // Validasi: soal objektif wajib punya kunci jawaban
+    const missingKeys = questions.filter(q =>
+      OBJECTIVE_TYPES.includes(q.questionType) && (!q.correctAnswer || q.correctAnswer.trim() === "")
+    );
+    if (missingKeys.length > 0) {
+      const nums = missingKeys.map(q => q.order).join(", ");
+      setMessage({ type: 'error', text: `Kunci jawaban belum diisi untuk soal nomor: ${nums}` });
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
     try {
@@ -106,6 +213,7 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
   };
 
   const totalScore = questions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0);
+  const objectiveCount = questions.filter(q => OBJECTIVE_TYPES.includes(q.questionType)).length;
 
   if (loading) {
     return <div className="text-sm text-gray-500 py-4 text-center">Memuat konfigurasi soal...</div>;
@@ -125,11 +233,18 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
             ⚙️ Konfigurasi Soal & Bobot Nilai
           </button>
           <p className="text-sm text-gray-500 mt-1">
-            Atur tipe soal dan bobot nilai per nomor. AI akan menggunakan pedoman ini saat menilai tugas siswa.
+            Atur tipe soal, kunci jawaban, dan bobot nilai per nomor. Soal objektif (PG, Benar/Salah, PG Kompleks) dinilai otomatis oleh sistem.
           </p>
         </div>
-        <div className={`px-3 py-1 rounded-lg text-sm font-bold ${totalScore === 100 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-          Total Bobot: {totalScore}
+        <div className="flex items-center gap-2">
+          {objectiveCount > 0 && (
+            <div className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">
+              🔧 {objectiveCount} soal auto-grade
+            </div>
+          )}
+          <div className={`px-3 py-1 rounded-lg text-sm font-bold ${totalScore === 100 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+            Total Bobot: {totalScore}
+          </div>
         </div>
       </div>
 
@@ -158,7 +273,8 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
                   <tr>
                     <th className="px-4 py-3 font-semibold w-20">Nomor</th>
                     <th className="px-4 py-3 font-semibold">Tipe Soal</th>
-                    <th className="px-4 py-3 font-semibold w-32">Bobot Nilai</th>
+                    <th className="px-4 py-3 font-semibold w-40">Kunci Jawaban</th>
+                    <th className="px-4 py-3 font-semibold w-28">Bobot Nilai</th>
                     <th className="px-4 py-3 font-semibold w-16 text-center">Aksi</th>
                   </tr>
                 </thead>
@@ -183,6 +299,12 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
                             <option key={type} value={type}>{QUESTION_TYPE_LABELS[type]}</option>
                           ))}
                         </select>
+                      </td>
+                      <td className="px-4 py-2">
+                        <CorrectAnswerInput
+                          question={q}
+                          onChange={(val) => handleCorrectAnswerChange(index, val)}
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <input 

@@ -4,6 +4,7 @@ import { Assignment, Rubric, RubricCriterion, AssignmentAttachment, AssignmentQu
 import { AIProvider } from "./AIProvider";
 import { GroqProvider } from "./GroqProvider";
 import { OpenRouterProvider } from "./OpenRouterProvider";
+import { gradeObjectiveQuestion, hasValidCorrectAnswer } from "@/modules/grading/systemGrader";
 
 export class AIService {
   private provider: AIProvider;
@@ -160,16 +161,35 @@ export class AIService {
         let studentAnswer = "[Kosong/Tidak Terjawab]";
 
         if (aiAnalysis) {
-          finalScore = Number(aiAnalysis.score) || 0;
-          if (finalScore > maxScore) finalScore = maxScore;
-          if (finalScore < 0) finalScore = 0;
-          reasoning = aiAnalysis.reasoning || "";
-          analysisText = aiAnalysis.analysisText || "";
           studentAnswer = aiAnalysis.studentAnswer || "[Kosong]";
-          if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
-            validStatus = aiAnalysis.status;
+
+          // === SYSTEM GRADING: Soal objektif dengan kunci jawaban ===
+          if (hasValidCorrectAnswer(q)) {
+            const systemResult = gradeObjectiveQuestion({
+              questionNumber: String(q.order),
+              questionType: q.questionType,
+              studentAnswer,
+              correctAnswer: q.correctAnswer!,
+              maxScore
+            });
+            finalScore = systemResult.score;
+            reasoning = systemResult.reasoning;
+            analysisText = systemResult.analysisText;
+            studentAnswer = systemResult.studentAnswer;
+            validStatus = systemResult.status;
+            console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${q.correctAnswer}" → ${finalScore}/${maxScore}`);
           } else {
-            validStatus = "OK";
+            // === AI GRADING: Soal non-objektif atau tanpa kunci ===
+            finalScore = Number(aiAnalysis.score) || 0;
+            if (finalScore > maxScore) finalScore = maxScore;
+            if (finalScore < 0) finalScore = 0;
+            reasoning = aiAnalysis.reasoning || "";
+            analysisText = aiAnalysis.analysisText || "";
+            if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
+              validStatus = aiAnalysis.status;
+            } else {
+              validStatus = "OK";
+            }
           }
         }
 

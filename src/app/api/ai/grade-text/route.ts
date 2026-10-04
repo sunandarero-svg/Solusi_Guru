@@ -7,6 +7,7 @@ import { AIAssessment, StudentAnswerAnalysis, Submission } from "@/models/Submis
 import { GoogleGenAI } from "@google/genai";
 import { attachmentService } from "@/modules/attachment/attachmentService";
 import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
+import { gradeObjectiveQuestion, hasValidCorrectAnswer } from "@/modules/grading/systemGrader";
 
 interface CompressedImage {
   base64Data: string;
@@ -304,16 +305,35 @@ async function processFullGradingInBackground(
         let studentAnswer = "[Kosong/Tidak Terjawab]";
 
         if (aiAnalysis) {
-          finalScore = Number(aiAnalysis.score) || 0;
-          if (finalScore > maxScore) finalScore = maxScore;
-          if (finalScore < 0) finalScore = 0;
-          reasoning = aiAnalysis.reasoning || "";
-          analysisText = aiAnalysis.analysisText || "";
           studentAnswer = aiAnalysis.studentAnswer || "[Kosong]";
-          if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
-            validStatus = aiAnalysis.status;
+
+          // === SYSTEM GRADING: Soal objektif dengan kunci jawaban ===
+          if (hasValidCorrectAnswer(q)) {
+            const systemResult = gradeObjectiveQuestion({
+              questionNumber: String(q.order),
+              questionType: q.questionType,
+              studentAnswer,
+              correctAnswer: q.correctAnswer!,
+              maxScore
+            });
+            finalScore = systemResult.score;
+            reasoning = systemResult.reasoning;
+            analysisText = systemResult.analysisText;
+            studentAnswer = systemResult.studentAnswer;
+            validStatus = systemResult.status;
+            console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${q.correctAnswer}" \u2192 ${finalScore}/${maxScore}`);
           } else {
-            validStatus = "OK";
+            // === AI GRADING: Soal non-objektif atau tanpa kunci ===
+            finalScore = Number(aiAnalysis.score) || 0;
+            if (finalScore > maxScore) finalScore = maxScore;
+            if (finalScore < 0) finalScore = 0;
+            reasoning = aiAnalysis.reasoning || "";
+            analysisText = aiAnalysis.analysisText || "";
+            if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
+              validStatus = aiAnalysis.status;
+            } else {
+              validStatus = "OK";
+            }
           }
         }
 

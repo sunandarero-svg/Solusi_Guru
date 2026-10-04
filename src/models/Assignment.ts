@@ -114,6 +114,7 @@ export interface IAssignmentQuestion extends Document {
   order: number;
   questionType: string;
   maxScore: number;
+  correctAnswer?: string; // Kunci jawaban untuk soal objektif (PG: "A", BS: "Benar", PG Kompleks: "A,C,E")
   createdAt: Date;
   updatedAt: Date;
 }
@@ -122,7 +123,8 @@ const AssignmentQuestionSchema: Schema = new Schema({
   assignmentId: { type: Schema.Types.ObjectId, ref: 'Assignment', required: true },
   order: { type: Number, required: true },
   questionType: { type: String, required: true },
-  maxScore: { type: Number, required: true, default: 0 }
+  maxScore: { type: Number, required: true, default: 0 },
+  correctAnswer: { type: String } // Kunci jawaban untuk soal objektif
 }, {
   timestamps: true
 });

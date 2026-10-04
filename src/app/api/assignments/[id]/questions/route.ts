@@ -88,7 +88,8 @@ export async function PUT(
         assignmentId: resolvedParams.id,
         order: q.order,
         questionType: q.questionType,
-        maxScore: q.maxScore
+        maxScore: q.maxScore,
+        correctAnswer: q.correctAnswer || undefined
       }));
       await AssignmentQuestion.insertMany(questionsToInsert);
     }
