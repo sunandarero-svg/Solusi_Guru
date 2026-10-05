@@ -11,7 +11,7 @@
  */
 
 // Tipe soal yang dinilai oleh sistem
-export const SYSTEM_GRADED_TYPES = ["PILIHAN_GANDA", "BENAR_SALAH", "PILIHAN_GANDA_KOMPLEKS"];
+export const SYSTEM_GRADED_TYPES = ["PILIHAN_GANDA", "BENAR_SALAH", "PILIHAN_GANDA_KOMPLEKS", "ISIAN_SINGKAT"];
 
 export interface SystemGradingInput {
   questionNumber: string;
@@ -98,10 +98,56 @@ function normalizePGKompleksAnswer(answer: string): string[] {
 }
 
 /**
+ * Normalisasi jawaban isian singkat.
+ * Lowercase, trim, hapus tanda baca, collapse whitespace.
+ */
+function normalizeIsianSingkat(answer: string): string {
+  return answer.trim().toLowerCase()
+    .replace(/[.,;:!?'"()\[\]{}\-_\/\\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Hitung Levenshtein distance antara dua string.
+ * Algoritma edit distance standar tanpa dependency eksternal.
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= a.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= b.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+/**
+ * Hitung similarity (0-1) berdasarkan Levenshtein distance.
+ * 1.0 = identik, 0.0 = benar-benar berbeda.
+ */
+function levenshteinSimilarity(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshteinDistance(a, b) / maxLen;
+}
+
+/**
  * Mencocokkan jawaban siswa dengan kunci jawaban.
  * Mengembalikan hasil penilaian deterministik.
  */
-export function gradeObjectiveQuestion(input: SystemGradingInput): SystemGradingResult {
+export function gradeObjectiveQuestion(input: SystemGradingInput): SystemGradingResult | null {
   const { questionNumber, questionType, studentAnswer, correctAnswer, maxScore } = input;
 
   // Cek jika jawaban kosong atau tidak terbaca
@@ -128,6 +174,9 @@ export function gradeObjectiveQuestion(input: SystemGradingInput): SystemGrading
 
     case "PILIHAN_GANDA_KOMPLEKS":
       return gradePGKompleks(questionNumber, trimmed, correctAnswer, maxScore);
+
+    case "ISIAN_SINGKAT":
+      return gradeIsianSingkat(questionNumber, trimmed, correctAnswer, maxScore);
 
     default:
       // Seharusnya tidak terjadi, tapi safety net
@@ -281,6 +330,108 @@ function gradePGKompleks(
     status: "OK",
     gradedBy: "SYSTEM"
   };
+}
+
+/**
+ * Menilai soal Isian Singkat dengan fuzzy matching.
+ * Mendukung multi-jawaban (dipisah koma) dan toleransi typo.
+ * Mengembalikan null jika similarity terlalu rendah → fallback ke AI.
+ */
+function gradeIsianSingkat(
+  questionNumber: string,
+  studentAnswer: string,
+  correctAnswer: string,
+  maxScore: number
+): SystemGradingResult | null {
+  const normalizedStudent = normalizeIsianSingkat(studentAnswer);
+
+  // Support multi-answer: "jawaban1, jawaban2"
+  const correctAnswers = correctAnswer.split(',')
+    .map(a => normalizeIsianSingkat(a))
+    .filter(a => a.length > 0);
+
+  if (correctAnswers.length === 0) return null;
+
+  // Cek setiap kemungkinan jawaban benar, ambil kecocokan terbaik
+  let bestSimilarity = 0;
+  let bestCorrectAnswer = correctAnswers[0];
+
+  for (const correct of correctAnswers) {
+    // Exact match setelah normalisasi
+    if (normalizedStudent === correct) {
+      return {
+        questionNumber,
+        studentAnswer,
+        score: maxScore,
+        maxScore,
+        analysisText: `✅ Jawaban benar. Jawaban Anda: **${studentAnswer}**, Kunci: **${correctAnswer}**`,
+        reasoning: `Jawaban "${studentAnswer}" cocok dengan kunci "${correctAnswer}".`,
+        status: "OK",
+        gradedBy: "SYSTEM"
+      };
+    }
+
+    // Hitung similarity
+    const similarity = levenshteinSimilarity(normalizedStudent, correct);
+    // Bonus untuk substring match (jawaban siswa ada di kunci atau sebaliknya)
+    const isSubstring = normalizedStudent.length >= 2 &&
+      (normalizedStudent.includes(correct) || correct.includes(normalizedStudent));
+    const effectiveSimilarity = isSubstring ? Math.max(similarity, 0.76) : similarity;
+
+    if (effectiveSimilarity > bestSimilarity) {
+      bestSimilarity = effectiveSimilarity;
+      bestCorrectAnswer = correct;
+    }
+  }
+
+  // Skor berdasarkan similarity
+  if (bestSimilarity >= 0.85) {
+    // Sangat mirip — kemungkinan typo
+    return {
+      questionNumber,
+      studentAnswer,
+      score: maxScore,
+      maxScore,
+      analysisText: `✅ Jawaban benar (typo minor diabaikan). Jawaban Anda: **${studentAnswer}**, Kunci: **${correctAnswer}**`,
+      reasoning: `Jawaban "${studentAnswer}" sangat mirip dengan kunci "${bestCorrectAnswer}" (kecocokan ${Math.round(bestSimilarity * 100)}%).`,
+      status: "OK",
+      gradedBy: "SYSTEM"
+    };
+  }
+
+  if (bestSimilarity >= 0.70) {
+    // Hampir benar
+    const score = Math.round(maxScore * 0.75);
+    return {
+      questionNumber,
+      studentAnswer,
+      score,
+      maxScore,
+      analysisText: `⚠️ Jawaban hampir benar. Jawaban Anda: **${studentAnswer}**, Kunci: **${correctAnswer}** (kecocokan ${Math.round(bestSimilarity * 100)}%)`,
+      reasoning: `Jawaban "${studentAnswer}" hampir cocok dengan kunci "${bestCorrectAnswer}" (kecocokan ${Math.round(bestSimilarity * 100)}%).`,
+      status: "OK",
+      gradedBy: "SYSTEM"
+    };
+  }
+
+  if (bestSimilarity >= 0.50) {
+    // Sebagian benar
+    const score = Math.round(maxScore * 0.50);
+    return {
+      questionNumber,
+      studentAnswer,
+      score,
+      maxScore,
+      analysisText: `⚠️ Jawaban sebagian benar. Jawaban Anda: **${studentAnswer}**, Kunci: **${correctAnswer}** (kecocokan ${Math.round(bestSimilarity * 100)}%)`,
+      reasoning: `Jawaban "${studentAnswer}" sebagian cocok dengan kunci "${bestCorrectAnswer}" (kecocokan ${Math.round(bestSimilarity * 100)}%).`,
+      status: "OK",
+      gradedBy: "SYSTEM"
+    };
+  }
+
+  // Similarity terlalu rendah — kembalikan null agar fallback ke AI
+  // AI lebih mampu menilai kecocokan konseptual yang tidak terdeteksi string matching
+  return null;
 }
 
 /**

@@ -111,7 +111,39 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
     );
   }
 
-  // Untuk ESSAY dan ISIAN_SINGKAT: tidak ada input kunci jawaban
+  // Untuk ISIAN_SINGKAT: input kunci jawaban opsional (text field, multi-jawaban dipisah koma)
+  if (questionType === "ISIAN_SINGKAT") {
+    return (
+      <div className="space-y-1">
+        <input
+          type="text"
+          value={correctAnswer || ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="cth: Proklamasi, Kemerdekaan"
+          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm"
+        />
+        <span className="text-[10px] text-gray-400 italic">Opsional — pisah koma untuk multi-jawaban</span>
+      </div>
+    );
+  }
+
+  // Untuk ESSAY: textarea poin kunci opsional (panduan untuk AI)
+  if (questionType === "ESSAY") {
+    return (
+      <div className="space-y-1">
+        <textarea
+          value={correctAnswer || ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Poin kunci yang harus ada..."
+          rows={2}
+          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm resize-y"
+        />
+        <span className="text-[10px] text-gray-400 italic">Opsional — panduan poin kunci untuk AI</span>
+      </div>
+    );
+  }
+
+  // Fallback: tipe soal tidak dikenal
   return (
     <span className="text-xs text-gray-400 italic">Dinilai AI</span>
   );

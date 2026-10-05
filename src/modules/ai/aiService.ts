@@ -172,12 +172,27 @@ export class AIService {
               correctAnswer: q.correctAnswer!,
               maxScore
             });
-            finalScore = systemResult.score;
-            reasoning = systemResult.reasoning;
-            analysisText = systemResult.analysisText;
-            studentAnswer = systemResult.studentAnswer;
-            validStatus = systemResult.status;
-            console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${q.correctAnswer}" → ${finalScore}/${maxScore}`);
+            if (systemResult !== null) {
+              finalScore = systemResult.score;
+              reasoning = systemResult.reasoning;
+              analysisText = systemResult.analysisText;
+              studentAnswer = systemResult.studentAnswer;
+              validStatus = systemResult.status;
+              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${q.correctAnswer}" → ${finalScore}/${maxScore}`);
+            } else {
+              // System grader tidak yakin (ISIAN_SINGKAT similarity rendah) → fallback ke AI
+              finalScore = Number(aiAnalysis.score) || 0;
+              if (finalScore > maxScore) finalScore = maxScore;
+              if (finalScore < 0) finalScore = 0;
+              reasoning = aiAnalysis.reasoning || "";
+              analysisText = aiAnalysis.analysisText || "";
+              if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
+                validStatus = aiAnalysis.status;
+              } else {
+                validStatus = "OK";
+              }
+              console.log(`[AI Fallback] Soal ${q.order} (${q.questionType}): System grader tidak yakin, skor AI: ${finalScore}/${maxScore}`);
+            }
           } else {
             // === AI GRADING: Soal non-objektif atau tanpa kunci ===
             finalScore = Number(aiAnalysis.score) || 0;

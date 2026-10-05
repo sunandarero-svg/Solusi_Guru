@@ -247,7 +247,13 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
     let questionsInstruction = "";
     if (questions && questions.length > 0) {
-      const qList = questions.map(q => `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`).join("\\n");
+      const qList = questions.map((q: any) => {
+        let line = `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`;
+        if (q.correctAnswer && (q.questionType === 'ISIAN_SINGKAT' || q.questionType === 'ESSAY')) {
+          line += `, Kunci/Poin: ${q.correctAnswer}`;
+        }
+        return line;
+      }).join("\\n");
       questionsInstruction = `KONFIGURASI SOAL & BOBOT:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
     } else {
       questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
@@ -269,7 +275,21 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
 3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
-4. KRITERIA BENAR/SALAH - ISIAN SINGKAT & ESSAY: Kesamaan makna/konsep minimal 80% = BENAR SEMPURNA (100% maxScore). Abaikan typo.
+4. KRITERIA ISIAN SINGKAT (SKOR PARSIAL - SANGAT PENTING):
+   Penilaian ISIAN SINGKAT harus FLEKSIBEL. Jawaban TIDAK harus exact match. Berikan skor GRADUAL berdasarkan kecocokan makna/konsep:
+   - 100% maxScore: Jawaban identik, sinonim sempurna, atau hanya typo minor (cth: "fotosintesa" ≈ "fotosintesis", "Jkt" ≈ "Jakarta")
+   - 75% maxScore: Jawaban benar konsepnya tapi beda kata/ejaan signifikan (cth: "pengumuman kemerdekaan" ≈ "proklamasi")
+   - 50% maxScore: Jawaban sebagian benar, menyebutkan bagian dari konsep (cth: "Soekarno" ketika kunci "Soekarno-Hatta")
+   - 0% maxScore: Jawaban salah total, tidak relevan, atau kosong
+   ABAIKAN: typo, kapitalisasi, tanda baca, spasi ekstra.
+4b. KRITERIA ESSAY (SKOR PARSIAL - SANGAT PENTING):
+   Penilaian ESSAY harus berdasarkan SEBERAPA LENGKAP poin-poin kunci terjawab. Berikan skor GRADUAL:
+   - 100% maxScore: Semua poin kunci terjawab lengkap, penjelasan tepat & runtut
+   - 75% maxScore: Sebagian besar poin kunci ada, penjelasan cukup baik
+   - 50% maxScore: Setengah poin kunci terjawab, atau penjelasan kurang lengkap
+   - 25% maxScore: Hanya sedikit poin kunci, jawaban menunjukkan sedikit pemahaman
+   - 0% maxScore: Jawaban salah total, tidak relevan, atau kosong
+   JANGAN berikan 0 jika siswa menunjukkan USAHA menjawab dengan benar sebagian.
 5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
 7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
