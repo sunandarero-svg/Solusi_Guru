@@ -196,14 +196,11 @@ async function callUnifiedAI(
       console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Gemini: ${fallbackModel1}`);
       return text;
     } catch (geminiError: any) {
-      console.warn("[Grade BG] Gemini unified juga gagal, mencoba fallback OpenRouter Llama 4 Maverick...", geminiError?.message);
+      console.warn("[Grade BG] Gemini unified juga gagal, mencoba fallback OpenRouter berantai...", geminiError?.message);
 
-      // 3. FALLBACK 2: OpenRouter (Llama 4 Maverick)
+      // 3. FALLBACK 2: OpenRouter (Multiple Models Chain)
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
       if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
-
-      const fallbackModel2 = "meta-llama/llama-4-maverick";
-      console.log(`[Grade BG] Memanggil model unified (Fallback 2 - OpenRouter): ${fallbackModel2}`);
 
       const contentParts: any[] = [{ type: "text", text: prompt }];
       for (const img of compressedImages) {
@@ -213,33 +210,53 @@ async function callUnifiedAI(
         });
       }
 
-      const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openRouterApiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-          "X-Title": "Solusi Guru",
-        },
-        body: JSON.stringify({
-          model: fallbackModel2,
-          messages: [{ role: "user", content: contentParts }],
-          temperature: 0.2,
-          max_tokens: 16384,
-        }),
-      });
+      const openRouterModels = [
+        "nvidia/llama-nemotron-rerank-vl-1b-v2:free",
+        "qwen/qwen3.8-27b:free",
+        "meta-llama/llama-4-maverick"
+      ];
 
-      if (!orResponse.ok) {
-        const errBody = await orResponse.text();
-        console.error("[Grade BG] OpenRouter Fallback Error:", errBody);
-        throw new Error(`OpenRouter API returned ${orResponse.status} - ${errBody}`);
+      let lastOrError: any;
+
+      for (const orModel of openRouterModels) {
+        try {
+          console.log(`[Grade BG] Memanggil model unified (OpenRouter Fallback): ${orModel}`);
+
+          const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${openRouterApiKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+              "X-Title": "Solusi Guru",
+            },
+            body: JSON.stringify({
+              model: orModel,
+              messages: [{ role: "user", content: contentParts }],
+              temperature: 0.2,
+              max_tokens: 16384,
+            }),
+          });
+
+          if (!orResponse.ok) {
+            const errBody = await orResponse.text();
+            console.error(`[Grade BG] OpenRouter Fallback Error (${orModel}):`, errBody);
+            throw new Error(`OpenRouter API returned ${orResponse.status} - ${errBody}`);
+          }
+
+          const orData = await orResponse.json();
+          const text = orData.choices?.[0]?.message?.content || "";
+          if (!text) throw new Error(`Empty response from OpenRouter fallback (${orModel})`);
+          
+          console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter: ${orModel}`);
+          return text;
+        } catch (orError: any) {
+          console.warn(`[Grade BG] OpenRouter model ${orModel} gagal: ${orError?.message}. Mencoba model selanjutnya...`);
+          lastOrError = orError;
+        }
       }
-
-      const orData = await orResponse.json();
-      const text = orData.choices?.[0]?.message?.content || "";
-      if (!text) throw new Error("Empty response from OpenRouter fallback");
-      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter: ${fallbackModel2}`);
-      return text;
+      
+      throw new Error(`Semua fallback OpenRouter gagal. Error terakhir: ${lastOrError?.message}`);
     }
   }
 }
