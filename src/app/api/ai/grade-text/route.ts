@@ -112,7 +112,7 @@ Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMA
 }
 
 === TUGAS ANDA SEKARANG ===
-${imageCount > 1 ? \`Terdapat \${imageCount} gambar halaman jawaban siswa yang dilampirkan. Baca semuanya secara BERURUTAN (Halaman 1, 2, dst) lalu nilai berdasarkan aturan dan kunci di atas.\` : 'Terdapat 1 gambar halaman jawaban siswa yang dilampirkan. Baca lalu nilai berdasarkan aturan dan kunci di atas.'}
+${imageCount > 1 ? `Terdapat ${imageCount} gambar halaman jawaban siswa yang dilampirkan. Baca semuanya secara BERURUTAN (Halaman 1, 2, dst) lalu nilai berdasarkan aturan dan kunci di atas.` : 'Terdapat 1 gambar halaman jawaban siswa yang dilampirkan. Baca lalu nilai berdasarkan aturan dan kunci di atas.'}
 `;
 }
 
