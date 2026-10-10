@@ -90,15 +90,20 @@ export default function TeacherScanPage({ params }: { params: Promise<{ id: stri
       .then(data => {
         if (data.id) {
           setAssignment(data);
-          if (data.class && data.class._id) {
-            fetch(`/api/classes/${data.class._id}/students`)
-              .then(res => res.json())
-              .then(studentData => {
-                if (studentData.students) {
-                  setStudents(studentData.students);
-                }
-              });
-          }
+          fetch(`/api/assignments/${data.id}/submissions`)
+            .then(res => res.json())
+            .then(submissions => {
+              if (Array.isArray(submissions)) {
+                const unsubmittedStudents = submissions
+                  .filter(sub => sub.status === "UNSUBMITTED")
+                  .map(sub => ({
+                    _id: sub.student._id || sub.student.id,
+                    fullName: sub.student.fullName,
+                    studentNumber: sub.student.studentNumber
+                  }));
+                setStudents(unsubmittedStudents);
+              }
+            });
         }
       });
   }, [resolvedParams.id]);
