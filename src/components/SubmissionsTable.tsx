@@ -42,6 +42,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
 
   const filteredSubmissions = submissions.filter(sub => {
     if (statusFilter === "all") return true;
+    if (statusFilter === "needs-manual-review") return sub.status === "NEEDS_TEACHER_REVIEW";
     if (statusFilter === "has-ai") return sub.aiAssessment?.suggestedScore !== undefined;
     if (statusFilter === "has-teacher") return sub.teacherReview?.finalScore !== undefined;
     if (statusFilter === "unsubmitted") return sub.status === "UNSUBMITTED";
@@ -183,7 +184,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
       "Nama Siswa": sub.student.fullName,
       "NIS": sub.student.studentNumber,
       "Kelas": assignmentClassName || "-",
-      "Status": sub.status === "NEEDS_TEACHER_REVIEW" ? "Perlu Diulas" :
+      "Status": sub.status === "NEEDS_TEACHER_REVIEW" ? "Perlu Periksa Manual" :
                 sub.status === "APPROVED" ? "Disetujui" :
                 sub.status === "PUBLISHED" ? "Selesai" : sub.status,
       "Rekomendasi AI": sub.aiAssessment?.suggestedScore ?? "-",
@@ -236,6 +237,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
             className="px-4 py-2 border border-slate-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-700"
           >
             <option value="all">Semua Status</option>
+            <option value="needs-manual-review">Perlu Periksa Manual</option>
             <option value="has-ai">Sudah Dinilai AI</option>
             <option value="has-teacher">Sudah Dinilai Guru</option>
             <option value="processing">⏳ Sedang Dianalisis AI</option>
@@ -314,7 +316,7 @@ export default function SubmissionsTable({ assignmentId, assignmentClassName }: 
                     {assignmentClassName || "-"}
                   </td>
                   <td className="px-6 py-4">
-                    {sub.status === "NEEDS_TEACHER_REVIEW" && <span className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold">Perlu Diulas</span>}
+                    {sub.status === "NEEDS_TEACHER_REVIEW" && <span className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold">Perlu Periksa Manual</span>}
                     {sub.status === "APPROVED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Disetujui</span>}
                     {sub.status === "PUBLISHED" && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Selesai</span>}
                     {sub.status === "PROCESSING" && (
