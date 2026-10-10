@@ -72,7 +72,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
         <div className="p-6 border-b border-slate-100/50 flex items-center justify-between">
           <div>
             <h1 className="font-extrabold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600">
-              SistenDAR
+              Shinra Tensei
             </h1>
             <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">Asisten Pak Nandar</p>
           </div>
@@ -91,8 +91,8 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${isActive
-                    ? "bg-emerald-50 text-emerald-700 shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-emerald-50 text-emerald-700 shadow-sm"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
               >
                 <Icon size={18} className={isActive ? "text-emerald-600" : "text-slate-400 group-hover:text-emerald-500 transition-colors"} strokeWidth={isActive ? 2.5 : 2} />

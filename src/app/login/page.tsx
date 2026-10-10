@@ -136,7 +136,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-sm text-slate-500 mt-8 font-medium">
-          Belum punya akun? <a href="#" className="text-emerald-600 hover:text-emerald-700 hover:underline transition-colors">Hubungi Admin</a>
+          Belum punya akun? <a href="#" className="text-emerald-600 hover:text-emerald-700 hover:underline transition-colors">Hubungi Pak nandar</a>
         </p>
       </div>
     </div>
