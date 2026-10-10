@@ -56,25 +56,13 @@ function buildUnifiedPrompt(
     questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
   }
 
-  return `Anda adalah asisten guru (AI) penilai tugas siswa. Tugas Anda terdiri dari DUA TAHAP yang harus dilakukan secara berurutan:
+  return `Anda adalah asisten guru (AI) penilai tugas siswa. Anda bertugas mengekstrak tulisan tangan siswa (OCR) lalu menilainya secara berurutan.
 
-=== TAHAP 1: BACA TULISAN TANGAN (OCR) ===
-${imageCount > 1 ? `Terdapat ${imageCount} gambar halaman jawaban siswa yang harus dibaca semuanya secara BERURUTAN (Halaman 1, 2, dst).` : 'Terdapat 1 gambar halaman jawaban siswa.'}
-
-Patuhi aturan OCR berikut:
-1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING): Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks FINAL yang dipertahankan/dimaksudkan oleh penulis.
-2. STRUKTUR & HIERARKI: Pertahankan hierarki dokumen asli. Pertahankan penomoran persis seperti urutan di dokumen.
-3. TRANSKRIPSI VERBATIM (APA ADANYA): Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
-4. TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), tandai sebagai tidak terbaca. Jangan menebak.
-5. WAJIB BAHASA INDONESIA: PASTIKAN seluruh hasil pembacaan teks ditulis menggunakan bahasa Indonesia. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.
-
-=== TAHAP 2: NILAI JAWABAN SISWA ===
-Setelah membaca SEMUA halaman, cocokkan jawaban siswa dengan kunci jawaban dan berikan penilaian.
-
+=== INFORMASI PENILAIAN TUGAS ===
 ${answerKeyInstruction}
 ${questionsInstruction}
 
-INSTRUKSI PENILAIAN & ALOKASI SKOR:
+=== INSTRUKSI PENILAIAN & ALOKASI SKOR ===
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
@@ -98,6 +86,14 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 6. KONSISTENSI MUTLAK (SANGAT PENTING): Jika dua atau lebih siswa memberikan jawaban dengan makna dan substansi yang sama persis, Anda WAJIB memberikan skor yang SAMA PERSIS. Jangan mengubah standar penilaian di tengah jalan. Jangan mengurangi poin tanpa alasan logis yang kuat.
 7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
+=== ATURAN EKSTRAKSI TEKS (OCR) ===
+1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING): Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks FINAL yang dipertahankan/dimaksudkan oleh penulis.
+2. STRUKTUR & HIERARKI: Pertahankan hierarki dokumen asli. Pertahankan penomoran persis seperti urutan di dokumen.
+3. TRANSKRIPSI VERBATIM (APA ADANYA): Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
+4. TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), tandai sebagai tidak terbaca. Jangan menebak.
+5. WAJIB BAHASA INDONESIA: PASTIKAN seluruh hasil pembacaan teks ditulis menggunakan bahasa Indonesia. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.
+
+=== FORMAT OUTPUT JSON ===
 Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMAT PEMBUKA/PENUTUP seperti 'Berikut adalah...'. DILARANG KERAS menambahkan teks di luar struktur JSON ini:
 {
   "totalScore": number,
@@ -113,7 +109,11 @@ Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMA
       "status": "OK"
     }
   ]
-}`;
+}
+
+=== TUGAS ANDA SEKARANG ===
+${imageCount > 1 ? \`Terdapat \${imageCount} gambar halaman jawaban siswa yang dilampirkan. Baca semuanya secara BERURUTAN (Halaman 1, 2, dst) lalu nilai berdasarkan aturan dan kunci di atas.\` : 'Terdapat 1 gambar halaman jawaban siswa yang dilampirkan. Baca lalu nilai berdasarkan aturan dan kunci di atas.'}
+`;
 }
 
 /**
