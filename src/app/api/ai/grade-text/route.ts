@@ -95,6 +95,7 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
    - 0% maxScore: Jawaban salah total, tidak relevan, atau kosong
    JANGAN berikan 0 jika siswa menunjukkan USAHA menjawab dengan benar sebagian.
 5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
+6. KONSISTENSI MUTLAK (SANGAT PENTING): Jika dua atau lebih siswa memberikan jawaban dengan makna dan substansi yang sama persis, Anda WAJIB memberikan skor yang SAMA PERSIS. Jangan mengubah standar penilaian di tengah jalan. Jangan mengurangi poin tanpa alasan logis yang kuat.
 7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
 
 Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMAT PEMBUKA/PENUTUP seperti 'Berikut adalah...'. DILARANG KERAS menambahkan teks di luar struktur JSON ini:
@@ -147,7 +148,7 @@ async function callUnifiedAI(
       body: JSON.stringify({
         model: primaryModel,
         messages: [{ role: "user", content: contentParts }],
-        temperature: 0.2,
+        temperature: 0.0,
         max_tokens: 16384,
       }),
     });
@@ -186,7 +187,7 @@ async function callUnifiedAI(
         model: fallbackModel1,
         contents,
         config: {
-          temperature: 0.2,
+          temperature: 0.0,
           maxOutputTokens: 16384,
         }
       });
@@ -233,7 +234,7 @@ async function callUnifiedAI(
             body: JSON.stringify({
               model: orModel,
               messages: [{ role: "user", content: contentParts }],
-              temperature: 0.2,
+              temperature: 0.0,
               max_tokens: 16384,
             }),
           });
