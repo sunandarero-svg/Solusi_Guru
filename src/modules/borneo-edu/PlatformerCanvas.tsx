@@ -81,6 +81,17 @@ export default function PlatformerCanvas({
     jump: false
   });
 
+  const [touchActive, setTouchActive] = useState<{ left: boolean; right: boolean; jump: boolean }>({
+    left: false,
+    right: false,
+    jump: false
+  });
+
+  const setTouchDirection = useCallback((dir: 'left' | 'right' | 'jump', active: boolean) => {
+    touchStateRef.current[dir] = active;
+    setTouchActive((prev) => (prev[dir] === active ? prev : { ...prev, [dir]: active }));
+  }, []);
+
   const keysRef = useRef<{ [key: string]: boolean }>({});
 
   const worldDef = WORLD_DEFINITIONS.find((w) => w.id === worldNumber) || WORLD_DEFINITIONS[0];
@@ -277,27 +288,61 @@ export default function PlatformerCanvas({
     buildLevel();
   }, [buildLevel]);
 
-  // Keyboard events
+  // Keyboard and focus events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const code = e.code;
-      keysRef.current[code] = true;
-      if (['Space', 'ArrowUp', 'KeyW'].includes(code)) {
+      const key = e.key;
+      if (code) keysRef.current[code] = true;
+      if (key) {
+        keysRef.current[key] = true;
+        keysRef.current[key.toLowerCase()] = true;
+      }
+      if (
+        ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(code) ||
+        ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)
+      ) {
         e.preventDefault();
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysRef.current[e.code] = false;
+      const code = e.code;
+      const key = e.key;
+      if (code) keysRef.current[code] = false;
+      if (key) {
+        keysRef.current[key] = false;
+        keysRef.current[key.toLowerCase()] = false;
+      }
+    };
+
+    const handleClearInputs = () => {
+      keysRef.current = {};
+      touchStateRef.current = { left: false, right: false, jump: false };
+      setTouchActive({ left: false, right: false, jump: false });
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleClearInputs);
+    document.addEventListener('visibilitychange', handleClearInputs);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleClearInputs);
+      document.removeEventListener('visibilitychange', handleClearInputs);
     };
   }, []);
+
+  // Clear inputs when paused or when modal opens
+  useEffect(() => {
+    if (isPaused) {
+      keysRef.current = {};
+      touchStateRef.current = { left: false, right: false, jump: false };
+      setTouchActive({ left: false, right: false, jump: false });
+    }
+  }, [isPaused]);
 
   // Main 60FPS Game Loop
   useEffect(() => {
@@ -327,14 +372,41 @@ export default function PlatformerCanvas({
 
       if (!isPaused) {
         // --- INPUT HANDLING ---
-        const moveLeft = keysRef.current['ArrowLeft'] || keysRef.current['KeyA'] || touchStateRef.current.left;
-        const moveRight = keysRef.current['ArrowRight'] || keysRef.current['KeyD'] || touchStateRef.current.right;
-        const jumpPress = keysRef.current['ArrowUp'] || keysRef.current['KeyW'] || keysRef.current['Space'] || touchStateRef.current.jump;
+        const moveLeft =
+          !!keysRef.current['ArrowLeft'] ||
+          !!keysRef.current['Left'] ||
+          !!keysRef.current['KeyA'] ||
+          !!keysRef.current['a'] ||
+          !!keysRef.current['A'] ||
+          touchStateRef.current.left;
 
-        if (moveLeft && !moveRight) {
+        const moveRight =
+          !!keysRef.current['ArrowRight'] ||
+          !!keysRef.current['Right'] ||
+          !!keysRef.current['KeyD'] ||
+          !!keysRef.current['d'] ||
+          !!keysRef.current['D'] ||
+          touchStateRef.current.right;
+
+        const jumpPress =
+          !!keysRef.current['ArrowUp'] ||
+          !!keysRef.current['Up'] ||
+          !!keysRef.current['KeyW'] ||
+          !!keysRef.current['w'] ||
+          !!keysRef.current['W'] ||
+          !!keysRef.current['Space'] ||
+          !!keysRef.current[' '] ||
+          touchStateRef.current.jump;
+
+        // Ensure character can reliably move right/forward
+        if (moveRight && !moveLeft) {
+          p.vx = MOVE_SPEED;
+          p.facingRight = true;
+        } else if (moveLeft && !moveRight) {
           p.vx = -MOVE_SPEED;
           p.facingRight = false;
-        } else if (moveRight && !moveLeft) {
+        } else if (moveRight && moveLeft) {
+          // If both are active, prioritize right to maintain forward game progress
           p.vx = MOVE_SPEED;
           p.facingRight = true;
         } else {
@@ -837,50 +909,151 @@ export default function PlatformerCanvas({
         className="w-full h-auto block max-h-[620px] aspect-[800/540]"
       />
 
-      {/* On-screen Mobile & Tablet Touch Controls */}
-      <div className="absolute inset-x-0 bottom-3 px-4 flex justify-between items-end pointer-events-none z-20">
-        {/* D-Pad Buttons */}
-        <div className="flex items-center gap-3 pointer-events-auto">
+      {/* On-screen Mobile & Tablet Touch Controls (Landscape & Portrait Ergonomic) */}
+      <div className="absolute inset-x-0 bottom-2 sm:bottom-4 px-3 sm:px-6 flex justify-between items-end pointer-events-none z-20 select-none touch-none">
+        {/* D-Pad Buttons (Left & Right) */}
+        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto p-1.5 rounded-2xl bg-slate-950/40 backdrop-blur-md border border-white/10 shadow-2xl">
+          {/* Tombol Kiri */}
           <button
+            type="button"
             id="touch-left"
-            onTouchStart={() => (touchStateRef.current.left = true)}
-            onTouchEnd={() => (touchStateRef.current.left = false)}
-            onMouseDown={() => (touchStateRef.current.left = true)}
-            onMouseUp={() => (touchStateRef.current.left = false)}
-            onMouseLeave={() => (touchStateRef.current.left = false)}
-            className="w-14 h-14 rounded-2xl bg-slate-900/70 active:bg-emerald-500 backdrop-blur-md text-white border-2 border-white/30 text-2xl font-black flex items-center justify-center shadow-lg transition-transform active:scale-95"
-            aria-label="Gerak Kiri"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              } catch (_) {}
+              setTouchDirection('left', true);
+            }}
+            onPointerUp={(e) => {
+              e.preventDefault();
+              try {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+              } catch (_) {}
+              setTouchDirection('left', false);
+            }}
+            onPointerCancel={(e) => {
+              e.preventDefault();
+              setTouchDirection('left', false);
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              setTouchDirection('left', true);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              setTouchDirection('left', false);
+            }}
+            onTouchCancel={(e) => {
+              e.preventDefault();
+              setTouchDirection('left', false);
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+            className={`w-13 h-13 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
+              touchActive.left
+                ? 'bg-emerald-500 text-slate-950 border-emerald-300 ring-4 ring-emerald-400/50 scale-95 shadow-emerald-500/50'
+                : 'bg-slate-900/80 text-white border-white/30 hover:border-emerald-400/60'
+            }`}
+            aria-label="Gerak Kiri (Mundur)"
           >
-            ◀
+            <span className="text-xl sm:text-2xl leading-none">◀</span>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-tight opacity-80 mt-0.5">KIRI</span>
           </button>
+
+          {/* Tombol Kanan (MAJU KE DEPAN) */}
           <button
+            type="button"
             id="touch-right"
-            onTouchStart={() => (touchStateRef.current.right = true)}
-            onTouchEnd={() => (touchStateRef.current.right = false)}
-            onMouseDown={() => (touchStateRef.current.right = true)}
-            onMouseUp={() => (touchStateRef.current.right = false)}
-            onMouseLeave={() => (touchStateRef.current.right = false)}
-            className="w-14 h-14 rounded-2xl bg-slate-900/70 active:bg-emerald-500 backdrop-blur-md text-white border-2 border-white/30 text-2xl font-black flex items-center justify-center shadow-lg transition-transform active:scale-95"
-            aria-label="Gerak Kanan"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              } catch (_) {}
+              setTouchDirection('right', true);
+            }}
+            onPointerUp={(e) => {
+              e.preventDefault();
+              try {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+              } catch (_) {}
+              setTouchDirection('right', false);
+            }}
+            onPointerCancel={(e) => {
+              e.preventDefault();
+              setTouchDirection('right', false);
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              setTouchDirection('right', true);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              setTouchDirection('right', false);
+            }}
+            onTouchCancel={(e) => {
+              e.preventDefault();
+              setTouchDirection('right', false);
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+            className={`w-13 h-13 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
+              touchActive.right
+                ? 'bg-emerald-500 text-slate-950 border-emerald-300 ring-4 ring-emerald-400/50 scale-95 shadow-emerald-500/50'
+                : 'bg-slate-900/80 text-white border-white/30 hover:border-emerald-400/60'
+            }`}
+            aria-label="Gerak Kanan (Maju)"
           >
-            ▶
+            <span className="text-xl sm:text-2xl leading-none">▶</span>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-tight opacity-80 mt-0.5">KANAN</span>
           </button>
         </div>
 
         {/* Action / Jump Button */}
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto p-1.5 rounded-3xl bg-slate-950/40 backdrop-blur-md border border-white/10 shadow-2xl">
           <button
+            type="button"
             id="touch-jump"
-            onTouchStart={() => (touchStateRef.current.jump = true)}
-            onTouchEnd={() => (touchStateRef.current.jump = false)}
-            onMouseDown={() => (touchStateRef.current.jump = true)}
-            onMouseUp={() => (touchStateRef.current.jump = false)}
-            onMouseLeave={() => (touchStateRef.current.jump = false)}
-            className="w-16 h-16 rounded-3xl bg-emerald-600/85 active:bg-emerald-400 backdrop-blur-md text-white border-2 border-emerald-300 text-lg font-black flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              } catch (_) {}
+              setTouchDirection('jump', true);
+            }}
+            onPointerUp={(e) => {
+              e.preventDefault();
+              try {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+              } catch (_) {}
+              setTouchDirection('jump', false);
+            }}
+            onPointerCancel={(e) => {
+              e.preventDefault();
+              setTouchDirection('jump', false);
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              setTouchDirection('jump', true);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              setTouchDirection('jump', false);
+            }}
+            onTouchCancel={(e) => {
+              e.preventDefault();
+              setTouchDirection('jump', false);
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+            className={`w-14 h-14 sm:w-18 sm:h-18 rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
+              touchActive.jump
+                ? 'bg-emerald-400 text-slate-950 border-white ring-4 ring-emerald-300/60 scale-95 shadow-emerald-400/60'
+                : 'bg-gradient-to-t from-emerald-700 to-emerald-500 text-white border-emerald-300/80 hover:brightness-110 shadow-emerald-900/40'
+            }`}
             aria-label="Melompat"
           >
-            <span>▲</span>
-            <span className="text-[10px] font-bold tracking-wider">LOMPAT</span>
+            <span className="text-xl sm:text-2xl leading-none">▲</span>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-wider mt-0.5">LOMPAT</span>
           </button>
         </div>
       </div>

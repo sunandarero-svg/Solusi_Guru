@@ -95,14 +95,58 @@ export default function BorneoEduGame() {
     });
   }, [persistState]);
 
-  // Handle Fullscreen Toggle
+  // Mobile Orientation & Landscape helper
+  const [isPortraitMobile, setIsPortraitMobile] = useState<boolean>(false);
+  const [showOrientationBanner, setShowOrientationBanner] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkOrientation = () => {
+      if (typeof window === 'undefined') return;
+      const isMobile = window.innerWidth <= 900;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setIsPortraitMobile(isMobile && isPortrait);
+    };
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
+
+  // Handle Fullscreen & Landscape Toggle
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      gameContainerRef.current?.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
+      if (gameContainerRef.current?.requestFullscreen) {
+        gameContainerRef.current
+          .requestFullscreen()
+          .then(() => {
+            setIsFullscreen(true);
+            try {
+              if (screen.orientation && 'lock' in screen.orientation) {
+                (screen.orientation as any).lock('landscape').catch(() => {});
+              }
+            } catch (_) {}
+          })
+          .catch(() => {});
+      }
     } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
+      if (document.exitFullscreen) {
+        document
+          .exitFullscreen()
+          .then(() => {
+            setIsFullscreen(false);
+            try {
+              if (screen.orientation && 'unlock' in screen.orientation) {
+                (screen.orientation as any).unlock();
+              }
+            } catch (_) {}
+          })
+          .catch(() => {});
+      }
     }
   };
 
@@ -484,6 +528,42 @@ export default function BorneoEduGame() {
       ref={gameContainerRef}
       className="w-full min-h-[640px] bg-slate-950 rounded-3xl p-3 sm:p-6 shadow-2xl relative select-none font-sans text-white border-2 border-slate-800"
     >
+      {/* Smartphone Portrait Orientation Prompt */}
+      {isPortraitMobile && showOrientationBanner && (
+        <div className="relative z-30 mb-3 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-emerald-500/20 border-2 border-amber-400/50 backdrop-blur-md shadow-xl flex items-center justify-between gap-3 text-white animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/30 flex items-center justify-center text-xl shrink-0 animate-bounce">
+              🔄
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-black text-amber-300 flex items-center gap-1.5">
+                <span>Mode Lanskap Direkomendasikan</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">Smartphone</span>
+              </p>
+              <p className="text-[11px] text-slate-300 leading-snug">
+                Putar smartphone Anda ke posisi mendatar (landscape) untuk tampilan layar penuh dan kontrol tombol yang nyaman.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={toggleFullscreen}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-xs shadow-md transition-transform active:scale-95 flex items-center gap-1"
+            >
+              <span>⛶</span>
+              <span>Lanskap Penuh</span>
+            </button>
+            <button
+              onClick={() => setShowOrientationBanner(false)}
+              className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white text-xs"
+              title="Tutup Saran"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* 1. HALAMAN UTAMA (MAIN MENU) */}
       {/* ========================================================================= */}
@@ -498,9 +578,9 @@ export default function BorneoEduGame() {
           <div className="absolute top-28 right-24 text-2xl animate-bounce delay-300">🪙</div>
           <div className="absolute bottom-28 left-20 text-2xl animate-bounce delay-500">🪙</div>
 
-          {/* Top Bar on Main Menu: Settings & Meja Guru */}
+          {/* Top Bar on Main Menu */}
           <div className="relative z-10 flex items-center justify-between gap-3">
-            {/* Audio & Fullscreen Buttons */}
+            {/* Audio & Landscape Mode Buttons */}
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleSound}
@@ -512,23 +592,31 @@ export default function BorneoEduGame() {
               </button>
               <button
                 onClick={toggleFullscreen}
-                className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 backdrop-blur-md shadow-md flex items-center gap-1.5"
-                title="Layar Penuh"
+                className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-xs font-bold text-amber-300 border border-amber-500/40 backdrop-blur-md shadow-md flex items-center gap-1.5"
+                title="Mode Layar Penuh Lanskap"
               >
                 <span>{isFullscreen ? '🗗' : '⛶'}</span>
-                <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+                <span>{isFullscreen ? 'Exit Fullscreen' : 'Mode Lanskap'}</span>
               </button>
             </div>
 
-            {/* MEJA GURU BUTTON (Top Right Corner with Teacher/Desk Icon) */}
-            <button
-              id="btn-meja-guru"
-              onClick={() => setGameState('MEJA_GURU')}
-              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs sm:text-sm shadow-xl transition-transform active:scale-95 flex items-center gap-2 border-2 border-amber-300"
-            >
-              <span className="text-base sm:text-lg">👨‍🏫</span>
-              <span>MEJA GURU</span>
-            </button>
+            {/* Quick Student Features */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setGameState('PETUNJUK')}
+                className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-xs font-bold text-emerald-300 border border-emerald-500/40 backdrop-blur-md shadow-md flex items-center gap-1.5"
+              >
+                <span>📖</span>
+                <span className="hidden sm:inline">Petunjuk</span>
+              </button>
+              <button
+                onClick={() => setGameState('PRESTASI')}
+                className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-xs font-bold text-yellow-300 border border-yellow-500/40 backdrop-blur-md shadow-md flex items-center gap-1.5"
+              >
+                <span>🏆</span>
+                <span className="hidden sm:inline">Prestasi</span>
+              </button>
+            </div>
           </div>
 
           {/* Hero Banner: Large Game Title & Slogan */}
@@ -718,8 +806,18 @@ export default function BorneoEduGame() {
               </button>
 
               <button
+                onClick={toggleFullscreen}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold border border-slate-700 flex items-center gap-1"
+                title="Layar Penuh Lanskap"
+              >
+                <span>{isFullscreen ? '🗗' : '⛶'}</span>
+                <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Lanskap'}</span>
+              </button>
+
+              <button
                 onClick={toggleSound}
                 className="p-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs border border-slate-700"
+                title="Pengaturan Suara"
               >
                 {isMuted ? '🔇' : '🔊'}
               </button>

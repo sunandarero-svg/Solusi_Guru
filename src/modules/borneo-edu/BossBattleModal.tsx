@@ -193,8 +193,8 @@ export default function BossBattleModal({
   const timerPerc = Math.max(0, Math.min(100, (timeLeft / 30) * 100));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-lg animate-in fade-in duration-300">
-      <div className="bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border-3 border-purple-500/50 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 backdrop-blur-lg animate-in fade-in duration-300">
+      <div className="bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border-3 border-purple-500/50 rounded-3xl max-w-2xl w-full p-4 sm:p-8 max-h-[92vh] overflow-y-auto shadow-2xl relative text-white">
         {/* Glow */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-purple-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
