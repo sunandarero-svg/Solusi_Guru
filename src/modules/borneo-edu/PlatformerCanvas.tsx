@@ -1,0 +1,889 @@
+"use client";
+
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { PlayerState, QuestionItem } from './types';
+import { sound } from './audio';
+import { WORLD_DEFINITIONS } from './defaultQuestions';
+
+interface PlatformerCanvasProps {
+  worldNumber: number;
+  levelNumber: number;
+  playerState: PlayerState;
+  onTriggerQuestion: (question: QuestionItem, isEnemy: boolean, enemyId?: string) => void;
+  onCollectCoin: (amount: number) => void;
+  onCollectPowerUp: (type: 'mushroom' | 'hintFlower' | 'superStar' | 'shield') => void;
+  onReachFinish: () => void;
+  onTriggerBossBattle: () => void;
+  onPlayerFell: () => void;
+  isPaused: boolean;
+  levelQuestions: QuestionItem[];
+}
+
+interface Entity {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface Platform extends Entity {
+  type: 'solid' | 'wood' | 'stone' | 'sand' | 'brick';
+}
+
+interface QuestionBlock extends Entity {
+  id: string;
+  isHit: boolean;
+  questionIndex: number;
+  bounceOffset: number;
+}
+
+interface CoinItem extends Entity {
+  id: string;
+  isCollected: boolean;
+  sparkleTime: number;
+}
+
+interface PowerUpItem extends Entity {
+  id: string;
+  type: 'mushroom' | 'hintFlower' | 'superStar' | 'shield';
+  isCollected: boolean;
+}
+
+interface EnemyEntity extends Entity {
+  id: string;
+  vx: number;
+  minX: number;
+  maxX: number;
+  isDefeated: boolean;
+  questionIndex: number;
+  animFrame: number;
+}
+
+export default function PlatformerCanvas({
+  worldNumber,
+  levelNumber,
+  playerState,
+  onTriggerQuestion,
+  onCollectCoin,
+  onCollectPowerUp,
+  onReachFinish,
+  onTriggerBossBattle,
+  onPlayerFell,
+  isPaused,
+  levelQuestions
+}: PlatformerCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Touch controls state
+  const touchStateRef = useRef<{ left: boolean; right: boolean; jump: boolean }>({
+    left: false,
+    right: false,
+    jump: false
+  });
+
+  const keysRef = useRef<{ [key: string]: boolean }>({});
+
+  const worldDef = WORLD_DEFINITIONS.find((w) => w.id === worldNumber) || WORLD_DEFINITIONS[0];
+  const isBossLevel = levelNumber === 5 || levelNumber === 10 || levelNumber === 15 || levelNumber === 20 || levelNumber === 25;
+
+  // Level data refs
+  const platformsRef = useRef<Platform[]>([]);
+  const questionBlocksRef = useRef<QuestionBlock[]>([]);
+  const coinsRef = useRef<CoinItem[]>([]);
+  const powerUpsRef = useRef<PowerUpItem[]>([]);
+  const enemiesRef = useRef<EnemyEntity[]>([]);
+  const finishFlagRef = useRef<Entity>({ x: 2500, y: 380, width: 40, height: 160 });
+  const levelLengthRef = useRef<number>(2700);
+
+  // Player physics
+  const playerRef = useRef({
+    x: 80,
+    y: 350,
+    vx: 0,
+    vy: 0,
+    width: 38,
+    height: 54,
+    isGrounded: false,
+    facingRight: true,
+    animTimer: 0,
+    walkFrame: 0,
+    invincibleTimer: 0
+  });
+
+  // Camera
+  const cameraXRef = useRef(0);
+
+  // Initialize level geometry
+  const buildLevel = useCallback(() => {
+    const plats: Platform[] = [];
+    const qBlocks: QuestionBlock[] = [];
+    const cList: CoinItem[] = [];
+    const pList: PowerUpItem[] = [];
+    const eList: EnemyEntity[] = [];
+
+    const groundY = 480;
+    const levelLen = isBossLevel ? 1600 : 2800;
+    levelLengthRef.current = levelLen;
+
+    // Build Ground segments with pit gaps
+    if (isBossLevel) {
+      // Solid continuous arena for Boss battles
+      plats.push({ x: 0, y: groundY, width: levelLen + 200, height: 120, type: 'solid' });
+      // Boss platforms
+      plats.push({ x: 250, y: 360, width: 140, height: 24, type: 'brick' });
+      plats.push({ x: 550, y: 280, width: 160, height: 24, type: 'brick' });
+      plats.push({ x: 850, y: 360, width: 140, height: 24, type: 'brick' });
+
+      // Flag or boss trigger at x=1100
+      finishFlagRef.current = { x: 1200, y: groundY - 140, width: 50, height: 140 };
+    } else {
+      // Segmented ground with jumps
+      plats.push({ x: 0, y: groundY, width: 700, height: 120, type: 'solid' });
+      plats.push({ x: 820, y: groundY, width: 650, height: 120, type: 'solid' });
+      plats.push({ x: 1600, y: groundY, width: 600, height: 120, type: 'solid' });
+      plats.push({ x: 2320, y: groundY, width: 600, height: 120, type: 'solid' });
+
+      // Floating platforms
+      plats.push({ x: 280, y: 370, width: 130, height: 22, type: 'wood' });
+      plats.push({ x: 500, y: 300, width: 140, height: 22, type: 'wood' });
+      plats.push({ x: 720, y: 390, width: 90, height: 22, type: 'stone' }); // gap stepping stone
+      plats.push({ x: 1000, y: 360, width: 150, height: 22, type: 'wood' });
+      plats.push({ x: 1240, y: 280, width: 130, height: 22, type: 'stone' });
+      plats.push({ x: 1500, y: 380, width: 90, height: 22, type: 'wood' });
+      plats.push({ x: 1800, y: 340, width: 160, height: 22, type: 'stone' });
+      plats.push({ x: 2060, y: 270, width: 140, height: 22, type: 'wood' });
+
+      finishFlagRef.current = { x: 2550, y: groundY - 140, width: 50, height: 140 };
+
+      // Question blocks (?) - at least 3-4
+      const qPositions = [
+        { x: 340, y: 250 },
+        { x: 560, y: 180 },
+        { x: 1080, y: 240 },
+        { x: 1880, y: 220 }
+      ];
+
+      qPositions.forEach((pos, idx) => {
+        qBlocks.push({
+          id: `qb_${levelNumber}_${idx}`,
+          x: pos.x,
+          y: pos.y,
+          width: 42,
+          height: 42,
+          isHit: false,
+          questionIndex: idx % Math.max(1, levelQuestions.length),
+          bounceOffset: 0
+        });
+      });
+
+      // Bonus Power-Up block
+      pList.push({
+        id: `pu_${levelNumber}_1`,
+        x: 1290,
+        y: 230,
+        width: 32,
+        height: 32,
+        type: levelNumber % 4 === 1 ? 'mushroom' : levelNumber % 4 === 2 ? 'shield' : levelNumber % 4 === 3 ? 'hintFlower' : 'superStar',
+        isCollected: false
+      });
+
+      // Coins scattered
+      const coinCoords = [
+        180, 220, 260,
+        420, 460,
+        640, 680, 720,
+        920, 960,
+        1150, 1190, 1230,
+        1420, 1460,
+        1700, 1740, 1780,
+        2150, 2190, 2230
+      ];
+
+      coinCoords.forEach((cx, i) => {
+        const cy = cx > 400 && cx < 800 ? 250 : cx > 1000 && cx < 1400 ? 320 : 430;
+        cList.push({
+          id: `coin_${levelNumber}_${i}`,
+          x: cx,
+          y: cy,
+          width: 26,
+          height: 26,
+          isCollected: false,
+          sparkleTime: 0
+        });
+      });
+
+      // Patrol Enemies (at least 2 enemies)
+      eList.push({
+        id: `enemy_${levelNumber}_1`,
+        x: 420,
+        y: groundY - 44,
+        width: 40,
+        height: 40,
+        vx: 1.2,
+        minX: 300,
+        maxX: 620,
+        isDefeated: false,
+        questionIndex: (qPositions.length) % Math.max(1, levelQuestions.length),
+        animFrame: 0
+      });
+
+      eList.push({
+        id: `enemy_${levelNumber}_2`,
+        x: 1100,
+        y: groundY - 44,
+        width: 40,
+        height: 40,
+        vx: -1.3,
+        minX: 900,
+        maxX: 1400,
+        isDefeated: false,
+        questionIndex: (qPositions.length + 1) % Math.max(1, levelQuestions.length),
+        animFrame: 0
+      });
+
+      if (levelNumber >= 3) {
+        eList.push({
+          id: `enemy_${levelNumber}_3`,
+          x: 1850,
+          y: groundY - 44,
+          width: 40,
+          height: 40,
+          vx: 1.5,
+          minX: 1680,
+          maxX: 2150,
+          isDefeated: false,
+          questionIndex: (qPositions.length + 2) % Math.max(1, levelQuestions.length),
+          animFrame: 0
+        });
+      }
+    }
+
+    platformsRef.current = plats;
+    questionBlocksRef.current = qBlocks;
+    coinsRef.current = cList;
+    powerUpsRef.current = pList;
+    enemiesRef.current = eList;
+
+    // Reset player position
+    playerRef.current.x = 80;
+    playerRef.current.y = 360;
+    playerRef.current.vx = 0;
+    playerRef.current.vy = 0;
+    playerRef.current.isGrounded = false;
+    cameraXRef.current = 0;
+  }, [levelNumber, isBossLevel, levelQuestions]);
+
+  useEffect(() => {
+    buildLevel();
+  }, [buildLevel]);
+
+  // Keyboard events
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const code = e.code;
+      keysRef.current[code] = true;
+      if (['Space', 'ArrowUp', 'KeyW'].includes(code)) {
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysRef.current[e.code] = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Main 60FPS Game Loop
+  useEffect(() => {
+    let animId: number;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let clouds = [
+      { x: 50, y: 70, s: 1.0, vx: 0.3 },
+      { x: 380, y: 110, s: 0.7, vx: 0.2 },
+      { x: 720, y: 50, s: 1.2, vx: 0.4 },
+      { x: 1100, y: 90, s: 0.8, vx: 0.25 },
+      { x: 1500, y: 60, s: 1.1, vx: 0.35 }
+    ];
+
+    const GRAVITY = 0.65;
+    const MOVE_SPEED = 4.2;
+    const JUMP_FORCE = -12.8;
+
+    const gameLoop = () => {
+      if (!canvas || !ctx) return;
+
+      const p = playerRef.current;
+      const cameraX = cameraXRef.current;
+
+      if (!isPaused) {
+        // --- INPUT HANDLING ---
+        const moveLeft = keysRef.current['ArrowLeft'] || keysRef.current['KeyA'] || touchStateRef.current.left;
+        const moveRight = keysRef.current['ArrowRight'] || keysRef.current['KeyD'] || touchStateRef.current.right;
+        const jumpPress = keysRef.current['ArrowUp'] || keysRef.current['KeyW'] || keysRef.current['Space'] || touchStateRef.current.jump;
+
+        if (moveLeft && !moveRight) {
+          p.vx = -MOVE_SPEED;
+          p.facingRight = false;
+        } else if (moveRight && !moveLeft) {
+          p.vx = MOVE_SPEED;
+          p.facingRight = true;
+        } else {
+          p.vx *= 0.75;
+          if (Math.abs(p.vx) < 0.1) p.vx = 0;
+        }
+
+        if (jumpPress && p.isGrounded) {
+          p.vy = JUMP_FORCE;
+          p.isGrounded = false;
+          sound.playJump();
+        }
+
+        // Apply Gravity
+        p.vy += GRAVITY;
+        if (p.vy > 14) p.vy = 14;
+
+        // Apply Horizontal Movement & Bounds
+        p.x += p.vx;
+        if (p.x < 10) p.x = 10;
+        if (p.x > levelLengthRef.current - 40) p.x = levelLengthRef.current - 40;
+
+        // Platform Collisions
+        p.isGrounded = false;
+        const nextY = p.y + p.vy;
+
+        for (const plat of platformsRef.current) {
+          // Check landing on top of platform
+          if (
+            p.x + p.width * 0.7 > plat.x &&
+            p.x + p.width * 0.3 < plat.x + plat.width
+          ) {
+            if (p.y + p.height <= plat.y + 4 && nextY + p.height >= plat.y) {
+              p.y = plat.y - p.height;
+              p.vy = 0;
+              p.isGrounded = true;
+              break;
+            }
+          }
+        }
+
+        if (!p.isGrounded) {
+          p.y += p.vy;
+        }
+
+        // Pit death check
+        if (p.y > 620) {
+          onPlayerFell();
+          p.x = Math.max(80, cameraX - 100);
+          p.y = 350;
+          p.vy = 0;
+        }
+
+        // --- QUESTION BLOCK COLLISION (Hit from below or touched) ---
+        for (const qb of questionBlocksRef.current) {
+          if (!qb.isHit) {
+            // Check collision with question block
+            if (
+              p.x + p.width > qb.x &&
+              p.x < qb.x + qb.width &&
+              p.y + p.height > qb.y &&
+              p.y < qb.y + qb.height
+            ) {
+              qb.isHit = true;
+              qb.bounceOffset = -8;
+              sound.playPowerUp();
+
+              const targetQ = levelQuestions[qb.questionIndex] || levelQuestions[0];
+              if (targetQ) {
+                onTriggerQuestion(targetQ, false);
+              }
+              break;
+            }
+          }
+        }
+
+        // --- COIN PICKUP COLLISION ---
+        for (const coin of coinsRef.current) {
+          if (!coin.isCollected) {
+            if (
+              p.x + p.width > coin.x &&
+              p.x < coin.x + coin.width &&
+              p.y + p.height > coin.y &&
+              p.y < coin.y + coin.height
+            ) {
+              coin.isCollected = true;
+              sound.playCoin();
+              onCollectCoin(5);
+            }
+          }
+        }
+
+        // --- POWER UP COLLISION ---
+        for (const pu of powerUpsRef.current) {
+          if (!pu.isCollected) {
+            if (
+              p.x + p.width > pu.x &&
+              p.x < pu.x + pu.width &&
+              p.y + p.height > pu.y &&
+              p.y < pu.y + pu.height
+            ) {
+              pu.isCollected = true;
+              sound.playPowerUp();
+              onCollectPowerUp(pu.type);
+            }
+          }
+        }
+
+        // --- ENEMY PATROL & COLLISION ---
+        for (const enemy of enemiesRef.current) {
+          if (!enemy.isDefeated) {
+            enemy.x += enemy.vx;
+            if (enemy.x <= enemy.minX || enemy.x >= enemy.maxX) {
+              enemy.vx *= -1;
+            }
+            enemy.animFrame = (enemy.animFrame + 0.1) % 4;
+
+            // Player touches enemy
+            if (
+              p.x + p.width > enemy.x &&
+              p.x < enemy.x + enemy.width &&
+              p.y + p.height > enemy.y &&
+              p.y < enemy.y + enemy.height
+            ) {
+              const enemyQ = levelQuestions[enemy.questionIndex] || levelQuestions[0];
+              if (enemyQ) {
+                onTriggerQuestion(enemyQ, true, enemy.id);
+              }
+              break;
+            }
+          }
+        }
+
+        // --- FINISH FLAG COLLISION ---
+        const flag = finishFlagRef.current;
+        if (
+          p.x + p.width > flag.x &&
+          p.x < flag.x + flag.width &&
+          p.y + p.height > flag.y &&
+          p.y < flag.y + flag.height
+        ) {
+          if (isBossLevel) {
+            onTriggerBossBattle();
+          } else {
+            onReachFinish();
+          }
+        }
+
+        // Animate question blocks bounce recovery
+        for (const qb of questionBlocksRef.current) {
+          if (qb.bounceOffset < 0) {
+            qb.bounceOffset += 0.8;
+            if (qb.bounceOffset > 0) qb.bounceOffset = 0;
+          }
+        }
+
+        // Camera smoothly follows player
+        const targetCamX = p.x - 300;
+        cameraXRef.current += (targetCamX - cameraXRef.current) * 0.12;
+        if (cameraXRef.current < 0) cameraXRef.current = 0;
+        const maxCam = Math.max(0, levelLengthRef.current - 800);
+        if (cameraXRef.current > maxCam) cameraXRef.current = maxCam;
+
+        // Player animation timer
+        if (p.isGrounded && Math.abs(p.vx) > 0.5) {
+          p.animTimer += 0.2;
+          p.walkFrame = Math.floor(p.animTimer) % 4;
+        } else {
+          p.walkFrame = 0;
+        }
+      }
+
+      // --- RENDERING ---
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cam = cameraXRef.current;
+
+      // 1. Parallax Sky Gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, worldDef.palette.skyTop);
+      grad.addColorStop(1, worldDef.palette.skyBottom);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Parallax Mountains / Hills (0.2x speed)
+      ctx.save();
+      ctx.fillStyle = worldDef.palette.hills;
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height);
+      const hillOffset = (cam * 0.2) % 300;
+      for (let x = -300; x < canvas.width + 300; x += 150) {
+        const peakY = worldNumber === 2 ? 220 : worldNumber === 3 ? 340 : 280;
+        ctx.quadraticCurveTo(x - hillOffset + 75, peakY - 60, x - hillOffset + 150, canvas.height);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // 3. Animated Clouds / Atmosphere
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      clouds.forEach((cloud) => {
+        cloud.x += cloud.vx;
+        if (cloud.x > levelLengthRef.current + 500) cloud.x = -200;
+        const drawCloudX = cloud.x - cam * 0.4;
+        if (drawCloudX > -150 && drawCloudX < canvas.width + 150) {
+          ctx.beginPath();
+          ctx.arc(drawCloudX, cloud.y, 25 * cloud.s, 0, Math.PI * 2);
+          ctx.arc(drawCloudX + 22 * cloud.s, cloud.y - 10 * cloud.s, 30 * cloud.s, 0, Math.PI * 2);
+          ctx.arc(drawCloudX + 48 * cloud.s, cloud.y, 24 * cloud.s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // 4. World Props & Parallax Foreground details
+      ctx.save();
+      ctx.translate(-cam, 0);
+
+      // Render Platforms
+      platformsRef.current.forEach((plat) => {
+        if (plat.x + plat.width > cam - 50 && plat.x < cam + canvas.width + 50) {
+          // Main Body
+          ctx.fillStyle = plat.type === 'solid' ? worldDef.palette.terrain : worldDef.palette.platform;
+          ctx.beginPath();
+          ctx.roundRect(plat.x, plat.y, plat.width, plat.height, 6);
+          ctx.fill();
+
+          // Platform Top Highlight (Grass / Snow / Sand cap)
+          ctx.fillStyle = worldDef.palette.accent;
+          ctx.fillRect(plat.x, plat.y, plat.width, 7);
+
+          // Texture brick lines
+          ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+          ctx.lineWidth = 2;
+          for (let bx = plat.x + 30; bx < plat.x + plat.width; bx += 35) {
+            ctx.beginPath();
+            ctx.moveTo(bx, plat.y + 7);
+            ctx.lineTo(bx, plat.y + plat.height);
+            ctx.stroke();
+          }
+        }
+      });
+
+      // Render Question Blocks (?)
+      questionBlocksRef.current.forEach((qb) => {
+        const drawY = qb.y + qb.bounceOffset;
+        // Block background
+        ctx.fillStyle = qb.isHit ? '#94a3b8' : '#f59e0b';
+        ctx.beginPath();
+        ctx.roundRect(qb.x, drawY, qb.width, qb.height, 8);
+        ctx.fill();
+
+        // Border & 3D bevel
+        ctx.strokeStyle = qb.isHit ? '#64748b' : '#b45309';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(qb.x, drawY, qb.width, qb.height);
+
+        // Corner rivets
+        ctx.fillStyle = '#ffffff';
+        const corners = [
+          [qb.x + 5, drawY + 5],
+          [qb.x + qb.width - 7, drawY + 5],
+          [qb.x + 5, drawY + qb.height - 7],
+          [qb.x + qb.width - 7, drawY + qb.height - 7]
+        ];
+        corners.forEach(([cx, cy]) => {
+          ctx.fillRect(cx, cy, 3, 3);
+        });
+
+        // Question mark text or spent dot
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 22px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(qb.isHit ? '✓' : '?', qb.x + qb.width / 2, drawY + qb.height / 2);
+      });
+
+      // Render Spinning Collectible Coins
+      const timeNow = Date.now() * 0.005;
+      coinsRef.current.forEach((coin) => {
+        if (!coin.isCollected) {
+          const coinW = Math.abs(Math.sin(timeNow + coin.x)) * (coin.width * 0.8) + 4;
+          const coinH = coin.height;
+
+          // Golden coin rim
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath();
+          ctx.ellipse(coin.x + coin.width / 2, coin.y + coin.height / 2, coinW / 2, coinH / 2, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Inner gold core
+          ctx.fillStyle = '#fde047';
+          ctx.beginPath();
+          ctx.ellipse(coin.x + coin.width / 2, coin.y + coin.height / 2, coinW * 0.35, coinH * 0.35, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Render Power-Ups
+      powerUpsRef.current.forEach((pu) => {
+        if (!pu.isCollected) {
+          const hoverY = pu.y + Math.sin(timeNow * 2) * 5;
+          ctx.font = '28px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const icon = pu.type === 'mushroom' ? '🍄' : pu.type === 'shield' ? '🛡️' : pu.type === 'superStar' ? '⭐' : '🌸';
+          ctx.fillText(icon, pu.x + pu.width / 2, hoverY + pu.height / 2);
+        }
+      });
+
+      // Render Enemies
+      enemiesRef.current.forEach((enemy) => {
+        if (!enemy.isDefeated) {
+          ctx.save();
+          // Draw cartoon enemy
+          const enemyTypeIcons = ['👾', '🐗', '🦀', '🦂', '🦇'];
+          const enemyIcon = enemyTypeIcons[(worldNumber - 1) % enemyTypeIcons.length] || '👾';
+          
+          ctx.font = '34px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(enemyIcon, enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
+          ctx.restore();
+        }
+      });
+
+      // Render Finish Flag / Gate
+      const flag = finishFlagRef.current;
+      if (isBossLevel) {
+        // Dramatic Boss Portal Gate
+        ctx.fillStyle = '#4c1d95';
+        ctx.fillRect(flag.x, flag.y, flag.width, flag.height);
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('👑', flag.x + flag.width / 2, flag.y + 40);
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('BOSS GATE', flag.x + flag.width / 2, flag.y + flag.height - 15);
+      } else {
+        // Flag Pole
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(flag.x + 8, flag.y, 8, flag.height);
+        // Golden Ball on top
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(flag.x + 12, flag.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        // Waving Triangle Pennant
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(flag.x + 16, flag.y + 10);
+        ctx.lineTo(flag.x + 60, flag.y + 35);
+        ctx.lineTo(flag.x + 16, flag.y + 60);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // --- RENDER PLAYER CHARACTER (Original Student Adventurer) ---
+      ctx.save();
+      const px = p.x;
+      const py = p.y;
+      const facing = p.facingRight ? 1 : -1;
+
+      // Center transformation for flipping
+      ctx.translate(px + p.width / 2, py + p.height / 2);
+      ctx.scale(facing, 1);
+
+      // Shield Aura Effect if active
+      if (playerState.shieldActive || playerState.powerUps.shield > 0) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 34, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+        ctx.fill();
+      }
+
+      // Super Star Sparkle Effect
+      if (playerState.starBoostCount > 0) {
+        ctx.fillStyle = '#fde047';
+        for (let i = 0; i < 4; i++) {
+          const ang = timeNow * 3 + (i * Math.PI) / 2;
+          const sx = Math.cos(ang) * 36;
+          const sy = Math.sin(ang) * 36;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 1. Adventurer Backpack (behind torso)
+      ctx.fillStyle = '#78350f';
+      ctx.beginPath();
+      ctx.roundRect(-18, -12, 12, 22, 4);
+      ctx.fill();
+
+      // 2. Legs & Shoes (Animated walking / jumping)
+      const legAngle = p.isGrounded ? Math.sin(p.walkFrame * Math.PI * 0.5) * 8 : -4;
+      // Left leg
+      ctx.fillStyle = '#1e3a8a'; // Navy school pants
+      ctx.fillRect(-8 - legAngle * 0.5, 10, 7, 16);
+      ctx.fillStyle = '#ffffff'; // White sneakers
+      ctx.fillRect(-10 - legAngle * 0.5, 23, 10, 6);
+
+      // Right leg
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(2 + legAngle * 0.5, 10, 7, 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(2 + legAngle * 0.5, 23, 10, 6);
+
+      // 3. Torso (Student Uniform / Jacket)
+      ctx.fillStyle = '#0284c7'; // Adventure Blue Jacket
+      ctx.beginPath();
+      ctx.roundRect(-10, -12, 20, 24, 5);
+      ctx.fill();
+
+      // White Shirt collar & badge
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-4, -12);
+      ctx.lineTo(0, -5);
+      ctx.lineTo(4, -12);
+      ctx.closePath();
+      ctx.fill();
+
+      // Solusi Guru ID Badge
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(2, -4, 5, 6);
+
+      // 4. Arms
+      const armSwing = p.isGrounded ? Math.sin(p.walkFrame * Math.PI * 0.5) * 6 : -6;
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.roundRect(-2 + armSwing, -8, 6, 14, 3);
+      ctx.fill();
+
+      // 5. Head
+      ctx.fillStyle = '#fbcfe8'; // Skin tone
+      ctx.beginPath();
+      ctx.arc(0, -18, 11, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(4, -19, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Smile
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(3, -16, 3, 0, Math.PI * 0.8);
+      ctx.stroke();
+
+      // 6. School/Adventure Cap
+      ctx.fillStyle = '#b91c1c'; // Maroon student cap
+      ctx.beginPath();
+      ctx.arc(0, -23, 11, Math.PI, Math.PI * 2);
+      ctx.fill();
+      // Cap Visor
+      ctx.fillStyle = '#991b1b';
+      ctx.beginPath();
+      ctx.moveTo(3, -22);
+      ctx.lineTo(14, -20);
+      ctx.lineTo(6, -18);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+      ctx.restore(); // camera translate restore
+
+      animId = requestAnimationFrame(gameLoop);
+    };
+
+    animId = requestAnimationFrame(gameLoop);
+    return () => cancelAnimationFrame(animId);
+  }, [
+    isPaused,
+    worldNumber,
+    levelNumber,
+    isBossLevel,
+    worldDef,
+    playerState,
+    levelQuestions,
+    onTriggerQuestion,
+    onCollectCoin,
+    onCollectPowerUp,
+    onReachFinish,
+    onTriggerBossBattle,
+    onPlayerFell
+  ]);
+
+  return (
+    <div className="relative w-full overflow-hidden select-none touch-none rounded-3xl shadow-2xl border-4 border-slate-800 bg-slate-900">
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={540}
+        className="w-full h-auto block max-h-[620px] aspect-[800/540]"
+      />
+
+      {/* On-screen Mobile & Tablet Touch Controls */}
+      <div className="absolute inset-x-0 bottom-3 px-4 flex justify-between items-end pointer-events-none z-20">
+        {/* D-Pad Buttons */}
+        <div className="flex items-center gap-3 pointer-events-auto">
+          <button
+            id="touch-left"
+            onTouchStart={() => (touchStateRef.current.left = true)}
+            onTouchEnd={() => (touchStateRef.current.left = false)}
+            onMouseDown={() => (touchStateRef.current.left = true)}
+            onMouseUp={() => (touchStateRef.current.left = false)}
+            onMouseLeave={() => (touchStateRef.current.left = false)}
+            className="w-14 h-14 rounded-2xl bg-slate-900/70 active:bg-emerald-500 backdrop-blur-md text-white border-2 border-white/30 text-2xl font-black flex items-center justify-center shadow-lg transition-transform active:scale-95"
+            aria-label="Gerak Kiri"
+          >
+            ◀
+          </button>
+          <button
+            id="touch-right"
+            onTouchStart={() => (touchStateRef.current.right = true)}
+            onTouchEnd={() => (touchStateRef.current.right = false)}
+            onMouseDown={() => (touchStateRef.current.right = true)}
+            onMouseUp={() => (touchStateRef.current.right = false)}
+            onMouseLeave={() => (touchStateRef.current.right = false)}
+            className="w-14 h-14 rounded-2xl bg-slate-900/70 active:bg-emerald-500 backdrop-blur-md text-white border-2 border-white/30 text-2xl font-black flex items-center justify-center shadow-lg transition-transform active:scale-95"
+            aria-label="Gerak Kanan"
+          >
+            ▶
+          </button>
+        </div>
+
+        {/* Action / Jump Button */}
+        <div className="pointer-events-auto">
+          <button
+            id="touch-jump"
+            onTouchStart={() => (touchStateRef.current.jump = true)}
+            onTouchEnd={() => (touchStateRef.current.jump = false)}
+            onMouseDown={() => (touchStateRef.current.jump = true)}
+            onMouseUp={() => (touchStateRef.current.jump = false)}
+            onMouseLeave={() => (touchStateRef.current.jump = false)}
+            className="w-16 h-16 rounded-3xl bg-emerald-600/85 active:bg-emerald-400 backdrop-blur-md text-white border-2 border-emerald-300 text-lg font-black flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all"
+            aria-label="Melompat"
+          >
+            <span>▲</span>
+            <span className="text-[10px] font-bold tracking-wider">LOMPAT</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

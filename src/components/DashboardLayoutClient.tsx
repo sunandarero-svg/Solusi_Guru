@@ -1,11 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, LogOut, LayoutDashboard, Users, BookOpen, FileText, CheckSquare, ShieldCheck, Activity } from "lucide-react";
+import {
+  Menu,
+  X,
+  LogOut,
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  FileText,
+  CheckSquare,
+  ShieldCheck,
+  Activity,
+  Gamepad2,
+  Sparkles,
+  ChevronDown
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import LiveHeartbeat from "@/components/LiveHeartbeat";
+
+interface SubNavItem {
+  href: string;
+  label: string;
+  icon?: any;
+}
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+  subItems?: SubNavItem[];
+}
 
 interface DashboardLayoutClientProps {
   children: React.ReactNode;
@@ -15,9 +42,10 @@ interface DashboardLayoutClientProps {
 
 export default function DashboardLayoutClient({ children, userEmail, role }: DashboardLayoutClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [interactiveOpen, setInteractiveOpen] = useState(true);
   const pathname = usePathname();
 
-  const getLinks = () => {
+  const getLinks = (): NavItem[] => {
     if (role === "ADMIN") {
       return [
         { href: "/dashboard/admin", label: "Dashboard Admin", icon: ShieldCheck },
@@ -25,6 +53,14 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
         { href: "/dashboard/admin/teachers", label: "Kelola Guru", icon: Users },
         { href: "/dashboard/admin/subjects", label: "Mata Pelajaran", icon: BookOpen },
         { href: "/dashboard/admin/teaching", label: "Tautkan Guru", icon: LayoutDashboard },
+        {
+          href: "/dashboard/interactive-learning",
+          label: "Pembelajaran Interaktif",
+          icon: Gamepad2,
+          subItems: [
+            { href: "/dashboard/interactive-learning/borneo-edu", label: "Game Borneo Edu", icon: Sparkles }
+          ]
+        },
       ];
     }
     if (role === "TEACHER") {
@@ -36,6 +72,14 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
         { href: "/dashboard/assignments", label: "Nilai", icon: FileText },
         { href: "/dashboard/attendance", label: "Absensi", icon: CheckSquare },
         { href: "/dashboard/journal", label: "Jurnal Guru", icon: FileText },
+        {
+          href: "/dashboard/interactive-learning",
+          label: "Pembelajaran Interaktif",
+          icon: Gamepad2,
+          subItems: [
+            { href: "/dashboard/interactive-learning/borneo-edu", label: "Game Borneo Edu", icon: Sparkles }
+          ]
+        },
         { href: "/dashboard/settings", label: "Profil Guru", icon: ShieldCheck },
       ];
     }
@@ -48,6 +92,14 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/subjects", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/dashboard/my-assignments", label: "Tugas Saya", icon: CheckSquare },
+      {
+        href: "/dashboard/interactive-learning",
+        label: "Pembelajaran Interaktif",
+        icon: Gamepad2,
+        subItems: [
+          { href: "/dashboard/interactive-learning/borneo-edu", label: "Game Borneo Edu", icon: Sparkles }
+        ]
+      },
       { href: "/dashboard/settings", label: "Pengaturan Akun", icon: ShieldCheck },
     ];
   };
@@ -83,8 +135,67 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
 
         <nav className="flex-1 p-4 overflow-y-auto space-y-1">
           {links.map((link) => {
-            const isActive = pathname === link.href;
+            const hasSub = link.subItems && link.subItems.length > 0;
+            const isSubActive = hasSub && link.subItems!.some((s) => pathname === s.href);
+            const isActive = pathname === link.href || isSubActive;
             const Icon = link.icon;
+
+            if (hasSub) {
+              return (
+                <div key={link.href} className="space-y-1">
+                  <div className="flex items-center justify-between group">
+                    <Link
+                      href={link.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
+                        ? "bg-emerald-50 text-emerald-700 shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        }`}
+                    >
+                      <Icon size={18} className={isActive ? "text-emerald-600" : "text-slate-400 group-hover:text-emerald-500 transition-colors"} strokeWidth={isActive ? 2.5 : 2} />
+                      <span className="truncate">{link.label}</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setInteractiveOpen((prev) => !prev)}
+                      className="p-2 text-slate-400 hover:text-slate-600 rounded-lg transition-transform"
+                      aria-label="Toggle submenu"
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-200 ${interactiveOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Submenu Items */}
+                  {interactiveOpen && (
+                    <div className="pl-6 pr-2 space-y-1">
+                      {link.subItems!.map((sub) => {
+                        const isThisSubActive = pathname === sub.href;
+                        const SubIcon = sub.icon || Sparkles;
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            onClick={() => setSidebarOpen(false)}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                              isThisSubActive
+                                ? "bg-amber-100 text-amber-900 font-extrabold shadow-xs"
+                                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            }`}
+                          >
+                            <SubIcon size={14} className={isThisSubActive ? "text-amber-600" : "text-slate-400"} />
+                            <span className="truncate">{sub.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={link.href}

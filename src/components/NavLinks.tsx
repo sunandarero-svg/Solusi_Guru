@@ -22,11 +22,15 @@ export default function NavLinks({ role }: NavLinksProps) {
     { href: "/dashboard/assignments", label: "📋 Tugas" },
     { href: "/dashboard/attendance", label: "📝 Absensi" },
     { href: "/dashboard/journal", label: "📔 Jurnal Guru" },
+    { href: "/dashboard/interactive-learning", label: "🎮 Pembelajaran Interaktif" },
+    { href: "/dashboard/interactive-learning/borneo-edu", label: "🕹️ Game Borneo Edu" },
   ];
 
   const studentLinks = [
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/dashboard/my-assignments", label: "📚 Tugas Saya" },
+    { href: "/dashboard/interactive-learning", label: "🎮 Pembelajaran Interaktif" },
+    { href: "/dashboard/interactive-learning/borneo-edu", label: "🕹️ Game Borneo Edu" },
   ];
 
   const principalLinks = [

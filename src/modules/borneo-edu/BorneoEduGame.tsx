@@ -1,0 +1,885 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { PlayerState, QuestionItem, TeacherConfig } from './types';
+import {
+  DEFAULT_TEACHER_CONFIG,
+  createInitialPlayerState,
+  getSavedPlayerState,
+  savePlayerStateToLocal,
+  getSavedConfig,
+  getStoredQuestions,
+  calculateFinalScore,
+  evaluateBadges
+} from './storage';
+import { sound } from './audio';
+import { WORLD_DEFINITIONS } from './defaultQuestions';
+import PlatformerCanvas from './PlatformerCanvas';
+import QuestionModal from './QuestionModal';
+import BossBattleModal from './BossBattleModal';
+import PowerUpShopModal from './PowerUpShopModal';
+import GameOverModal from './GameOverModal';
+import VictoryModal from './VictoryModal';
+import PrestasiPageModal from './PrestasiPageModal';
+import PetunjukModal from './PetunjukModal';
+import WorldSelectModal from './WorldSelectModal';
+import MejaGuruModal from './MejaGuruModal';
+
+export default function BorneoEduGame() {
+  const { data: session } = useSession();
+
+  // Screen / Modal view states
+  const [gameState, setGameState] = useState<
+    'MENU' | 'PLAYING' | 'QUESTION' | 'BOSS' | 'SHOP' | 'PRESTASI' | 'WORLD_SELECT' | 'PETUNJUK' | 'MEJA_GURU' | 'GAME_OVER' | 'VICTORY'
+  >('MENU');
+
+  // Player State
+  const [playerState, setPlayerState] = useState<PlayerState>(() => {
+    const saved = getSavedPlayerState();
+    if (saved) return saved;
+    return createInitialPlayerState();
+  });
+
+  // Teacher Config
+  const [teacherConfig, setTeacherConfig] = useState<TeacherConfig>(() => getSavedConfig());
+
+  // Questions Bank
+  const [allQuestions, setAllQuestions] = useState<QuestionItem[]>(() => getStoredQuestions());
+
+  // Current In-game question state
+  const [currentTriggeredQuestion, setCurrentTriggeredQuestion] = useState<QuestionItem | null>(null);
+  const [isEnemyTrigger, setIsEnemyTrigger] = useState<boolean>(false);
+  const [currentEnemyId, setCurrentEnemyId] = useState<string | undefined>(undefined);
+
+  // Audio / Display settings
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const gameContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-fill student profile from NextAuth session
+  useEffect(() => {
+    if (session?.user?.email) {
+      const emailName = session.user.email.split('@')[0];
+      const defaultName = session.user.name || (emailName ? emailName.toUpperCase() : 'Siswa');
+      setPlayerState((prev) => {
+        if (prev.studentName === 'Siswa Petualang') {
+          return {
+            ...prev,
+            studentName: defaultName
+          };
+        }
+        return prev;
+      });
+    }
+  }, [session]);
+
+  // Sync / Persist progress automatically
+  const persistState = useCallback((stateToSave: PlayerState) => {
+    savePlayerStateToLocal(stateToSave);
+
+    // Sync to backend API
+    fetch('/api/borneo-edu/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stateToSave)
+    }).catch(() => {});
+  }, []);
+
+  // Update player state helper with auto-save
+  const updatePlayer = useCallback((updater: (prev: PlayerState) => PlayerState) => {
+    setPlayerState((prev) => {
+      const updated = updater(prev);
+      persistState(updated);
+      return updated;
+    });
+  }, [persistState]);
+
+  // Handle Fullscreen Toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      gameContainerRef.current?.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
+  // Toggle Mute
+  const toggleSound = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    sound.setMute(newMuted);
+  };
+
+  // Start BGM on World load
+  useEffect(() => {
+    if (gameState === 'PLAYING') {
+      sound.startBgm(playerState.currentWorld);
+    } else {
+      sound.stopBgm();
+    }
+  }, [gameState, playerState.currentWorld]);
+
+  // Current level's questions
+  const currentLevelQuestions = allQuestions.filter(
+    (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && !q.isBossQuestion
+  );
+  const activeLevelQuestions = currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.slice(0, 5);
+
+  // Boss questions
+  const currentBossQuestions = allQuestions.filter(
+    (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && q.isBossQuestion
+  );
+  const backupBossQuestions = allQuestions.filter(
+    (q) => q.isBossQuestion && q.world === playerState.currentWorld
+  );
+
+  // Start / Continue Game
+  const handleStartGame = () => {
+    sound.playPowerUp();
+    setGameState('PLAYING');
+  };
+
+  // Select Level
+  const handleSelectLevel = (worldId: number, levelId: number) => {
+    updatePlayer((prev) => ({
+      ...prev,
+      currentWorld: worldId,
+      currentLevel: levelId,
+      checkpointScore: prev.score,
+      checkpointCoins: prev.coins
+    }));
+    sound.playPowerUp();
+    setGameState('PLAYING');
+  };
+
+  // Coin collected in arena
+  const handleCollectCoin = (amount: number) => {
+    updatePlayer((prev) => ({
+      ...prev,
+      coins: prev.coins + amount
+    }));
+  };
+
+  // PowerUp collected in arena
+  const handleCollectPowerUp = (type: 'mushroom' | 'hintFlower' | 'superStar' | 'shield') => {
+    updatePlayer((prev) => {
+      const pu = { ...prev.powerUps };
+      pu[type] = (pu[type] || 0) + 1;
+      let newLives = prev.lives;
+      let shieldActive = prev.shieldActive;
+      let starBoost = prev.starBoostCount;
+
+      if (type === 'mushroom' && newLives < 5) {
+        newLives += 1;
+      }
+      if (type === 'shield') {
+        shieldActive = true;
+      }
+      if (type === 'superStar') {
+        starBoost = 3;
+      }
+
+      return {
+        ...prev,
+        lives: newLives,
+        powerUps: pu,
+        shieldActive,
+        starBoostCount: starBoost
+      };
+    });
+  };
+
+  // Player touched Question block or Enemy
+  const handleTriggerQuestion = (q: QuestionItem, isEnemy: boolean, enemyId?: string) => {
+    setCurrentTriggeredQuestion(q);
+    setIsEnemyTrigger(isEnemy);
+    setCurrentEnemyId(enemyId);
+    setGameState('QUESTION');
+  };
+
+  // Question Answer Resolved
+  const handleAnswerResolved = (
+    isCorrect: boolean,
+    timeSpent: number,
+    chosenOption: string,
+    pointsEarned: number,
+    coinsEarned: number
+  ) => {
+    if (!currentTriggeredQuestion) return;
+
+    updatePlayer((prev) => {
+      let lives = prev.lives;
+      let combo = prev.combo;
+      let highestCombo = prev.highestCombo;
+      let shieldActive = prev.shieldActive;
+      let starBoost = prev.starBoostCount;
+      const pu = { ...prev.powerUps };
+
+      if (isCorrect) {
+        combo += 1;
+        if (combo > highestCombo) highestCombo = combo;
+        if (starBoost > 0) starBoost -= 1;
+      } else {
+        combo = 0;
+        // Shield absorption
+        if (shieldActive || pu.shield > 0) {
+          sound.playShieldDeflect();
+          shieldActive = false;
+          if (pu.shield > 0) pu.shield -= 1;
+        } else {
+          lives -= 1;
+        }
+      }
+
+      const totalCorrect = prev.correctCount + (isCorrect ? 1 : 0);
+      const totalWrong = prev.wrongCount + (isCorrect ? 0 : 1);
+      const totalQ = totalCorrect + totalWrong;
+      const acc = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0;
+
+      const newHistory = [
+        ...(prev.questionHistory || []),
+        {
+          questionId: currentTriggeredQuestion.questionId,
+          questionText: currentTriggeredQuestion.question,
+          chosenOption,
+          correctAnswer: currentTriggeredQuestion.correctAnswer,
+          isCorrect,
+          timeSpentSeconds: timeSpent,
+          difficulty: currentTriggeredQuestion.difficulty,
+          world: currentTriggeredQuestion.world,
+          level: currentTriggeredQuestion.level,
+          timestamp: new Date().toISOString()
+        }
+      ];
+
+      const evaluatedBadges = evaluateBadges({
+        completedLevels: prev.completedLevels,
+        score: prev.score + pointsEarned,
+        accuracy: acc,
+        highestCombo,
+        bossesDefeated: prev.bossesDefeated
+      }, teacherConfig);
+
+      const isDead = lives <= 0;
+
+      return {
+        ...prev,
+        lives: Math.max(0, lives),
+        coins: prev.coins + coinsEarned,
+        score: prev.score + pointsEarned,
+        combo,
+        highestCombo,
+        correctCount: totalCorrect,
+        wrongCount: totalWrong,
+        shieldActive,
+        starBoostCount: starBoost,
+        powerUps: pu,
+        badges: evaluatedBadges,
+        questionHistory: newHistory,
+        gameStatus: isDead ? 'Game Over' : prev.gameStatus
+      };
+    });
+
+    // Check if player died
+    if (playerState.lives <= 1 && !isCorrect && !playerState.shieldActive && playerState.powerUps.shield <= 0) {
+      setTimeout(() => {
+        setGameState('GAME_OVER');
+      }, 800);
+    }
+  };
+
+  // Close question modal
+  const handleCloseQuestionModal = () => {
+    if (playerState.lives <= 0) {
+      setGameState('GAME_OVER');
+    } else {
+      setGameState('PLAYING');
+    }
+    setCurrentTriggeredQuestion(null);
+  };
+
+  // Pit Fall
+  const handlePlayerFell = () => {
+    updatePlayer((prev) => {
+      let lives = prev.lives;
+      let shieldActive = prev.shieldActive;
+      const pu = { ...prev.powerUps };
+
+      if (shieldActive || pu.shield > 0) {
+        sound.playShieldDeflect();
+        shieldActive = false;
+        if (pu.shield > 0) pu.shield -= 1;
+      } else {
+        lives -= 1;
+        sound.playWrong();
+      }
+
+      return {
+        ...prev,
+        lives: Math.max(0, lives),
+        shieldActive,
+        powerUps: pu
+      };
+    });
+
+    if (playerState.lives <= 1 && !playerState.shieldActive && playerState.powerUps.shield <= 0) {
+      setGameState('GAME_OVER');
+    }
+  };
+
+  // Reach Finish Flag (Level Completed)
+  const handleReachFinish = () => {
+    sound.playPowerUp();
+    const currentLvl = playerState.currentLevel;
+    const isLastOfWorld = currentLvl % 5 === 0;
+
+    updatePlayer((prev) => {
+      const completed = Array.from(new Set([...prev.completedLevels, currentLvl]));
+      let nextLvl = currentLvl + 1;
+      let nextWorld = prev.currentWorld;
+      let completedWorlds = prev.completedWorlds;
+
+      if (isLastOfWorld && nextWorld < 5) {
+        nextWorld += 1;
+        completedWorlds += 1;
+      }
+      if (nextLvl > 25) nextLvl = 25;
+
+      return {
+        ...prev,
+        coins: prev.coins + 25, // Level completion reward (+25 coins)
+        completedLevels: completed,
+        currentLevel: nextLvl,
+        currentWorld: nextWorld,
+        completedWorlds,
+        checkpointScore: prev.score,
+        checkpointCoins: prev.coins + 25
+      };
+    });
+
+    alert(`🎉 LEVEL ${currentLvl} SELESAI!\nKamu mendapatkan +25 Koin Petualangan!`);
+  };
+
+  // Trigger Boss Battle
+  const handleTriggerBossBattle = () => {
+    setGameState('BOSS');
+  };
+
+  // Boss Defeated
+  const handleBossDefeated = (totalScoreGained: number, totalCoinsGained: number) => {
+    const isFinal = playerState.currentLevel === 25;
+
+    updatePlayer((prev) => {
+      const completed = Array.from(new Set([...prev.completedLevels, prev.currentLevel]));
+      const defeated = Math.min(5, prev.bossesDefeated + 1);
+      const nextWorld = Math.min(5, prev.currentWorld + 1);
+      const nextLvl = Math.min(25, prev.currentLevel + 1);
+
+      return {
+        ...prev,
+        score: prev.score + totalScoreGained,
+        coins: prev.coins + totalCoinsGained,
+        completedLevels: completed,
+        bossesDefeated: defeated,
+        currentWorld: nextWorld,
+        currentLevel: nextLvl,
+        gameStatus: isFinal ? 'Selesai' : prev.gameStatus
+      };
+    });
+
+    if (isFinal) {
+      sound.playVictoryFanfare();
+      setGameState('VICTORY');
+    } else {
+      alert(`🏆 BOSS DEFEATED!\nKamu mendapatkan +${totalScoreGained} Poin dan +${totalCoinsGained} Koin! World berikutnya terbuka!`);
+      setGameState('PLAYING');
+    }
+  };
+
+  // Boss damage to player
+  const handlePlayerDamage = () => {
+    updatePlayer((prev) => {
+      let lives = prev.lives;
+      let shieldActive = prev.shieldActive;
+      const pu = { ...prev.powerUps };
+
+      if (shieldActive || pu.shield > 0) {
+        sound.playShieldDeflect();
+        shieldActive = false;
+        if (pu.shield > 0) pu.shield -= 1;
+      } else {
+        lives -= 1;
+      }
+
+      return {
+        ...prev,
+        lives: Math.max(0, lives),
+        shieldActive,
+        powerUps: pu
+      };
+    });
+  };
+
+  // Buy PowerUp in Shop
+  const handleBuyItem = (type: 'mushroom' | 'hintFlower' | 'superStar' | 'shield', cost: number) => {
+    updatePlayer((prev) => {
+      if (prev.coins < cost) return prev;
+      const pu = { ...prev.powerUps };
+      pu[type] = (pu[type] || 0) + 1;
+      let newLives = prev.lives;
+      let shieldActive = prev.shieldActive;
+      let starBoost = prev.starBoostCount;
+
+      if (type === 'mushroom' && newLives < 5) newLives += 1;
+      if (type === 'shield') shieldActive = true;
+      if (type === 'superStar') starBoost = 3;
+
+      return {
+        ...prev,
+        coins: prev.coins - cost,
+        lives: newLives,
+        powerUps: pu,
+        shieldActive,
+        starBoostCount: starBoost
+      };
+    });
+  };
+
+  // Retry on Game Over
+  const handleRetryGameOver = () => {
+    sound.playPowerUp();
+    updatePlayer((prev) => ({
+      ...prev,
+      lives: 3,
+      score: prev.checkpointScore || prev.score,
+      coins: prev.checkpointCoins || prev.coins,
+      combo: 0,
+      gameStatus: 'Sedang Berjalan'
+    }));
+    setGameState('PLAYING');
+  };
+
+  // Reset Progress from scratch (with confirmation)
+  const handleResetProgressFromScratch = () => {
+    const fresh = createInitialPlayerState(
+      playerState.studentName,
+      playerState.className,
+      playerState.studentNumber,
+      playerState.subject,
+      playerState.materi
+    );
+    setPlayerState(fresh);
+    persistState(fresh);
+    setGameState('MENU');
+    alert('Permainan berhasil diulang dari awal (World 1 Level 1).');
+  };
+
+  const currentWorldDef = WORLD_DEFINITIONS.find((w) => w.id === playerState.currentWorld) || WORLD_DEFINITIONS[0];
+
+  return (
+    <div
+      ref={gameContainerRef}
+      className="w-full min-h-[640px] bg-slate-950 rounded-3xl p-3 sm:p-6 shadow-2xl relative select-none font-sans text-white border-2 border-slate-800"
+    >
+      {/* ========================================================================= */}
+      {/* 1. HALAMAN UTAMA (MAIN MENU) */}
+      {/* ========================================================================= */}
+      {gameState === 'MENU' && (
+        <div className="relative min-h-[580px] rounded-3xl overflow-hidden flex flex-col justify-between p-6 sm:p-10 border-2 border-slate-800 bg-gradient-to-b from-teal-950 via-emerald-950 to-slate-950">
+          {/* Animated Background Decor */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          {/* Floating Coins Decor */}
+          <div className="absolute top-16 left-12 text-3xl animate-bounce">🪙</div>
+          <div className="absolute top-28 right-24 text-2xl animate-bounce delay-300">🪙</div>
+          <div className="absolute bottom-28 left-20 text-2xl animate-bounce delay-500">🪙</div>
+
+          {/* Top Bar on Main Menu: Settings & Meja Guru */}
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            {/* Audio & Fullscreen Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleSound}
+                className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 backdrop-blur-md shadow-md flex items-center gap-1.5"
+                title="Pengaturan Suara"
+              >
+                <span>{isMuted ? '🔇' : '🔊'}</span>
+                <span>{isMuted ? 'Muted' : 'Audio On'}</span>
+              </button>
+              <button
+                onClick={toggleFullscreen}
+                className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 backdrop-blur-md shadow-md flex items-center gap-1.5"
+                title="Layar Penuh"
+              >
+                <span>{isFullscreen ? '🗗' : '⛶'}</span>
+                <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+              </button>
+            </div>
+
+            {/* MEJA GURU BUTTON (Top Right Corner with Teacher/Desk Icon) */}
+            <button
+              id="btn-meja-guru"
+              onClick={() => setGameState('MEJA_GURU')}
+              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs sm:text-sm shadow-xl transition-transform active:scale-95 flex items-center gap-2 border-2 border-amber-300"
+            >
+              <span className="text-base sm:text-lg">👨‍🏫</span>
+              <span>MEJA GURU</span>
+            </button>
+          </div>
+
+          {/* Hero Banner: Large Game Title & Slogan */}
+          <div className="relative z-10 text-center my-6">
+            <div className="inline-block px-4 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black uppercase tracking-widest mb-3">
+              SUPER MARIO EDU • EDISI BORNEO
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-teal-200 drop-shadow-md">
+              BORNEO EDU
+            </h1>
+            <p className="text-base sm:text-xl font-extrabold text-amber-300 mt-2 tracking-wide drop-shadow">
+              "Petualangan Belajar, Kumpulkan Koin, Taklukkan Tantangan!"
+            </p>
+          </div>
+
+          {/* Student Identity Card */}
+          <div className="relative z-10 max-w-lg mx-auto w-full p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 backdrop-blur-md mb-6 shadow-xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
+              <span className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span>🎒</span>
+                <span>Identitas Siswa Petualang</span>
+              </span>
+              <span className="text-[10px] text-slate-400">Login Otomatis</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">Nama Siswa</label>
+                <input
+                  type="text"
+                  value={playerState.studentName}
+                  onChange={(e) => updatePlayer((p) => ({ ...p, studentName: e.target.value }))}
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">Nomor Absen</label>
+                <input
+                  type="text"
+                  value={playerState.studentNumber}
+                  onChange={(e) => updatePlayer((p) => ({ ...p, studentNumber: e.target.value }))}
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">Kelas</label>
+                <input
+                  type="text"
+                  value={playerState.className}
+                  onChange={(e) => updatePlayer((p) => ({ ...p, className: e.target.value }))}
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Quick Status Bar */}
+            <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/80 text-xs">
+              <span className="text-slate-400">
+                Nyawa: <strong className="text-red-400">❤️ {playerState.lives}</strong>
+              </span>
+              <span className="text-slate-400">
+                Koin: <strong className="text-amber-400">🪙 {playerState.coins}</strong>
+              </span>
+              <span className="text-slate-400">
+                Skor: <strong className="text-yellow-300">⭐ {playerState.score}</strong>
+              </span>
+              <span className="text-slate-400">
+                Posisi: <strong className="text-emerald-400">W{playerState.currentWorld} L{playerState.currentLevel}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Main Action Buttons Grid */}
+          <div className="relative z-10 max-w-lg mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            <button
+              id="btn-mulai"
+              onClick={handleStartGame}
+              className="py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm sm:text-base shadow-xl transition-transform active:scale-95 flex items-center justify-center gap-2 col-span-1 sm:col-span-2 border border-emerald-300"
+            >
+              <span>🚀</span>
+              <span>{playerState.completedLevels.length > 0 ? 'LANJUTKAN PETUALANGAN' : 'MULAI PETUALANGAN'}</span>
+            </button>
+
+            <button
+              onClick={() => setGameState('WORLD_SELECT')}
+              className="py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
+            >
+              <span>🗺️</span>
+              <span>PILIH WORLD</span>
+            </button>
+
+            <button
+              onClick={() => setGameState('PRESTASI')}
+              className="py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
+            >
+              <span>🏆</span>
+              <span>PRESTASI</span>
+            </button>
+
+            <button
+              onClick={() => setGameState('PETUNJUK')}
+              className="py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95 col-span-1 sm:col-span-2"
+            >
+              <span>📖</span>
+              <span>PETUNJUK PERMAINAN</span>
+            </button>
+          </div>
+
+          {/* Footer Requirement: Game Design by Sunandar Ero, S.Kom */}
+          <div className="relative z-10 text-center pt-2 border-t border-slate-800/60">
+            <p className="text-[11px] text-slate-400 tracking-wide font-medium">
+              Game Design by Sunandar Ero, S.Kom
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. IN-GAME ARENA & HUD */}
+      {/* ========================================================================= */}
+      {(gameState === 'PLAYING' || gameState === 'QUESTION' || gameState === 'BOSS') && (
+        <div className="flex flex-col gap-3">
+          {/* Top In-Game Heads-Up Display (HUD) */}
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+            {/* Player Stats */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Lives */}
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
+                <span className="text-sm">❤️</span>
+                <span className="text-xs font-black text-rose-400">{playerState.lives}</span>
+              </div>
+
+              {/* Coins */}
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
+                <span className="text-sm">🪙</span>
+                <span className="text-xs font-black text-amber-400">{playerState.coins}</span>
+              </div>
+
+              {/* Score */}
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
+                <span className="text-sm">⭐</span>
+                <span className="text-xs font-black text-yellow-300">{playerState.score}</span>
+              </div>
+
+              {/* Combo */}
+              {playerState.combo > 0 && (
+                <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-orange-500/20 border border-orange-500/40 animate-pulse">
+                  <span className="text-sm">🔥</span>
+                  <span className="text-xs font-black text-orange-400">{playerState.combo}x Combo</span>
+                </div>
+              )}
+
+              {/* Active Power-Ups Indicators */}
+              <div className="flex items-center gap-1">
+                {playerState.shieldActive && (
+                  <span className="px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-bold" title="Shield Aktif">
+                    🛡️ Aktif
+                  </span>
+                )}
+                {playerState.starBoostCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-lg bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 text-xs font-bold" title="Super Star 2x Poin">
+                    ⭐ 2x ({playerState.starBoostCount})
+                  </span>
+                )}
+                {playerState.powerUps.hintFlower > 0 && (
+                  <span className="px-2 py-0.5 rounded-lg bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold" title="Hint Flower">
+                    🌸 {playerState.powerUps.hintFlower}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Level Info & Action Buttons */}
+            <div className="flex items-center gap-2">
+              <div className="text-right hidden sm:block">
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">
+                  W{playerState.currentWorld} • {currentWorldDef.name.split(' ')[0]}
+                </span>
+                <span className="text-xs font-black text-emerald-400">Level {playerState.currentLevel} / 25</span>
+              </div>
+
+              <button
+                onClick={() => setGameState('SHOP')}
+                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/40 shadow-sm"
+              >
+                🛒 Shop
+              </button>
+
+              <button
+                onClick={toggleSound}
+                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs border border-slate-700"
+              >
+                {isMuted ? '🔇' : '🔊'}
+              </button>
+
+              <button
+                onClick={() => setGameState('MENU')}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700"
+              >
+                Menu ✕
+              </button>
+            </div>
+          </div>
+
+          {/* 2D Canvas Platformer Arena */}
+          <PlatformerCanvas
+            worldNumber={playerState.currentWorld}
+            levelNumber={playerState.currentLevel}
+            playerState={playerState}
+            onTriggerQuestion={handleTriggerQuestion}
+            onCollectCoin={handleCollectCoin}
+            onCollectPowerUp={handleCollectPowerUp}
+            onReachFinish={handleReachFinish}
+            onTriggerBossBattle={handleTriggerBossBattle}
+            onPlayerFell={handlePlayerFell}
+            isPaused={gameState !== 'PLAYING'}
+            levelQuestions={activeLevelQuestions}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. QUESTION MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'QUESTION' && currentTriggeredQuestion && (
+        <QuestionModal
+          question={currentTriggeredQuestion}
+          isEnemy={isEnemyTrigger}
+          playerState={playerState}
+          timeLimitSeconds={
+            currentTriggeredQuestion.difficulty === 'EASY'
+              ? teacherConfig.timeEasy
+              : currentTriggeredQuestion.difficulty === 'MEDIUM'
+              ? teacherConfig.timeMedium
+              : teacherConfig.timeHard
+          }
+          onAnswerResolved={handleAnswerResolved}
+          onUseHintFlower={() => {
+            updatePlayer((prev) => ({
+              ...prev,
+              powerUps: {
+                ...prev.powerUps,
+                hintFlower: Math.max(0, prev.powerUps.hintFlower - 1)
+              }
+            }));
+          }}
+          onClose={handleCloseQuestionModal}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. BOSS BATTLE MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'BOSS' && (
+        <BossBattleModal
+          worldNumber={playerState.currentWorld}
+          levelNumber={playerState.currentLevel}
+          playerState={playerState}
+          bossQuestions={currentBossQuestions}
+          backupQuestions={backupBossQuestions}
+          onBossDefeated={handleBossDefeated}
+          onPlayerDamage={handlePlayerDamage}
+          onGameOver={() => setGameState('GAME_OVER')}
+          onUseHintFlower={() => {
+            updatePlayer((prev) => ({
+              ...prev,
+              powerUps: {
+                ...prev.powerUps,
+                hintFlower: Math.max(0, prev.powerUps.hintFlower - 1)
+              }
+            }));
+          }}
+          onClose={() => setGameState('PLAYING')}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. POWER-UP SHOP MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'SHOP' && (
+        <PowerUpShopModal
+          playerState={playerState}
+          onBuyItem={handleBuyItem}
+          onClose={() => setGameState('PLAYING')}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. GAME OVER MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'GAME_OVER' && (
+        <GameOverModal
+          playerState={playerState}
+          onRetry={handleRetryGameOver}
+          onMainMenu={() => setGameState('MENU')}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 7. VICTORY MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'VICTORY' && (
+        <VictoryModal
+          playerState={playerState}
+          onViewAchievements={() => setGameState('PRESTASI')}
+          onMainMenu={() => setGameState('MENU')}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 8. PRESTASI MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'PRESTASI' && (
+        <PrestasiPageModal
+          playerState={playerState}
+          teacherConfig={teacherConfig}
+          onContinue={handleStartGame}
+          onResetProgress={handleResetProgressFromScratch}
+          onClose={() => setGameState('MENU')}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 9. PETUNJUK MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'PETUNJUK' && (
+        <PetunjukModal onClose={() => setGameState('MENU')} />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 10. WORLD SELECT MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'WORLD_SELECT' && (
+        <WorldSelectModal
+          playerState={playerState}
+          onSelectLevel={handleSelectLevel}
+          onClose={() => setGameState('MENU')}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 11. MEJA GURU MODAL */}
+      {/* ========================================================================= */}
+      {gameState === 'MEJA_GURU' && (
+        <MejaGuruModal
+          teacherConfig={teacherConfig}
+          onUpdateConfig={(cfg) => setTeacherConfig(cfg)}
+          onClose={() => setGameState('MENU')}
+          userRole={session?.user?.role}
+        />
+      )}
+    </div>
+  );
+}

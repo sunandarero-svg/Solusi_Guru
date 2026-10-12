@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { GraduationCap, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
@@ -132,6 +133,16 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+            <div className="mt-4 pt-4 border-t border-slate-200/60 text-center">
+              <Link
+                href="/interactive-learning/borneo-edu"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-sm shadow-md transition-all active:scale-98"
+              >
+                <span>🎮</span>
+                <span>Main Game Borneo Edu Sekarang</span>
+                <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full text-slate-900">2D Platformer</span>
+              </Link>
+            </div>
           </form>
         </div>
 
