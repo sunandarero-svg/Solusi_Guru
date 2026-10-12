@@ -94,6 +94,32 @@ export default function PlatformerCanvas({
 
   const keysRef = useRef<{ [key: string]: boolean }>({});
 
+  // Stable references to prevent render-cycle level rebuilds
+  const levelQuestionsRef = useRef(levelQuestions);
+  levelQuestionsRef.current = levelQuestions;
+
+  const playerStateRef = useRef(playerState);
+  playerStateRef.current = playerState;
+
+  const callbacksRef = useRef({
+    onTriggerQuestion,
+    onCollectCoin,
+    onCollectPowerUp,
+    onReachFinish,
+    onTriggerBossBattle,
+    onPlayerFell
+  });
+  callbacksRef.current = {
+    onTriggerQuestion,
+    onCollectCoin,
+    onCollectPowerUp,
+    onReachFinish,
+    onTriggerBossBattle,
+    onPlayerFell
+  };
+
+  const currentLoadedLevelKey = useRef<string>('');
+
   const worldDef = WORLD_DEFINITIONS.find((w) => w.id === worldNumber) || WORLD_DEFINITIONS[0];
   const isBossLevel = levelNumber === 5 || levelNumber === 10 || levelNumber === 15 || levelNumber === 20 || levelNumber === 25;
 
@@ -182,7 +208,7 @@ export default function PlatformerCanvas({
           width: 42,
           height: 42,
           isHit: false,
-          questionIndex: idx % Math.max(1, levelQuestions.length),
+          questionIndex: idx % Math.max(1, levelQuestionsRef.current?.length || 5),
           bounceOffset: 0
         });
       });
@@ -234,7 +260,7 @@ export default function PlatformerCanvas({
         minX: 300,
         maxX: 620,
         isDefeated: false,
-        questionIndex: (qPositions.length) % Math.max(1, levelQuestions.length),
+        questionIndex: (qPositions.length) % Math.max(1, levelQuestionsRef.current?.length || 5),
         animFrame: 0
       });
 
@@ -248,7 +274,7 @@ export default function PlatformerCanvas({
         minX: 900,
         maxX: 1400,
         isDefeated: false,
-        questionIndex: (qPositions.length + 1) % Math.max(1, levelQuestions.length),
+        questionIndex: (qPositions.length + 1) % Math.max(1, levelQuestionsRef.current?.length || 5),
         animFrame: 0
       });
 
@@ -263,7 +289,7 @@ export default function PlatformerCanvas({
           minX: 1680,
           maxX: 2150,
           isDefeated: false,
-          questionIndex: (qPositions.length + 2) % Math.max(1, levelQuestions.length),
+          questionIndex: (qPositions.length + 2) % Math.max(1, levelQuestionsRef.current?.length || 5),
           animFrame: 0
         });
       }
@@ -275,18 +301,22 @@ export default function PlatformerCanvas({
     powerUpsRef.current = pList;
     enemiesRef.current = eList;
 
-    // Reset player position
+    // Reset player position on genuine level load
     playerRef.current.x = 80;
     playerRef.current.y = 360;
     playerRef.current.vx = 0;
     playerRef.current.vy = 0;
     playerRef.current.isGrounded = false;
     cameraXRef.current = 0;
-  }, [levelNumber, isBossLevel, levelQuestions]);
+  }, [levelNumber, isBossLevel]);
 
   useEffect(() => {
-    buildLevel();
-  }, [buildLevel]);
+    const levelKey = `w${worldNumber}_l${levelNumber}`;
+    if (currentLoadedLevelKey.current !== levelKey) {
+      currentLoadedLevelKey.current = levelKey;
+      buildLevel();
+    }
+  }, [worldNumber, levelNumber, buildLevel]);
 
   // Keyboard and focus events
   useEffect(() => {
@@ -454,7 +484,7 @@ export default function PlatformerCanvas({
 
         // Pit death check
         if (p.y > 620) {
-          onPlayerFell();
+          callbacksRef.current.onPlayerFell();
           p.x = Math.max(80, cameraX - 100);
           p.y = 350;
           p.vy = 0;
@@ -474,9 +504,10 @@ export default function PlatformerCanvas({
               qb.bounceOffset = -8;
               sound.playPowerUp();
 
-              const targetQ = levelQuestions[qb.questionIndex] || levelQuestions[0];
+              const questionsList = levelQuestionsRef.current;
+              const targetQ = questionsList[qb.questionIndex] || questionsList[0];
               if (targetQ) {
-                onTriggerQuestion(targetQ, false);
+                callbacksRef.current.onTriggerQuestion(targetQ, false);
               }
               break;
             }
@@ -494,7 +525,7 @@ export default function PlatformerCanvas({
             ) {
               coin.isCollected = true;
               sound.playCoin();
-              onCollectCoin(5);
+              callbacksRef.current.onCollectCoin(5);
             }
           }
         }
@@ -510,7 +541,7 @@ export default function PlatformerCanvas({
             ) {
               pu.isCollected = true;
               sound.playPowerUp();
-              onCollectPowerUp(pu.type);
+              callbacksRef.current.onCollectPowerUp(pu.type);
             }
           }
         }
@@ -531,9 +562,10 @@ export default function PlatformerCanvas({
               p.y + p.height > enemy.y &&
               p.y < enemy.y + enemy.height
             ) {
-              const enemyQ = levelQuestions[enemy.questionIndex] || levelQuestions[0];
+              const questionsList = levelQuestionsRef.current;
+              const enemyQ = questionsList[enemy.questionIndex] || questionsList[0];
               if (enemyQ) {
-                onTriggerQuestion(enemyQ, true, enemy.id);
+                callbacksRef.current.onTriggerQuestion(enemyQ, true, enemy.id);
               }
               break;
             }
@@ -549,9 +581,9 @@ export default function PlatformerCanvas({
           p.y < flag.y + flag.height
         ) {
           if (isBossLevel) {
-            onTriggerBossBattle();
+            callbacksRef.current.onTriggerBossBattle();
           } else {
-            onReachFinish();
+            callbacksRef.current.onReachFinish();
           }
         }
 
@@ -774,7 +806,7 @@ export default function PlatformerCanvas({
       ctx.scale(facing, 1);
 
       // Shield Aura Effect if active
-      if (playerState.shieldActive || playerState.powerUps.shield > 0) {
+      if (playerStateRef.current.shieldActive || playerStateRef.current.powerUps.shield > 0) {
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -785,7 +817,7 @@ export default function PlatformerCanvas({
       }
 
       // Super Star Sparkle Effect
-      if (playerState.starBoostCount > 0) {
+      if (playerStateRef.current.starBoostCount > 0) {
         ctx.fillStyle = '#fde047';
         for (let i = 0; i < 4; i++) {
           const ang = timeNow * 3 + (i * Math.PI) / 2;
@@ -889,30 +921,22 @@ export default function PlatformerCanvas({
     worldNumber,
     levelNumber,
     isBossLevel,
-    worldDef,
-    playerState,
-    levelQuestions,
-    onTriggerQuestion,
-    onCollectCoin,
-    onCollectPowerUp,
-    onReachFinish,
-    onTriggerBossBattle,
-    onPlayerFell
+    worldDef
   ]);
 
   return (
-    <div className="relative w-full overflow-hidden select-none touch-none rounded-3xl shadow-2xl border-4 border-slate-800 bg-slate-900">
+    <div className="relative w-full flex-1 max-h-[calc(100vh-65px)] landscape:max-h-[calc(100dvh-55px)] sm:max-h-[620px] overflow-hidden select-none touch-none rounded-2xl sm:rounded-3xl shadow-2xl border-2 sm:border-4 border-slate-800 bg-slate-900 flex items-center justify-center">
       <canvas
         ref={canvasRef}
         width={800}
         height={540}
-        className="w-full h-auto block max-h-[620px] aspect-[800/540]"
+        className="max-h-full max-w-full w-auto h-auto aspect-[800/540] object-contain block mx-auto"
       />
 
       {/* On-screen Mobile & Tablet Touch Controls (Landscape & Portrait Ergonomic) */}
-      <div className="absolute inset-x-0 bottom-2 sm:bottom-4 px-3 sm:px-6 flex justify-between items-end pointer-events-none z-20 select-none touch-none">
+      <div className="absolute inset-x-0 bottom-1 sm:bottom-4 px-2 sm:px-6 flex justify-between items-end pointer-events-none z-30 select-none touch-none">
         {/* D-Pad Buttons (Left & Right) */}
-        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto p-1.5 rounded-2xl bg-slate-950/40 backdrop-blur-md border border-white/10 shadow-2xl">
+        <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto p-1 sm:p-1.5 rounded-xl sm:rounded-2xl bg-slate-950/60 backdrop-blur-md border border-white/10 shadow-2xl">
           {/* Tombol Kiri */}
           <button
             type="button"
@@ -949,15 +973,15 @@ export default function PlatformerCanvas({
               setTouchDirection('left', false);
             }}
             onContextMenu={(e) => e.preventDefault()}
-            className={`w-13 h-13 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
+            className={`w-11 h-11 landscape:w-11 landscape:h-11 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
               touchActive.left
                 ? 'bg-emerald-500 text-slate-950 border-emerald-300 ring-4 ring-emerald-400/50 scale-95 shadow-emerald-500/50'
                 : 'bg-slate-900/80 text-white border-white/30 hover:border-emerald-400/60'
             }`}
             aria-label="Gerak Kiri (Mundur)"
           >
-            <span className="text-xl sm:text-2xl leading-none">◀</span>
-            <span className="text-[9px] sm:text-[10px] font-bold tracking-tight opacity-80 mt-0.5">KIRI</span>
+            <span className="text-lg sm:text-2xl leading-none">◀</span>
+            <span className="text-[8px] sm:text-[10px] font-bold tracking-tight opacity-80 mt-0.5">KIRI</span>
           </button>
 
           {/* Tombol Kanan (MAJU KE DEPAN) */}
@@ -996,20 +1020,20 @@ export default function PlatformerCanvas({
               setTouchDirection('right', false);
             }}
             onContextMenu={(e) => e.preventDefault()}
-            className={`w-13 h-13 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
+            className={`w-11 h-11 landscape:w-11 landscape:h-11 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
               touchActive.right
                 ? 'bg-emerald-500 text-slate-950 border-emerald-300 ring-4 ring-emerald-400/50 scale-95 shadow-emerald-500/50'
                 : 'bg-slate-900/80 text-white border-white/30 hover:border-emerald-400/60'
             }`}
             aria-label="Gerak Kanan (Maju)"
           >
-            <span className="text-xl sm:text-2xl leading-none">▶</span>
-            <span className="text-[9px] sm:text-[10px] font-bold tracking-tight opacity-80 mt-0.5">KANAN</span>
+            <span className="text-lg sm:text-2xl leading-none">▶</span>
+            <span className="text-[8px] sm:text-[10px] font-bold tracking-tight opacity-80 mt-0.5">KANAN</span>
           </button>
         </div>
 
         {/* Action / Jump Button */}
-        <div className="pointer-events-auto p-1.5 rounded-3xl bg-slate-950/40 backdrop-blur-md border border-white/10 shadow-2xl">
+        <div className="pointer-events-auto p-1 sm:p-1.5 rounded-2xl sm:rounded-3xl bg-slate-950/60 backdrop-blur-md border border-white/10 shadow-2xl">
           <button
             type="button"
             id="touch-jump"
@@ -1045,15 +1069,15 @@ export default function PlatformerCanvas({
               setTouchDirection('jump', false);
             }}
             onContextMenu={(e) => e.preventDefault()}
-            className={`w-14 h-14 sm:w-18 sm:h-18 rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
+            className={`w-12 h-12 landscape:w-12 landscape:h-12 sm:w-18 sm:h-18 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center font-black transition-all select-none touch-none shadow-xl border-2 active:scale-95 ${
               touchActive.jump
                 ? 'bg-emerald-400 text-slate-950 border-white ring-4 ring-emerald-300/60 scale-95 shadow-emerald-400/60'
                 : 'bg-gradient-to-t from-emerald-700 to-emerald-500 text-white border-emerald-300/80 hover:brightness-110 shadow-emerald-900/40'
             }`}
             aria-label="Melompat"
           >
-            <span className="text-xl sm:text-2xl leading-none">▲</span>
-            <span className="text-[9px] sm:text-[10px] font-bold tracking-wider mt-0.5">LOMPAT</span>
+            <span className="text-lg sm:text-2xl leading-none">▲</span>
+            <span className="text-[8px] sm:text-[10px] font-bold tracking-wider mt-0.5">LOMPAT</span>
           </button>
         </div>
       </div>

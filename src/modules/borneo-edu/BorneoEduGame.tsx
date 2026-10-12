@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { PlayerState, QuestionItem, TeacherConfig } from './types';
 import {
@@ -167,18 +167,25 @@ export default function BorneoEduGame() {
   }, [gameState, playerState.currentWorld]);
 
   // Current level's questions
-  const currentLevelQuestions = allQuestions.filter(
-    (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && !q.isBossQuestion
-  );
-  const activeLevelQuestions = currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.slice(0, 5);
+  const activeLevelQuestions = useMemo(() => {
+    const currentLevelQuestions = allQuestions.filter(
+      (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && !q.isBossQuestion
+    );
+    return currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.slice(0, 5);
+  }, [allQuestions, playerState.currentWorld, playerState.currentLevel]);
 
   // Boss questions
-  const currentBossQuestions = allQuestions.filter(
-    (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && q.isBossQuestion
-  );
-  const backupBossQuestions = allQuestions.filter(
-    (q) => q.isBossQuestion && q.world === playerState.currentWorld
-  );
+  const currentBossQuestions = useMemo(() => {
+    return allQuestions.filter(
+      (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && q.isBossQuestion
+    );
+  }, [allQuestions, playerState.currentWorld, playerState.currentLevel]);
+
+  const backupBossQuestions = useMemo(() => {
+    return allQuestions.filter(
+      (q) => q.isBossQuestion && q.world === playerState.currentWorld
+    );
+  }, [allQuestions, playerState.currentWorld]);
 
   // Start / Continue Game
   const handleStartGame = () => {
@@ -200,15 +207,15 @@ export default function BorneoEduGame() {
   };
 
   // Coin collected in arena
-  const handleCollectCoin = (amount: number) => {
+  const handleCollectCoin = useCallback((amount: number) => {
     updatePlayer((prev) => ({
       ...prev,
       coins: prev.coins + amount
     }));
-  };
+  }, [updatePlayer]);
 
   // PowerUp collected in arena
-  const handleCollectPowerUp = (type: 'mushroom' | 'hintFlower' | 'superStar' | 'shield') => {
+  const handleCollectPowerUp = useCallback((type: 'mushroom' | 'hintFlower' | 'superStar' | 'shield') => {
     updatePlayer((prev) => {
       const pu = { ...prev.powerUps };
       pu[type] = (pu[type] || 0) + 1;
@@ -234,7 +241,7 @@ export default function BorneoEduGame() {
         starBoostCount: starBoost
       };
     });
-  };
+  }, [updatePlayer]);
 
   // Player touched Question block or Enemy
   const handleTriggerQuestion = (q: QuestionItem, isEnemy: boolean, enemyId?: string) => {
@@ -526,7 +533,11 @@ export default function BorneoEduGame() {
   return (
     <div
       ref={gameContainerRef}
-      className="w-full min-h-[640px] bg-slate-950 rounded-3xl p-3 sm:p-6 shadow-2xl relative select-none font-sans text-white border-2 border-slate-800"
+      className={`w-full ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 bg-slate-950 p-1 sm:p-4 flex flex-col justify-between overflow-hidden'
+          : 'min-h-[520px] landscape:min-h-0 bg-slate-950 rounded-2xl sm:rounded-3xl p-2 sm:p-6 shadow-2xl relative select-none font-sans text-white border-2 border-slate-800'
+      }`}
     >
       {/* Smartphone Portrait Orientation Prompt */}
       {isPortraitMobile && showOrientationBanner && (
@@ -738,39 +749,39 @@ export default function BorneoEduGame() {
       {/* 2. IN-GAME ARENA & HUD */}
       {/* ========================================================================= */}
       {(gameState === 'PLAYING' || gameState === 'QUESTION' || gameState === 'BOSS') && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5 sm:gap-3 w-full h-full">
           {/* Top In-Game Heads-Up Display (HUD) */}
-          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+          <div className="p-1.5 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2 shadow-lg shrink-0">
             {/* Player Stats */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
               {/* Lives */}
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
-                <span className="text-sm">❤️</span>
+              <div className="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700">
+                <span className="text-xs sm:text-sm">❤️</span>
                 <span className="text-xs font-black text-rose-400">{playerState.lives}</span>
               </div>
 
               {/* Coins */}
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
-                <span className="text-sm">🪙</span>
+              <div className="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700">
+                <span className="text-xs sm:text-sm">🪙</span>
                 <span className="text-xs font-black text-amber-400">{playerState.coins}</span>
               </div>
 
               {/* Score */}
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
-                <span className="text-sm">⭐</span>
+              <div className="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700">
+                <span className="text-xs sm:text-sm">⭐</span>
                 <span className="text-xs font-black text-yellow-300">{playerState.score}</span>
               </div>
 
               {/* Combo */}
               {playerState.combo > 0 && (
-                <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-orange-500/20 border border-orange-500/40 animate-pulse">
+                <div className="hidden sm:flex items-center gap-1 px-2 sm:px-3 py-1 rounded-xl bg-orange-500/20 border border-orange-500/40 animate-pulse">
                   <span className="text-sm">🔥</span>
                   <span className="text-xs font-black text-orange-400">{playerState.combo}x Combo</span>
                 </div>
               )}
 
               {/* Active Power-Ups Indicators */}
-              <div className="flex items-center gap-1">
+              <div className="hidden sm:flex items-center gap-1">
                 {playerState.shieldActive && (
                   <span className="px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-bold" title="Shield Aktif">
                     🛡️ Aktif
@@ -790,7 +801,7 @@ export default function BorneoEduGame() {
             </div>
 
             {/* Level Info & Action Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <div className="text-right hidden sm:block">
                 <span className="text-[10px] text-slate-400 block font-bold uppercase">
                   W{playerState.currentWorld} • {currentWorldDef.name.split(' ')[0]}
@@ -800,14 +811,14 @@ export default function BorneoEduGame() {
 
               <button
                 onClick={() => setGameState('SHOP')}
-                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/40 shadow-sm"
+                className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/40 shadow-sm"
               >
-                🛒 Shop
+                🛒 <span className="hidden sm:inline">Shop</span>
               </button>
 
               <button
                 onClick={toggleFullscreen}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold border border-slate-700 flex items-center gap-1"
+                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold border border-slate-700 flex items-center gap-1"
                 title="Layar Penuh Lanskap"
               >
                 <span>{isFullscreen ? '🗗' : '⛶'}</span>
@@ -816,7 +827,7 @@ export default function BorneoEduGame() {
 
               <button
                 onClick={toggleSound}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs border border-slate-700"
+                className="p-1 sm:p-1.5 rounded-lg sm:rounded-xl bg-slate-800 text-slate-300 text-xs border border-slate-700"
                 title="Pengaturan Suara"
               >
                 {isMuted ? '🔇' : '🔊'}
@@ -824,9 +835,9 @@ export default function BorneoEduGame() {
 
               <button
                 onClick={() => setGameState('MENU')}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700"
+                className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700"
               >
-                Menu ✕
+                <span className="hidden sm:inline">Menu </span>✕
               </button>
             </div>
           </div>
