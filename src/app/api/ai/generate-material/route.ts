@@ -70,12 +70,33 @@ Lalu tulis bagian Rangkuman Akhir berupa 2 paragraf padat yang merangkum seluruh
 
 INGAT: Tulis semuanya sebagai teks biasa yang bersih. Jangan gunakan simbol Markdown. Jangan buat pertanyaan. Buat materi yang sangat lengkap dan mendalam.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: prompt,
-        });
+        const primaryModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+        let response: any = null;
 
-        generatedContent = response.text || "";
+        try {
+          response = await ai.models.generateContent({
+            model: primaryModel,
+            contents: prompt,
+          });
+        } catch (firstErr: any) {
+          console.warn(`[Gemini Generate Material] Primary model ${primaryModel} failed:`, firstErr?.message || firstErr);
+          const fallbackModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
+          for (const fallbackModel of fallbackModels) {
+            try {
+              console.log(`[Gemini Generate Material] Trying fallback model: ${fallbackModel}...`);
+              response = await ai.models.generateContent({
+                model: fallbackModel,
+                contents: prompt,
+              });
+              if (response?.text) break;
+            } catch (fbErr: any) {
+              console.warn(`[Gemini Generate Material] Fallback ${fallbackModel} failed:`, fbErr?.message || fbErr);
+            }
+          }
+          if (!response?.text) throw firstErr;
+        }
+
+        generatedContent = response?.text || "";
 
         // Strip any remaining Markdown formatting the AI might have included
         generatedContent = generatedContent

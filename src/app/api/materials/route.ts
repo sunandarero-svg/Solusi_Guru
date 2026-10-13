@@ -177,6 +177,17 @@ export async function POST(req: NextRequest) {
     const filePath = path.join(uploadsDir, uniqueFileName);
     await writeFile(filePath, buffer);
 
+    // Sinkronkan berkas ke root public jika berjalan di standalone container (.next/standalone)
+    try {
+      if (process.cwd().includes(".next")) {
+        const rootPublicDir = path.resolve(process.cwd(), "..", "..", "public", "uploads", "materials");
+        await mkdir(rootPublicDir, { recursive: true });
+        await writeFile(path.join(rootPublicDir, uniqueFileName), buffer);
+      }
+    } catch {
+      // Abaikan jika bukan di container standalone
+    }
+
     const fileUrl = `/uploads/materials/${uniqueFileName}`;
 
     // Ekstraksi teks otomatis jika PDF atau DOCX untuk bahan soal AI nanti

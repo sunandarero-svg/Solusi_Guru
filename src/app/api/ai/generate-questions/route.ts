@@ -117,15 +117,37 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown pembungkus):
   }
 ]`;
 
-          const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-              responseMimeType: "application/json",
-            },
-          });
+          const primaryModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+          let response: any = null;
 
-          const rawText = response.text || "[]";
+          try {
+            response = await ai.models.generateContent({
+              model: primaryModel,
+              contents: prompt,
+              config: {
+                responseMimeType: "application/json",
+              },
+            });
+          } catch (firstErr: any) {
+            console.warn(`[Gemini Question Gen] Primary ${primaryModel} failed:`, firstErr?.message || firstErr);
+            const fallbackModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
+            for (const fbModel of fallbackModels) {
+              try {
+                response = await ai.models.generateContent({
+                  model: fbModel,
+                  contents: prompt,
+                  config: {
+                    responseMimeType: "application/json",
+                  },
+                });
+                if (response?.text) break;
+              } catch (fbErr) {
+                // Continue to next fallback
+              }
+            }
+          }
+
+          const rawText = response?.text || "[]";
           const parsed = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
           if (Array.isArray(parsed) && parsed.length > 0) {
             questionsList = parsed;
@@ -249,15 +271,37 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown):
   }
 ]`;
 
-          const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-              responseMimeType: "application/json",
-            },
-          });
+          const primaryModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+          let response: any = null;
 
-          const rawText = response.text || "[]";
+          try {
+            response = await ai.models.generateContent({
+              model: primaryModel,
+              contents: prompt,
+              config: {
+                responseMimeType: "application/json",
+              },
+            });
+          } catch (firstErr: any) {
+            console.warn(`[Gemini Essay Gen] Primary ${primaryModel} failed:`, firstErr?.message || firstErr);
+            const fallbackModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
+            for (const fbModel of fallbackModels) {
+              try {
+                response = await ai.models.generateContent({
+                  model: fbModel,
+                  contents: prompt,
+                  config: {
+                    responseMimeType: "application/json",
+                  },
+                });
+                if (response?.text) break;
+              } catch (fbErr) {
+                // Continue to next fallback
+              }
+            }
+          }
+
+          const rawText = response?.text || "[]";
           const parsed = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
           if (Array.isArray(parsed) && parsed.length > 0) {
             structuredQuestions = parsed.map((q: any) => ({

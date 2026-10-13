@@ -7,6 +7,7 @@ import { TeacherProfile } from "@/models/Profile";
 import { Material } from "@/models/Material";
 import path from "path";
 import { unlink } from "fs/promises";
+import { existsSync } from "fs";
 
 export async function GET(
   req: NextRequest,
@@ -66,13 +67,28 @@ export async function DELETE(
       return NextResponse.json({ error: "Hanya pembuat materi yang dapat menghapus" }, { status: 403 });
     }
 
-    // Hapus file fisik jika ada
+    // Hapus file fisik jika ada (cek beberapa kemungkinan lokasi penyimpanan berkas)
     if (material.fileUrl && material.fileUrl.startsWith("/uploads/materials/")) {
-      try {
-        const filePath = path.join(process.cwd(), "public", material.fileUrl);
-        await unlink(filePath);
-      } catch (err) {
-        console.warn("[Delete File Warning]", err);
+      const cleanRelativePath = material.fileUrl.replace(/^\//, "");
+      const possiblePaths = [
+        path.join(process.cwd(), "public", cleanRelativePath),
+        path.resolve(process.cwd(), "public", cleanRelativePath),
+        // Mode Next.js standalone (.next/standalone), path root public 2 tingkat di atasnya
+        path.resolve(process.cwd(), "..", "..", "public", cleanRelativePath),
+        path.resolve("/app/public", cleanRelativePath),
+      ];
+
+      for (const p of possiblePaths) {
+        try {
+          if (existsSync(p)) {
+            await unlink(p);
+          }
+        } catch (err: any) {
+          // Abaikan jika berkas sudah tidak ada (ENOENT)
+          if (err?.code !== "ENOENT") {
+            console.warn("[Delete File Warning]", err);
+          }
+        }
       }
     }
 
