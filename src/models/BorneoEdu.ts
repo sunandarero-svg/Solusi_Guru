@@ -133,7 +133,7 @@ const BorneoEduQuestionSchema: Schema = new Schema({
   },
   correctAnswer: { type: String, enum: ['A', 'B', 'C', 'D'], required: true },
   difficulty: { type: String, enum: ['EASY', 'MEDIUM', 'HARD', 'HOTS', 'BOSS'], required: true },
-  explanation: { type: String, required: true },
+  explanation: { type: String, default: 'Penjelasan materi.', required: true },
   stage: { type: String, default: 'Pengetahuan' },
   isBossQuestion: { type: Boolean, default: false },
   classId: { type: Schema.Types.ObjectId, ref: 'Class', index: true },

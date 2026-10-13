@@ -172,16 +172,48 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown pembungkus):
       // Simpan soal ke database BorneoEduQuestion yang terasosiasi dengan classId!
       const insertedOps = questionsList.map((q, idx) => {
         const questionId = `gen_${classId}_${material._id}_${Date.now()}_${idx + 1}`;
+        const world = Number(q.world) || Math.min(5, Math.ceil((idx + 1) / 5));
+        const levelInWorld = ((idx) % 5) + 1;
+        const level = Number(q.level) || (world - 1) * 5 + levelInWorld;
+        const isBoss = Boolean(q.isBossQuestion || levelInWorld === 5);
+
+        const options = q.options && typeof q.options === 'object' ? {
+          A: String(q.options.A || "Pilihan A"),
+          B: String(q.options.B || "Pilihan B"),
+          C: String(q.options.C || "Pilihan C"),
+          D: String(q.options.D || "Pilihan D"),
+        } : {
+          A: "Pilihan A",
+          B: "Pilihan B",
+          C: "Pilihan C",
+          D: "Pilihan D",
+        };
+
+        const validAnswers = ['A', 'B', 'C', 'D'];
+        const rawAns = String(q.correctAnswer || '').toUpperCase().trim();
+        const correctAnswer = (validAnswers.includes(rawAns) ? rawAns : 'A') as 'A' | 'B' | 'C' | 'D';
+
+        const validDifficulties = ['EASY', 'MEDIUM', 'HARD', 'HOTS', 'BOSS'];
+        const difficulty = isBoss ? 'BOSS' : (validDifficulties.includes(q.difficulty) ? q.difficulty : (world <= 2 ? 'EASY' : world <= 4 ? 'MEDIUM' : 'HARD'));
+
+        const explanation = String(
+          q.explanation ||
+          q.pembahasan ||
+          q.reason ||
+          `Jawaban yang benar adalah pilihan ${correctAnswer} berdasarkan pembahasan materi "${material.title}".`
+        );
+
         return {
           questionId,
-          world: q.world || 1,
-          level: q.level || idx + 1,
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.correctAnswer || 'A',
-          difficulty: q.difficulty || 'MEDIUM',
+          world,
+          level,
+          question: String(q.question || `Pertanyaan ${idx + 1}`),
+          options,
+          correctAnswer,
+          difficulty,
+          explanation,
           stage: q.stage || 'Pengetahuan',
-          isBossQuestion: Boolean(q.isBossQuestion),
+          isBossQuestion: isBoss,
           classId: cls?._id,
           className: cls?.name,
           materialId: material._id,
