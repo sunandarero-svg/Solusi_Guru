@@ -19,6 +19,10 @@ export async function GET(
     else if (ext === ".png") contentType = "image/png";
     else if (ext === ".docx") contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     else if (ext === ".xlsx") contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    else if (ext === ".mp4") contentType = "video/mp4";
+    else if (ext === ".webm") contentType = "video/webm";
+    else if (ext === ".pptx") contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    else if (ext === ".ppt") contentType = "application/vnd.ms-powerpoint";
 
     try {
       const fileBuffer = await readFile(absolutePath);

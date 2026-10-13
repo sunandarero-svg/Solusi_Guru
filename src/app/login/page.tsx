@@ -4,12 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { GraduationCap, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import { GraduationCap, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -103,14 +104,24 @@ export default function LoginPage() {
                 </div>
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl pl-11 pr-4 py-3.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white transition-all duration-200 shadow-sm"
+                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl pl-11 pr-12 py-3.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white transition-all duration-200 shadow-sm"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <button
+                  type="button"
+                  id="toggle-password-visibility"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  title={showPassword ? "Sembunyikan password" : "Lihat password"}
+                  aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 

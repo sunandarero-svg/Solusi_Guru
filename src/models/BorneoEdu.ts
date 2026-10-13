@@ -113,12 +113,15 @@ export interface IBorneoEduQuestion extends Document {
   explanation: string;
   stage?: 'Pengetahuan' | 'Pemahaman' | 'Penerapan' | 'Analisis' | 'HOTS';
   isBossQuestion: boolean;
+  classId?: mongoose.Types.ObjectId;
+  className?: string;
+  materialId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const BorneoEduQuestionSchema: Schema = new Schema({
-  questionId: { type: String, required: true, unique: true },
+  questionId: { type: String, required: true },
   world: { type: Number, required: true },
   level: { type: Number, required: true },
   question: { type: String, required: true },
@@ -132,7 +135,10 @@ const BorneoEduQuestionSchema: Schema = new Schema({
   difficulty: { type: String, enum: ['EASY', 'MEDIUM', 'HARD', 'HOTS', 'BOSS'], required: true },
   explanation: { type: String, required: true },
   stage: { type: String, default: 'Pengetahuan' },
-  isBossQuestion: { type: Boolean, default: false }
+  isBossQuestion: { type: Boolean, default: false },
+  classId: { type: Schema.Types.ObjectId, ref: 'Class', index: true },
+  className: { type: String },
+  materialId: { type: Schema.Types.ObjectId, ref: 'Material' }
 }, {
   timestamps: true
 });

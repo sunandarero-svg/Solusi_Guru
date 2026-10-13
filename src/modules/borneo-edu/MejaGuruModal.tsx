@@ -861,7 +861,7 @@ export default function MejaGuruModal({
                     <input type="file" accept=".xlsx,.csv" onChange={handleUploadQuestions} className="hidden" />
                   </label>
                   <button
-                    onClick={handleDownloadQuestionsExcel}
+                    onClick={() => handleDownloadQuestionsExcel()}
                     className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs"
                   >
                     Unduh Bank Soal ({questions.length})

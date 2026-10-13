@@ -41,7 +41,8 @@ export async function GET() {
     return NextResponse.json({
       studentName: studentProfile.fullName,
       studentNumber: studentProfile.studentNumber || '01',
-      className: className
+      className: className,
+      classId: enrollment?.classId ? enrollment.classId.toString() : null
     });
   } catch (error: any) {
     console.error('Error fetching student info for Borneo Edu:', error);

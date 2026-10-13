@@ -28,16 +28,19 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
   const resolvedParams = use(params);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [submission, setSubmission] = useState<any>(null);
+  const [hasUnreadMaterials, setHasUnreadMaterials] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/assignments/${resolvedParams.id}`).then(res => res.json()),
-      fetch(`/api/assignments/${resolvedParams.id}/submission`).then(res => res.json())
-    ]).then(([assignmentData, submissionData]) => {
+      fetch(`/api/assignments/${resolvedParams.id}/submission`).then(res => res.json()),
+      fetch('/api/student/material-status').then(res => res.json()).catch(() => null)
+    ]).then(([assignmentData, submissionData, materialStatus]) => {
       if (assignmentData.id) setAssignment(assignmentData);
       if (submissionData && submissionData.id) setSubmission(submissionData);
+      if (materialStatus?.hasUnreadMaterials) setHasUnreadMaterials(true);
       setLoading(false);
     });
   }, [resolvedParams.id]);
@@ -96,6 +99,16 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
                   <span className="text-xs font-medium mt-1">Nilai AI: {submission.aiAssessment.suggestedScore}/100</span>
                 )}
               </div>
+            ) : hasUnreadMaterials ? (
+              <button
+                onClick={() =>
+                  alert("🔒 Fitur Foto Tugas Terkunci!\n\nAnda harus membaca dan mempelajari materi pelajaran kelas terlebih dahulu di halaman Dashboard.")
+                }
+                className="w-full md:w-auto px-6 py-2.5 rounded-lg text-sm font-bold bg-slate-800 text-slate-400 cursor-not-allowed flex items-center justify-center space-x-2 border border-slate-700 shadow-sm"
+                title="Terkunci: Selesaikan membaca materi di Dashboard terlebih dahulu"
+              >
+                <span>🔒 Scan Tugas (Baca Materi Dulu)</span>
+              </button>
             ) : (
               <Link 
                 href={isOverdue ? '#' : `/dashboard/my-assignments/${resolvedParams.id}/scan`}

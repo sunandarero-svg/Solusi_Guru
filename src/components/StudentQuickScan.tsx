@@ -11,13 +11,22 @@ interface Assignment {
   isSubmitted?: boolean;
 }
 
-export default function StudentQuickScan() {
+interface StudentQuickScanProps {
+  isLocked?: boolean;
+  lockedReason?: string;
+}
+
+export default function StudentQuickScan({ isLocked = false, lockedReason }: StudentQuickScanProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleOpen = async () => {
+    if (isLocked) {
+      alert(lockedReason || "🔒 Fitur Kamera Kumpulkan Tugas Terkunci!\n\nAnda harus menyelesaikan membaca materi pelajaran terlebih dahulu sebelum dapat mengumpulkan tugas.");
+      return;
+    }
     setIsOpen(true);
     setLoading(true);
     try {
@@ -42,19 +51,34 @@ export default function StudentQuickScan() {
     <>
       <button 
         onClick={handleOpen}
-        className="w-full mt-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-3xl p-6 flex items-center justify-between shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02]"
+        className={`w-full mt-6 rounded-3xl p-6 flex items-center justify-between shadow-xl transition-all ${
+          isLocked
+            ? "bg-slate-800 text-slate-400 opacity-90 cursor-not-allowed border border-slate-700/60"
+            : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/20 hover:scale-[1.02] cursor-pointer"
+        }`}
       >
         <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-4 rounded-2xl">
+          <div className={`p-4 rounded-2xl ${isLocked ? "bg-slate-700 text-slate-300" : "bg-white/20 text-white"}`}>
             <Camera size={32} />
           </div>
           <div className="text-left">
-            <h3 className="text-xl font-bold">Kamera Kumpulkan Tugas</h3>
-            <p className="text-emerald-100 text-sm">Foto lembar jawaban buku tulis & tugas refleksi game</p>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold">Kamera Kumpulkan Tugas</h3>
+              {isLocked && (
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold">
+                  🔒 Terkunci (Baca Materi Dulu)
+                </span>
+              )}
+            </div>
+            <p className={`text-sm ${isLocked ? "text-slate-400" : "text-emerald-100"}`}>
+              {isLocked 
+                ? "Selesaikan membaca materi di atas untuk membuka akses kamera kumpulkan tugas"
+                : "Foto lembar jawaban buku tulis & tugas refleksi game"}
+            </p>
           </div>
         </div>
-        <div className="bg-white text-emerald-600 px-6 py-3 rounded-xl font-bold">
-          Buka Kamera
+        <div className={`px-6 py-3 rounded-xl font-bold ${isLocked ? "bg-slate-700 text-slate-400" : "bg-white text-emerald-600"}`}>
+          {isLocked ? "🔒 Terkunci" : "Buka Kamera"}
         </div>
       </button>
 

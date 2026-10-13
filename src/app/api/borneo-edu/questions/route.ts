@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     const worldParam = searchParams.get('world');
     const levelParam = searchParams.get('level');
     const diffParam = searchParams.get('difficulty');
+    const classIdParam = searchParams.get('classId');
 
     const hasDb = process.env.DATABASE_URL || process.env.MONGODB_URI;
     if (!hasDb) {
@@ -40,6 +41,23 @@ export async function GET(req: NextRequest) {
     }
     if (diffParam && diffParam !== 'all') {
       filterQuery.difficulty = diffParam;
+    }
+
+    // Jika ada parameter classId, periksa apakah kelas tersebut memiliki soal khusus yang digenerate oleh guru
+    if (classIdParam && classIdParam !== 'all') {
+      const classQuestions = await BorneoEduQuestion.find({
+        ...filterQuery,
+        classId: classIdParam,
+      }).sort({ world: 1, level: 1 }).lean();
+
+      if (classQuestions && classQuestions.length > 0) {
+        return NextResponse.json({
+          success: true,
+          mode: 'class-specific',
+          count: classQuestions.length,
+          data: classQuestions,
+        });
+      }
     }
 
     const dbQuestions = await BorneoEduQuestion.find(filterQuery).sort({ world: 1, level: 1 }).lean();

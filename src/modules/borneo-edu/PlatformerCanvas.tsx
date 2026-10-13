@@ -192,16 +192,17 @@ export default function PlatformerCanvas({
       plats.push({ x: 1240, y: 280, width: 130, height: 22, type: 'stone' });
       plats.push({ x: 1500, y: 380, width: 90, height: 22, type: 'wood' });
       plats.push({ x: 1800, y: 340, width: 160, height: 22, type: 'stone' });
-      plats.push({ x: 2060, y: 270, width: 140, height: 22, type: 'wood' });
+      plats.push({ x: 2040, y: 330, width: 140, height: 22, type: 'wood' });
+      plats.push({ x: 2220, y: 390, width: 90, height: 22, type: 'stone' }); // Batu loncatan aman sebelum bendera
 
       finishFlagRef.current = { x: 2550, y: groundY - 140, width: 50, height: 140 };
 
-      // Question blocks (?) - at least 3-4
+      // Question blocks (?) - ketinggian proporsional agar dapat disundul & dilompati
       const qPositions = [
         { x: 340, y: 250 },
-        { x: 560, y: 180 },
+        { x: 560, y: 210 },
         { x: 1080, y: 240 },
-        { x: 1880, y: 220 }
+        { x: 1880, y: 310 } // Diturunkan dari 220 ke 310 agar mudah dilompati & disundul
       ];
 
       qPositions.forEach((pos, idx) => {
@@ -498,6 +499,22 @@ export default function PlatformerCanvas({
               p.vy = 0;
               p.isGrounded = true;
               break;
+            }
+          }
+        }
+
+        if (!p.isGrounded) {
+          for (const qb of questionBlocksRef.current) {
+            if (
+              p.x + p.width * 0.7 > qb.x &&
+              p.x + p.width * 0.3 < qb.x + qb.width
+            ) {
+              if (p.y + p.height <= qb.y + 8 && nextY + p.height >= qb.y) {
+                p.y = qb.y - p.height;
+                p.vy = 0;
+                p.isGrounded = true;
+                break;
+              }
             }
           }
         }

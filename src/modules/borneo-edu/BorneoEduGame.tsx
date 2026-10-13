@@ -89,6 +89,19 @@ export default function BorneoEduGame() {
     });
   }, [persistState]);
 
+  // Load and shuffle questions for class
+  const loadQuestions = useCallback((classId?: string | null) => {
+    const url = classId ? `/api/borneo-edu/questions?classId=${encodeURIComponent(classId)}` : '/api/borneo-edu/questions';
+    fetch(url)
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData?.data && Array.isArray(resData.data) && resData.data.length > 0) {
+          setAllQuestions(shuffleQuestions(resData.data));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Auto-fill student profile from registered account database
   useEffect(() => {
     fetch('/api/borneo-edu/student-info')
@@ -102,9 +115,13 @@ export default function BorneoEduGame() {
             studentNumber: prev.studentNumber && prev.studentNumber !== '01' ? prev.studentNumber : (data.studentNumber || '01'),
             className: data.className || prev.className || 'Kelas 7A'
           }));
+          loadQuestions(data.classId);
+        } else {
+          loadQuestions();
         }
       })
       .catch(() => {
+        loadQuestions();
         if (session?.user?.email) {
           const emailName = session.user.email.split('@')[0];
           const defaultName = session.user.name || (emailName ? emailName.toUpperCase() : 'Siswa');
@@ -119,19 +136,7 @@ export default function BorneoEduGame() {
           });
         }
       });
-  }, [session, updatePlayer]);
-
-  // Load and shuffle questions for class
-  useEffect(() => {
-    fetch('/api/borneo-edu/questions')
-      .then((res) => res.json())
-      .then((resData) => {
-        if (resData?.data && Array.isArray(resData.data) && resData.data.length > 0) {
-          setAllQuestions(shuffleQuestions(resData.data));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  }, [session, updatePlayer, loadQuestions]);
 
   // Mobile Orientation & Landscape helper
   const [isPortraitMobile, setIsPortraitMobile] = useState<boolean>(false);
@@ -967,12 +972,36 @@ export default function BorneoEduGame() {
                 <span className="text-xs font-black text-emerald-400">Level {playerState.currentLevel} / 25</span>
               </div>
 
-              <button
-                onClick={() => setGameState('SHOP')}
-                className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/40 shadow-sm"
-              >
-                🛒 <span className="hidden sm:inline">Shop</span>
-              </button>
+              {(() => {
+                const isLevel1Completed =
+                  (playerState.completedLevels && playerState.completedLevels.length > 0) ||
+                  playerState.currentLevel > 1 ||
+                  playerState.completedWorlds > 0;
+
+                return (
+                  <button
+                    onClick={() => {
+                      if (!isLevel1Completed) {
+                        sound.playWrong();
+                        alert('🔒 Fitur Shop Terkunci!\n\nAnda harus menyelesaikan minimal Level 1 terlebih dahulu untuk membuka Power-Up Shop.');
+                        return;
+                      }
+                      setGameState('SHOP');
+                    }}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-xs font-black border transition-all ${
+                      isLevel1Completed
+                        ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40 shadow-sm cursor-pointer'
+                        : 'bg-slate-800/90 text-slate-400 border-slate-700/60 cursor-not-allowed opacity-80'
+                    }`}
+                    title={isLevel1Completed ? 'Power-Up Shop' : 'Fitur Shop Terkunci (Selesaikan Level 1)'}
+                  >
+                    <span>{isLevel1Completed ? '🛒' : '🔒'}</span>{' '}
+                    <span className="hidden sm:inline">
+                      {isLevel1Completed ? 'Shop' : 'Shop (Lvl 1)'}
+                    </span>
+                  </button>
+                );
+              })()}
 
               <button
                 onClick={toggleFullscreen}

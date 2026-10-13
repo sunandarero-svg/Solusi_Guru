@@ -68,6 +68,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       return [
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/dashboard/classes", label: "Manajemen Kelas", icon: BookOpen },
+        { href: "/dashboard/materials", label: "Materi Pelajaran", icon: Sparkles },
         { href: "/dashboard/students", label: "Akun Siswa", icon: Users },
         { href: "/dashboard/live-students", label: "Siswa Online", icon: Activity },
         { href: "/dashboard/assignments", label: "Nilai", icon: FileText },

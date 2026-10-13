@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FileText, Inbox, Users, BookOpen, CheckCircle, TrendingUp, Gamepad2, Sparkles } from "lucide-react";
 import TeacherProgressDashboard from "@/components/TeacherProgressDashboard";
-import StudentQuickScan from "@/components/StudentQuickScan";
+import StudentInteractiveDashboard from "@/components/StudentInteractiveDashboard";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -204,45 +204,10 @@ export default async function DashboardPage() {
           </div>
         </div>
         
-        {/* Tombol Mulai Game Borneo Edu Berada di Atas Kamera Kumpulkan Tugas */}
-        <div className="mt-8 rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-700 text-white shadow-2xl shadow-emerald-500/20 relative overflow-hidden border border-emerald-400/40 group hover:shadow-emerald-500/30 transition-all duration-300">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-amber-400/20 rounded-full blur-2xl pointer-events-none"></div>
-
-          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-black uppercase tracking-wider backdrop-blur-md border border-white/20">
-                <Gamepad2 size={14} className="text-amber-300" />
-                <span>Pembelajaran Interaktif • Edisi Game Petualangan</span>
-                <Sparkles size={13} className="text-yellow-300 animate-pulse" />
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
-                Game Petualangan Belajar Borneo Edu
-              </h2>
-              <p className="text-emerald-50 text-sm leading-relaxed">
-                Jelajahi 5 World, taklukkan tantangan rintangan, dan selesaikan soal kurikulum dengan seru!
-              </p>
-              <div className="p-3.5 rounded-2xl bg-black/20 border border-white/15 backdrop-blur-sm text-xs text-amber-100 flex items-start gap-2.5">
-                <span className="text-base shrink-0">📝</span>
-                <p className="leading-snug">
-                  <strong>Tugas Khusus Setelah Selesai Game:</strong> Setelah menyelesaikan permainan sampai tamat, Anda akan mendapatkan <strong>5 Pertanyaan Refleksi</strong> yang wajib dikerjakan di buku tulis dan difoto menggunakan <strong>Kamera Kumpulkan Tugas</strong> di bawah ini.
-                </p>
-              </div>
-            </div>
-
-            <div className="shrink-0 w-full lg:w-auto">
-              <Link
-                href="/dashboard/interactive-learning/borneo-edu"
-                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-800 hover:text-emerald-900 font-black text-base shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 group"
-              >
-                <span>🎮 Mulai Game Sekarang</span>
-                <span className="text-xl group-hover:translate-x-1 transition-transform">▶</span>
-              </Link>
-            </div>
-          </div>
+        {/* Dashboard Interaktif Siswa dengan Gating Materi untuk Game & Kamera Tugas */}
+        <div className="mt-8">
+          <StudentInteractiveDashboard />
         </div>
-
-        <StudentQuickScan />
         </>
       )}
     </div>
