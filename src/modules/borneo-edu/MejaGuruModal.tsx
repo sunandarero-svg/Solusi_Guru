@@ -705,11 +705,11 @@ export default function MejaGuruModal({
                     onChange={(e) => setFilterClass(e.target.value)}
                     className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                   >
-                    <option value="all">Semua Kelas</option>
-                    <option value="Kelas 7A">Kelas 7A</option>
-                    <option value="Kelas 7B">Kelas 7B</option>
-                    <option value="Kelas 8">Kelas 8</option>
-                    <option value="Kelas 9">Kelas 9</option>
+                    <option value="all" className="bg-slate-900 text-white">Semua Kelas</option>
+                    <option value="Kelas 7A" className="bg-slate-900 text-white">Kelas 7A</option>
+                    <option value="Kelas 7B" className="bg-slate-900 text-white">Kelas 7B</option>
+                    <option value="Kelas 8" className="bg-slate-900 text-white">Kelas 8</option>
+                    <option value="Kelas 9" className="bg-slate-900 text-white">Kelas 9</option>
                   </select>
                 </div>
 
@@ -822,24 +822,24 @@ export default function MejaGuruModal({
                     onChange={(e) => setFilterWorld(e.target.value)}
                     className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                   >
-                    <option value="all">Semua World</option>
-                    <option value="1">World 1 (Hutan)</option>
-                    <option value="2">World 2 (Gunung)</option>
-                    <option value="3">World 3 (Laut)</option>
-                    <option value="4">World 4 (Gurun)</option>
-                    <option value="5">World 5 (Kastel)</option>
+                    <option value="all" className="bg-slate-900 text-white">Semua World</option>
+                    <option value="1" className="bg-slate-900 text-white">World 1 (Hutan)</option>
+                    <option value="2" className="bg-slate-900 text-white">World 2 (Gunung)</option>
+                    <option value="3" className="bg-slate-900 text-white">World 3 (Laut)</option>
+                    <option value="4" className="bg-slate-900 text-white">World 4 (Gurun)</option>
+                    <option value="5" className="bg-slate-900 text-white">World 5 (Kastel)</option>
                   </select>
                   <select
                     value={filterDifficulty}
                     onChange={(e) => setFilterDifficulty(e.target.value)}
                     className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                   >
-                    <option value="all">Semua Kesulitan</option>
-                    <option value="EASY">EASY</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HARD">HARD</option>
-                    <option value="HOTS">HOTS</option>
-                    <option value="BOSS">BOSS</option>
+                    <option value="all" className="bg-slate-900 text-white">Semua Kesulitan</option>
+                    <option value="EASY" className="bg-slate-900 text-white">EASY</option>
+                    <option value="MEDIUM" className="bg-slate-900 text-white">MEDIUM</option>
+                    <option value="HARD" className="bg-slate-900 text-white">HARD</option>
+                    <option value="HOTS" className="bg-slate-900 text-white">HOTS</option>
+                    <option value="BOSS" className="bg-slate-900 text-white">BOSS</option>
                   </select>
                 </div>
 
@@ -1426,10 +1426,10 @@ export default function MejaGuruModal({
                       onChange={(e) => setNewQuestionForm({ ...newQuestionForm, correctAnswer: e.target.value as any })}
                       className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
                     >
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="C">C</option>
-                      <option value="D">D</option>
+                      <option value="A" className="bg-slate-900 text-white">A</option>
+                      <option value="B" className="bg-slate-900 text-white">B</option>
+                      <option value="C" className="bg-slate-900 text-white">C</option>
+                      <option value="D" className="bg-slate-900 text-white">D</option>
                     </select>
                   </div>
                   <div>
@@ -1439,11 +1439,11 @@ export default function MejaGuruModal({
                       onChange={(e) => setNewQuestionForm({ ...newQuestionForm, difficulty: e.target.value as any })}
                       className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
                     >
-                      <option value="EASY">EASY</option>
-                      <option value="MEDIUM">MEDIUM</option>
-                      <option value="HARD">HARD</option>
-                      <option value="HOTS">HOTS</option>
-                      <option value="BOSS">BOSS</option>
+                      <option value="EASY" className="bg-slate-900 text-white">EASY</option>
+                      <option value="MEDIUM" className="bg-slate-900 text-white">MEDIUM</option>
+                      <option value="HARD" className="bg-slate-900 text-white">HARD</option>
+                      <option value="HOTS" className="bg-slate-900 text-white">HOTS</option>
+                      <option value="BOSS" className="bg-slate-900 text-white">BOSS</option>
                     </select>
                   </div>
                 </div>

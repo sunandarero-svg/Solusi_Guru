@@ -822,7 +822,7 @@ export default function BorneoEduTeacherProgress({
                   placeholder="Cari nama atau absen siswa..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
                 />
               </div>
 
@@ -833,9 +833,9 @@ export default function BorneoEduTeacherProgress({
                   onChange={(e) => setFilterClass(e.target.value)}
                   className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-bold text-slate-700 focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="all">Semua Kelas</option>
+                  <option value="all" className="text-slate-800 bg-white">Semua Kelas</option>
                   {availableClasses.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c} className="text-slate-800 bg-white">{c}</option>
                   ))}
                 </select>
               </div>
@@ -1647,10 +1647,10 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={newQForm.world}
                     onChange={(e) => setNewQForm({ ...newQForm, world: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
                     {[1, 2, 3, 4, 5].map((w) => (
-                      <option key={w} value={w}>World {w}</option>
+                      <option key={w} value={w} className="text-slate-900 bg-white">World {w}</option>
                     ))}
                   </select>
                 </div>
@@ -1660,10 +1660,10 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={newQForm.level}
                     onChange={(e) => setNewQForm({ ...newQForm, level: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
                     {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => (
-                      <option key={lvl} value={lvl}>Level {lvl}</option>
+                      <option key={lvl} value={lvl} className="text-slate-900 bg-white">Level {lvl}</option>
                     ))}
                   </select>
                 </div>
@@ -1673,13 +1673,13 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={newQForm.difficulty}
                     onChange={(e) => setNewQForm({ ...newQForm, difficulty: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
-                    <option value="EASY">EASY</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HARD">HARD</option>
-                    <option value="HOTS">HOTS</option>
-                    <option value="BOSS">BOSS</option>
+                    <option value="EASY" className="text-slate-900 bg-white">EASY</option>
+                    <option value="MEDIUM" className="text-slate-900 bg-white">MEDIUM</option>
+                    <option value="HARD" className="text-slate-900 bg-white">HARD</option>
+                    <option value="HOTS" className="text-slate-900 bg-white">HOTS</option>
+                    <option value="BOSS" className="text-slate-900 bg-white">BOSS</option>
                   </select>
                 </div>
 
@@ -1688,13 +1688,13 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={newQForm.stage || 'Pengetahuan'}
                     onChange={(e) => setNewQForm({ ...newQForm, stage: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
-                    <option value="Pengetahuan">Pengetahuan</option>
-                    <option value="Pemahaman">Pemahaman</option>
-                    <option value="Penerapan">Penerapan</option>
-                    <option value="Analisis">Analisis</option>
-                    <option value="HOTS">HOTS</option>
+                    <option value="Pengetahuan" className="text-slate-900 bg-white">Pengetahuan</option>
+                    <option value="Pemahaman" className="text-slate-900 bg-white">Pemahaman</option>
+                    <option value="Penerapan" className="text-slate-900 bg-white">Penerapan</option>
+                    <option value="Analisis" className="text-slate-900 bg-white">Analisis</option>
+                    <option value="HOTS" className="text-slate-900 bg-white">HOTS</option>
                   </select>
                 </div>
               </div>
@@ -1728,7 +1728,7 @@ export default function BorneoEduTeacherProgress({
                   value={newQForm.question}
                   onChange={(e) => setNewQForm({ ...newQForm, question: e.target.value })}
                   placeholder="Tuliskan pertanyaan soal..."
-                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
                   required
                 />
               </div>
@@ -1766,7 +1766,7 @@ export default function BorneoEduTeacherProgress({
                             options: { ...newQForm.options, [opt]: e.target.value }
                           })
                         }
-                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
                         required={opt === 'A' || opt === 'B'}
                       />
                     </div>
@@ -1787,7 +1787,7 @@ export default function BorneoEduTeacherProgress({
                   value={newQForm.explanation}
                   onChange={(e) => setNewQForm({ ...newQForm, explanation: e.target.value })}
                   placeholder="Penjelasan ringkas mengapa jawaban tersebut benar..."
-                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-500"
+                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -1849,10 +1849,10 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={editingQ.world}
                     onChange={(e) => setEditingQ({ ...editingQ, world: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
                     {[1, 2, 3, 4, 5].map((w) => (
-                      <option key={w} value={w}>World {w}</option>
+                      <option key={w} value={w} className="text-slate-900 bg-white">World {w}</option>
                     ))}
                   </select>
                 </div>
@@ -1862,10 +1862,10 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={editingQ.level}
                     onChange={(e) => setEditingQ({ ...editingQ, level: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
                     {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => (
-                      <option key={lvl} value={lvl}>Level {lvl}</option>
+                      <option key={lvl} value={lvl} className="text-slate-900 bg-white">Level {lvl}</option>
                     ))}
                   </select>
                 </div>
@@ -1875,13 +1875,13 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={editingQ.difficulty}
                     onChange={(e) => setEditingQ({ ...editingQ, difficulty: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
-                    <option value="EASY">EASY</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HARD">HARD</option>
-                    <option value="HOTS">HOTS</option>
-                    <option value="BOSS">BOSS</option>
+                    <option value="EASY" className="text-slate-900 bg-white">EASY</option>
+                    <option value="MEDIUM" className="text-slate-900 bg-white">MEDIUM</option>
+                    <option value="HARD" className="text-slate-900 bg-white">HARD</option>
+                    <option value="HOTS" className="text-slate-900 bg-white">HOTS</option>
+                    <option value="BOSS" className="text-slate-900 bg-white">BOSS</option>
                   </select>
                 </div>
 
@@ -1890,13 +1890,13 @@ export default function BorneoEduTeacherProgress({
                   <select
                     value={editingQ.stage || 'Pengetahuan'}
                     onChange={(e) => setEditingQ({ ...editingQ, stage: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                   >
-                    <option value="Pengetahuan">Pengetahuan</option>
-                    <option value="Pemahaman">Pemahaman</option>
-                    <option value="Penerapan">Penerapan</option>
-                    <option value="Analisis">Analisis</option>
-                    <option value="HOTS">HOTS</option>
+                    <option value="Pengetahuan" className="text-slate-900 bg-white">Pengetahuan</option>
+                    <option value="Pemahaman" className="text-slate-900 bg-white">Pemahaman</option>
+                    <option value="Penerapan" className="text-slate-900 bg-white">Penerapan</option>
+                    <option value="Analisis" className="text-slate-900 bg-white">Analisis</option>
+                    <option value="HOTS" className="text-slate-900 bg-white">HOTS</option>
                   </select>
                 </div>
               </div>
@@ -1929,7 +1929,7 @@ export default function BorneoEduTeacherProgress({
                   rows={3}
                   value={editingQ.question}
                   onChange={(e) => setEditingQ({ ...editingQ, question: e.target.value })}
-                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full p-3 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-500"
                   required
                 />
               </div>
@@ -1966,7 +1966,7 @@ export default function BorneoEduTeacherProgress({
                             options: { ...editingQ.options, [opt]: e.target.value }
                           })
                         }
-                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-indigo-500"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-500"
                         required={opt === 'A' || opt === 'B'}
                       />
                     </div>
@@ -1983,7 +1983,7 @@ export default function BorneoEduTeacherProgress({
                   rows={2}
                   value={editingQ.explanation}
                   onChange={(e) => setEditingQ({ ...editingQ, explanation: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -2048,14 +2048,14 @@ export default function BorneoEduTeacherProgress({
                 <select
                   value={bulkWorld}
                   onChange={(e) => setBulkWorld(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                 >
-                  <option value="keep">— Biarkan Seperti Semula —</option>
-                  <option value="1">World 1 (Hutan Borneo)</option>
-                  <option value="2">World 2 (Pegunungan Meratus)</option>
-                  <option value="3">World 3 (Sungai Mahakam)</option>
-                  <option value="4">World 4 (Gurun & Savana)</option>
-                  <option value="5">World 5 (Kastel Penguasa)</option>
+                  <option value="keep" className="text-slate-900 bg-white">— Biarkan Seperti Semula —</option>
+                  <option value="1" className="text-slate-900 bg-white">World 1 (Hutan Borneo)</option>
+                  <option value="2" className="text-slate-900 bg-white">World 2 (Pegunungan Meratus)</option>
+                  <option value="3" className="text-slate-900 bg-white">World 3 (Sungai Mahakam)</option>
+                  <option value="4" className="text-slate-900 bg-white">World 4 (Gurun & Savana)</option>
+                  <option value="5" className="text-slate-900 bg-white">World 5 (Kastel Penguasa)</option>
                 </select>
               </div>
 
@@ -2065,11 +2065,11 @@ export default function BorneoEduTeacherProgress({
                 <select
                   value={bulkLevel}
                   onChange={(e) => setBulkLevel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                 >
-                  <option value="keep">— Biarkan Seperti Semula —</option>
+                  <option value="keep" className="text-slate-900 bg-white">— Biarkan Seperti Semula —</option>
                   {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => (
-                    <option key={lvl} value={String(lvl)}>Level {lvl}</option>
+                    <option key={lvl} value={String(lvl)} className="text-slate-900 bg-white">Level {lvl}</option>
                   ))}
                 </select>
               </div>
@@ -2080,14 +2080,14 @@ export default function BorneoEduTeacherProgress({
                 <select
                   value={bulkDiff}
                   onChange={(e) => setBulkDiff(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                 >
-                  <option value="keep">— Biarkan Seperti Semula —</option>
-                  <option value="EASY">EASY (Mudah)</option>
-                  <option value="MEDIUM">MEDIUM (Sedang)</option>
-                  <option value="HARD">HARD (Sulit)</option>
-                  <option value="HOTS">HOTS (Tinggi)</option>
-                  <option value="BOSS">BOSS (Raja)</option>
+                  <option value="keep" className="text-slate-900 bg-white">— Biarkan Seperti Semula —</option>
+                  <option value="EASY" className="text-slate-900 bg-white">EASY (Mudah)</option>
+                  <option value="MEDIUM" className="text-slate-900 bg-white">MEDIUM (Sedang)</option>
+                  <option value="HARD" className="text-slate-900 bg-white">HARD (Sulit)</option>
+                  <option value="HOTS" className="text-slate-900 bg-white">HOTS (Tinggi)</option>
+                  <option value="BOSS" className="text-slate-900 bg-white">BOSS (Raja)</option>
                 </select>
               </div>
 
@@ -2097,11 +2097,11 @@ export default function BorneoEduTeacherProgress({
                 <select
                   value={bulkIsBoss}
                   onChange={(e) => setBulkIsBoss(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
                 >
-                  <option value="keep">— Biarkan Seperti Semula —</option>
-                  <option value="true">👑 Ubah Menjadi Soal Boss Battle</option>
-                  <option value="false">⚪ Ubah Menjadi Soal Biasa (Non-Boss)</option>
+                  <option value="keep" className="text-slate-900 bg-white">— Biarkan Seperti Semula —</option>
+                  <option value="true" className="text-slate-900 bg-white">👑 Ubah Menjadi Soal Boss Battle</option>
+                  <option value="false" className="text-slate-900 bg-white">⚪ Ubah Menjadi Soal Biasa (Non-Boss)</option>
                 </select>
               </div>
 

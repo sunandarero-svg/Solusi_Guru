@@ -518,7 +518,7 @@ export default function TeacherMaterialsPage() {
                   type="text"
                   required
                   placeholder="Contoh: Ekosistem Flora dan Fauna Kalimantan"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
                   value={aiForm.title}
                   onChange={(e) => setAiForm({ ...aiForm, title: e.target.value })}
                 />
@@ -531,7 +531,7 @@ export default function TeacherMaterialsPage() {
                   </label>
                   <select
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none bg-white text-slate-900"
                     value={aiForm.classId}
                     onChange={(e) => {
                       const cId = e.target.value;
@@ -543,9 +543,9 @@ export default function TeacherMaterialsPage() {
                       });
                     }}
                   >
-                    <option value="">-- Pilih Kelas --</option>
+                    <option value="" className="text-slate-900 bg-white">-- Pilih Kelas --</option>
                     {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
+                      <option key={c.id} value={c.id} className="text-slate-900 bg-white">
                         {c.name}
                       </option>
                     ))}
@@ -557,15 +557,15 @@ export default function TeacherMaterialsPage() {
                     3. Mata Pelajaran
                   </label>
                   <select
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none bg-white text-slate-900"
                     value={aiForm.subjectId}
                     onChange={(e) => setAiForm({ ...aiForm, subjectId: e.target.value })}
                   >
-                    <option value="">-- Umum / Default --</option>
+                    <option value="" className="text-slate-900 bg-white">-- Umum / Default --</option>
                     {classes
                       .find((c) => c.id === aiForm.classId)
                       ?.subjects?.map((s) => (
-                        <option key={s.id} value={s.id}>
+                        <option key={s.id} value={s.id} className="text-slate-900 bg-white">
                           {s.name}
                         </option>
                       ))}
@@ -581,7 +581,7 @@ export default function TeacherMaterialsPage() {
                   type="text"
                   required
                   placeholder="Contoh: Rantai makanan, habitat hutan hujan tropis, dan konservasi bekantan"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
                   value={aiForm.topic}
                   onChange={(e) => setAiForm({ ...aiForm, topic: e.target.value })}
                 />
@@ -594,7 +594,7 @@ export default function TeacherMaterialsPage() {
                 <textarea
                   rows={2}
                   placeholder="Contoh: Sertakan analogi mudah dipahami siswa SMP dan 3 studi kasus lokal."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-purple-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
                   value={aiForm.instructions}
                   onChange={(e) => setAiForm({ ...aiForm, instructions: e.target.value })}
                 />
@@ -628,7 +628,7 @@ export default function TeacherMaterialsPage() {
                 </div>
                 <textarea
                   rows={8}
-                  className="w-full p-4 rounded-xl border border-slate-200 text-xs font-mono bg-slate-50 leading-relaxed focus:ring-2 focus:ring-purple-500/40 focus:outline-none"
+                  className="w-full p-4 rounded-xl border border-slate-200 text-xs font-mono bg-white text-slate-900 leading-relaxed focus:ring-2 focus:ring-purple-500/40 focus:outline-none"
                   value={aiGeneratedContent}
                   onChange={(e) => setAiGeneratedContent(e.target.value)}
                 />
@@ -690,7 +690,7 @@ export default function TeacherMaterialsPage() {
                   type="text"
                   required
                   placeholder="Contoh: Modul Struktur Sel & Video Pembelajaran"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
                   value={uploadForm.title}
                   onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
                 />
@@ -703,7 +703,7 @@ export default function TeacherMaterialsPage() {
                   </label>
                   <select
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none bg-white text-slate-900"
                     value={uploadForm.classId}
                     onChange={(e) => {
                       const cId = e.target.value;
@@ -715,9 +715,9 @@ export default function TeacherMaterialsPage() {
                       });
                     }}
                   >
-                    <option value="">-- Pilih Kelas --</option>
+                    <option value="" className="text-slate-900 bg-white">-- Pilih Kelas --</option>
                     {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
+                      <option key={c.id} value={c.id} className="text-slate-900 bg-white">
                         {c.name}
                       </option>
                     ))}
@@ -729,15 +729,15 @@ export default function TeacherMaterialsPage() {
                     3. Mata Pelajaran
                   </label>
                   <select
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none bg-white text-slate-900"
                     value={uploadForm.subjectId}
                     onChange={(e) => setUploadForm({ ...uploadForm, subjectId: e.target.value })}
                   >
-                    <option value="">-- Umum / Default --</option>
+                    <option value="" className="text-slate-900 bg-white">-- Umum / Default --</option>
                     {classes
                       .find((c) => c.id === uploadForm.classId)
                       ?.subjects?.map((s) => (
-                        <option key={s.id} value={s.id}>
+                        <option key={s.id} value={s.id} className="text-slate-900 bg-white">
                           {s.name}
                         </option>
                       ))}
@@ -752,7 +752,7 @@ export default function TeacherMaterialsPage() {
                 <textarea
                   rows={2}
                   placeholder="Tuliskan petunjuk atau rangkuman materi untuk siswa..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
                 />
@@ -833,7 +833,7 @@ export default function TeacherMaterialsPage() {
                 </label>
                 <select
                   required
-                  className="w-full px-4 py-3.5 rounded-xl border-2 border-amber-300 text-sm font-bold text-slate-800 bg-amber-50/50 focus:ring-2 focus:ring-amber-500/40 focus:outline-none"
+                  className="w-full px-4 py-3.5 rounded-xl border-2 border-amber-300 text-sm font-bold text-slate-900 bg-amber-50/50 focus:ring-2 focus:ring-amber-500/40 focus:outline-none"
                   value={questionForm.targetType}
                   onChange={(e) =>
                     setQuestionForm({
@@ -842,8 +842,8 @@ export default function TeacherMaterialsPage() {
                     })
                   }
                 >
-                  <option value="BORNEO_EDU">🎮 Game Borneo EDU (Dimasukkan ke Level Game Kelas Ini)</option>
-                  <option value="NEW_ASSIGNMENT">📝 Tugas Baru (Ditulis Tangan oleh Siswa di Buku Tulis)</option>
+                  <option value="BORNEO_EDU" className="text-slate-900 bg-white">🎮 Game Borneo EDU (Dimasukkan ke Level Game Kelas Ini)</option>
+                  <option value="NEW_ASSIGNMENT" className="text-slate-900 bg-white">📝 Tugas Baru (Ditulis Tangan oleh Siswa di Buku Tulis)</option>
                 </select>
               </div>
 
@@ -874,15 +874,15 @@ export default function TeacherMaterialsPage() {
                   Jumlah Soal yang Digenerate:
                 </label>
                 <select
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-amber-500/40 focus:outline-none bg-white"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-amber-500/40 focus:outline-none bg-white text-slate-900"
                   value={questionForm.questionCount}
                   onChange={(e) => setQuestionForm({ ...questionForm, questionCount: Number(e.target.value) })}
                 >
-                  <option value={5}>5 Soal</option>
-                  <option value={10}>10 Soal (Direkomendasikan)</option>
-                  <option value={15}>15 Soal</option>
-                  <option value={20}>20 Soal</option>
-                  <option value={25}>25 Soal (Mencakup Semua Level 1 s.d. 25 & Boss)</option>
+                  <option value={5} className="text-slate-900 bg-white">5 Soal</option>
+                  <option value={10} className="text-slate-900 bg-white">10 Soal (Direkomendasikan)</option>
+                  <option value={15} className="text-slate-900 bg-white">15 Soal</option>
+                  <option value={20} className="text-slate-900 bg-white">20 Soal</option>
+                  <option value={25} className="text-slate-900 bg-white">25 Soal (Mencakup Semua Level 1 s.d. 25 & Boss)</option>
                 </select>
               </div>
 
@@ -895,7 +895,7 @@ export default function TeacherMaterialsPage() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
                       value={questionForm.assignmentTitle}
                       onChange={(e) => setQuestionForm({ ...questionForm, assignmentTitle: e.target.value })}
                     />
@@ -906,7 +906,7 @@ export default function TeacherMaterialsPage() {
                     </label>
                     <input
                       type="datetime-local"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white"
                       value={questionForm.deadline}
                       onChange={(e) => setQuestionForm({ ...questionForm, deadline: e.target.value })}
                     />

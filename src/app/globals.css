@@ -17,19 +17,74 @@
   --foreground: #0f172a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-  }
-}
-
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   /* Smooth scrolling */
   scroll-behavior: smooth;
+}
+
+/* Pastikan semua isian input, select, dan textarea selalu jelas terbaca */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  color: #0f172a;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+/* Pastikan dropdown option pada browser/OS selalu berkontras tinggi */
+select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* Dukungan autofill browser agar tulisan tidak menjadi putih saat diketik/auto-fill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Pengecualian untuk input & select khusus di area bernuansa gelap (seperti arcade game) */
+.bg-slate-800 input:not([type="checkbox"]):not([type="radio"]),
+.bg-slate-900 input:not([type="checkbox"]):not([type="radio"]),
+.bg-slate-950 input:not([type="checkbox"]):not([type="radio"]),
+.bg-gray-800 input:not([type="checkbox"]):not([type="radio"]),
+.bg-gray-900 input:not([type="checkbox"]):not([type="radio"]),
+input.text-white,
+textarea.text-white,
+select.text-white {
+  color: #ffffff !important;
+}
+
+.bg-slate-800 input:-webkit-autofill,
+.bg-slate-900 input:-webkit-autofill,
+.bg-slate-950 input:-webkit-autofill,
+.bg-gray-800 input:-webkit-autofill,
+.bg-gray-900 input:-webkit-autofill,
+input.text-white:-webkit-autofill {
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.bg-slate-800 select option,
+.bg-slate-900 select option,
+.bg-slate-950 select option,
+.bg-gray-800 select option,
+.bg-gray-900 select option,
+select.bg-slate-800 option,
+select.bg-slate-900 option,
+select.bg-gray-800 option,
+select.bg-gray-900 option,
+select.text-white option {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
 }
 
 /* Glassmorphism Utilities */

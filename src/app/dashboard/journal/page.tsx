@@ -147,7 +147,7 @@ export default function JournalPage() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Contoh: Aljabar Linier, Tata Bahasa..."
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 bg-white placeholder:text-gray-400"
               required
             />
           </div>
@@ -159,7 +159,7 @@ export default function JournalPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Jelaskan secara singkat kegiatan belajar mengajar hari ini..."
               rows={4}
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 bg-white placeholder:text-gray-400"
               required
             />
           </div>

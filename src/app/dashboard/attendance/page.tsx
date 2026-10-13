@@ -250,11 +250,11 @@ export default function AttendancePage() {
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 bg-white"
           >
-            <option value="">-- Pilih Kelas --</option>
+            <option value="" className="text-gray-900 bg-white">-- Pilih Kelas --</option>
             {classes.map(c => (
-              <option key={c._id} value={c._id}>{c.name}</option>
+              <option key={c._id} value={c._id} className="text-gray-900 bg-white">{c.name}</option>
             ))}
           </select>
         </div>

@@ -146,7 +146,7 @@ export default function SettingsPage() {
                       required
                       value={formData.fullName}
                       onChange={e => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white placeholder:text-slate-400"
                     />
                   </div>
                 </div>
@@ -170,7 +170,7 @@ export default function SettingsPage() {
                       type="password"
                       value={formData.password}
                       onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white placeholder:text-slate-400"
                       placeholder="Kosongkan jika tidak ingin mengubah password"
                     />
                   </div>

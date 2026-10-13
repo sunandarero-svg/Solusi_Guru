@@ -50,11 +50,11 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
       <select
         value={correctAnswer || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm"
+        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-gray-900 text-sm"
       >
-        <option value="">-- Pilih --</option>
+        <option value="" className="text-gray-900 bg-white">-- Pilih --</option>
         {PG_OPTIONS.map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
+          <option key={opt} value={opt} className="text-gray-900 bg-white">{opt}</option>
         ))}
       </select>
     );
@@ -65,11 +65,11 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
       <select
         value={correctAnswer || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm"
+        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-gray-900 text-sm"
       >
-        <option value="">-- Pilih --</option>
-        <option value="Benar">Benar</option>
-        <option value="Salah">Salah</option>
+        <option value="" className="text-gray-900 bg-white">-- Pilih --</option>
+        <option value="Benar" className="text-gray-900 bg-white">Benar</option>
+        <option value="Salah" className="text-gray-900 bg-white">Salah</option>
       </select>
     );
   }
@@ -120,7 +120,7 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
           value={correctAnswer || ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder="cth: Proklamasi, Kemerdekaan"
-          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm"
+          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-gray-900 text-sm placeholder:text-gray-400"
         />
         <span className="text-[10px] text-gray-400 italic">Opsional — pisah koma untuk multi-jawaban</span>
       </div>
@@ -136,7 +136,7 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
           onChange={(e) => onChange(e.target.value)}
           placeholder="Poin kunci yang harus ada..."
           rows={2}
-          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-sm resize-y"
+          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-white text-gray-900 text-sm resize-y placeholder:text-gray-400"
         />
         <span className="text-[10px] text-gray-400 italic">Opsional — panduan poin kunci untuk AI</span>
       </div>
@@ -318,17 +318,17 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
                           type="number" 
                           value={q.order}
                           onChange={(e) => handleChange(index, 'order', parseInt(e.target.value) || 0)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-center"
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-center bg-white text-gray-900"
                         />
                       </td>
                       <td className="px-4 py-2">
                         <select 
                           value={q.questionType}
                           onChange={(e) => handleChange(index, 'questionType', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white text-gray-900"
                         >
                           {QUESTION_TYPES.map(type => (
-                            <option key={type} value={type}>{QUESTION_TYPE_LABELS[type]}</option>
+                            <option key={type} value={type} className="text-gray-900 bg-white">{QUESTION_TYPE_LABELS[type]}</option>
                           ))}
                         </select>
                       </td>
@@ -343,7 +343,7 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
                           type="number" 
                           value={q.maxScore}
                           onChange={(e) => handleChange(index, 'maxScore', parseInt(e.target.value) || 0)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none"
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-center"
                         />
                       </td>
                       <td className="px-4 py-2 text-center">

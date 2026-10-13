@@ -465,7 +465,7 @@ export default function TeacherReviewPage({
                                     min="0" max={a.maxScore}
                                     value={editScore}
                                     onChange={(e) => setEditScore(parseFloat(e.target.value) || 0)}
-                                    className="w-24 px-3 py-2 bg-gray-50 border border-gray-300 rounded font-bold text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                                    className="w-24 px-3 py-2 bg-white border border-gray-300 rounded font-bold text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none"
                                   />
                                 </div>
                                 <div className="mb-4">
@@ -474,7 +474,7 @@ export default function TeacherReviewPage({
                                     value={editAnalysisText}
                                     onChange={(e) => setEditAnalysisText(e.target.value)}
                                     rows={3}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:ring-blue-500 outline-none"
                                   />
                                 </div>
                                 <div className="flex justify-end gap-2">

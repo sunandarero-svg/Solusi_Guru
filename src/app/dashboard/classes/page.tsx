@@ -95,7 +95,7 @@ export default function ClassesPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Nama Kelas</label>
-              <input required className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-800"
+              <input required className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-800 bg-white placeholder:text-gray-400"
                 placeholder="contoh: Kelas XI IPA 2" value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
@@ -103,15 +103,15 @@ export default function ClassesPage() {
               <label className="block text-sm font-medium text-gray-600 mb-1">Mata Pelajaran Utama Anda di Kelas Ini *</label>
               <select required className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-800 bg-white"
                 value={form.subjectId} onChange={e => setForm({ ...form, subjectId: e.target.value })}>
-                <option value="">-- Pilih Mata Pelajaran --</option>
+                <option value="" className="text-gray-800 bg-white">-- Pilih Mata Pelajaran --</option>
                 {subjects.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <option key={s.id} value={s.id} className="text-gray-800 bg-white">{s.name}</option>
                 ))}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Deskripsi (Opsional)</label>
-              <input className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-800"
+              <input className="w-full border border-gray-300 rounded-lg p-2 text-sm text-gray-800 bg-white placeholder:text-gray-400"
                 placeholder="contoh: Tahun Ajaran 2025/2026" value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })} />
             </div>
