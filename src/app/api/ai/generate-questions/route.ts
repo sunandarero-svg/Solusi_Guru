@@ -77,47 +77,59 @@ export async function POST(req: NextRequest) {
       let questionsList: any[] = [];
 
       const prompt = `Anda adalah pembuat soal kurikulum game edukasi platformer 2D "Borneo Edu".
-Buatkan ${count} soal pilihan ganda (A, B, C, D) yang edukatif dan menarik berdasarkan materi berikut:
----
+Tugas Anda adalah membuat ${count} soal pilihan ganda (A, B, C, D) yang bersumber SEPENUHNYA dari teks materi pembelajaran di bawah ini.
+
+===================================================================
+TEKS MATERI PEMBELAJARAN LENGKAP:
 Judul Materi: ${material.title}
-Isi Materi:
-${materialText.substring(0, 5000)}
----
-${isSparseContent ? `PERHATIAN: Teks materi yang tersedia sangat terbatas. Gunakan pengetahuan umum Anda tentang topik "${material.title}" untuk membuat soal yang relevan dan berkualitas. Pastikan soal tetap akurat secara ilmiah dan sesuai kurikulum Indonesia.\n` : ""}
-Ketentuan Soal Game:
-- Distribusikan soal dari level awal sampai level akhir (World 1 sampai 5, Level 1 sampai 25).
-- Tipe soal bergradasi: 'Pengetahuan', 'Pemahaman', 'Penerapan', 'Analisis', 'HOTS'.
-- Difficulty: 'EASY', 'MEDIUM', 'HARD', 'HOTS', 'BOSS'.
-- Jika soal untuk level kelipatan 5 (Level 5, 10, 15, 20, 25), jadikan sebagai 'isBossQuestion: true' dan difficulty 'BOSS'.
-- Jawaban benar harus tepat satu (A, B, C, atau D).
-- Berikan penjelasan singkat namun padat pada setiap soal.
+
+${materialText.substring(0, 25000)}
+===================================================================
+
+ATURAN UTAMA & WAJIB (STRICT ALIGNMENT DENGAN MATERI):
+1. SEMUA JAWABAN BENAR HARUS DAPAT DITEMUKAN SECARA LANGSUNG PADA TEKS MATERI DI ATAS!
+   Siswa telah membaca materi tersebut sebelum memainkan game Borneo Edu. DILARANG KERAS menanyakan informasi, istilah, rumus, nama, atau fakta yang TIDAK ADA atau TIDAK DIBAHAS di dalam teks materi di atas.
+2. Pertanyaan harus menguji pemahaman konsep, poin-poin utama, definisi, klasifikasi, mekanisme, atau contoh nyata yang TERTULIS EKSPLISIT di dalam materi.
+3. Jawaban Benar (correctAnswer):
+   - Harus berupa pernyataan/fakta yang 100% benar sesuai isi teks materi.
+   - Pilihan pengecoh (distractor) harus masuk akal dalam konteks topik namun secara jelas salah atau bertentangan dengan isi materi.
+4. Bagian "explanation":
+   - WAJIB menuliskan penjelasan singkat yang menyebutkan kalimat atau bagian materi rujukan di mana jawaban tersebut ditemukan.
+5. Ketentuan Game Platformer:
+   - Buat tepat ${count} soal.
+   - Distribusikan dari World 1 sampai World 5 (Level 1 sampai 25).
+   - Tipe soal bergradasi: 'Pengetahuan', 'Pemahaman', 'Penerapan', 'Analisis', 'HOTS'.
+   - Difficulty: 'EASY', 'MEDIUM', 'HARD', 'HOTS', 'BOSS'.
+   - Level kelipatan 5 (Level 5, 10, 15, 20, 25): jadikan 'isBossQuestion': true dan difficulty 'BOSS'.
+6. Distribusikan pertanyaan secara merata dari awal hingga akhir materi (Pengertian, Teori, Klasifikasi, Penerapan, hingga Rangkuman).
 
 Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown pembungkus):
 [
   {
     "world": 1,
     "level": 1,
-    "question": "Pertanyaan...",
+    "question": "Berdasarkan materi di atas, apakah pengertian dari ...?",
     "options": {
-      "A": "Pilihan A",
-      "B": "Pilihan B",
-      "C": "Pilihan C",
-      "D": "Pilihan D"
+      "A": "Pilihan A (jawaban benar yang ada di teks)",
+      "B": "Pilihan B (pengecoh)",
+      "C": "Pilihan C (pengecoh)",
+      "D": "Pilihan D (pengecoh)"
     },
     "correctAnswer": "A",
     "difficulty": "EASY",
     "stage": "Pengetahuan",
     "isBossQuestion": false,
-    "explanation": "Penjelasan..."
+    "explanation": "Berdasarkan materi pada bagian ..., jawaban yang tepat adalah ... karena ..."
   }
 ]`;
 
         try {
           const rawText = await callAICascade({
+            systemPrompt: "Anda adalah pembuat soal kurikulum yang SANGAT KETAT. Anda WAJIB memastikan SELURUH pertanyaan dan kunci jawaban DAPAT DITEMUKAN secara langsung dan eksplisit di dalam teks materi yang disediakan. DILARANG membuat soal dari informasi di luar teks materi.",
             prompt,
             responseJson: true,
             maxTokens: 4096,
-            temperature: 0.3,
+            temperature: 0.2,
             logPrefix: "[Borneo Question AI Cascade]",
           });
 
@@ -249,46 +261,54 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown pembungkus):
       const essayCount = Math.min(count, 10);
       const scorePerQuestion = Math.round(100 / essayCount);
 
-      const prompt = `Anda adalah guru ahli kurikulum Indonesia. Buatkan ${essayCount} soal untuk siswa sekolah berdasarkan materi berikut:
+      const prompt = `Anda adalah guru ahli kurikulum Indonesia. Buatkan ${essayCount} soal tugas untuk siswa sekolah berdasarkan teks materi pembelajaran di bawah ini:
 
+===================================================================
+TEKS MATERI PEMBELAJARAN LENGKAP:
 Judul Materi: ${material.title}
-Teks Materi:
-${materialText.substring(0, 5000)}
-${isSparseContent ? `\nPERHATIAN: Teks materi yang tersedia sangat terbatas. Gunakan pengetahuan umum Anda tentang topik "${material.title}" untuk membuat soal yang relevan, akurat, dan sesuai kurikulum Indonesia.\n` : ""}
 
-KETENTUAN PENTING:
-1. Soal-soal ini akan DIKERJAKAN DENGAN TULISAN TANGAN DI BUKU TULIS oleh siswa, kemudian difoto dan dinilai oleh AI.
-2. Setiap soal WAJIB dilengkapi dengan JAWABAN IDEAL (kunci jawaban) yang lengkap dan detail. Jawaban ideal ini digunakan sebagai referensi penilaian otomatis oleh AI.
-3. Variasikan tipe soal antara:
-   - "ESSAY": Soal uraian yang membutuhkan penjelasan panjang (2-4 kalimat jawaban ideal)
-   - "ISIAN_SINGKAT": Soal jawaban singkat (1-3 kata/frase jawaban ideal)
-4. Buatkan soal yang mengasah pemahaman konsep, penalaran, dan analisis kritis.
-5. Pastikan soal bergradasi dari mudah ke sulit.
-6. Jawaban ideal harus mencakup SEMUA poin kunci yang diharapkan ada dalam jawaban siswa.
-7. Untuk soal ISIAN_SINGKAT, jika ada beberapa kemungkinan jawaban benar, tuliskan semua dipisah koma.
+${materialText.substring(0, 25000)}
+===================================================================
+
+ATURAN UTAMA & WAJIB (STRICT ALIGNMENT DENGAN MATERI):
+1. SEMUA JAWABAN DAN KUNCI JAWABAN (idealAnswer) HARUS 100% DAPAT DITEMUKAN PADA TEKS MATERI DI ATAS!
+   Siswa akan mengerjakan tugas ini di BUKU TULIS mereka setelah membaca materi. DILARANG membuat pertanyaan yang jawabannya tidak ada atau tidak diterangkan di dalam teks materi tersebut.
+2. KUNCI JAWABAN (idealAnswer) WAJIB MERUJUK SECARA PERSIS PADA ISI DAN POIN-POIN MATERI:
+   - idealAnswer akan digunakan oleh sistem AI Grader untuk menilai foto tulisan tangan siswa.
+   - Siswa yang menuliskan jawaban sesuai teks materi HARUS mendapatkan skor maksimal (100).
+   - Tuliskan poin-poin kunci, fakta, dan kata kunci penting yang tertulis di materi ke dalam idealAnswer.
+3. Variasi Tipe Soal:
+   - "ESSAY": Soal uraian yang menuntut pemahaman konsep, mekanisme, atau penerapan (idealAnswer berupa 2-4 kalimat lengkap yang merangkum penjelasan di materi).
+   - "ISIAN_SINGKAT": Soal jawaban ringkas yang menanyakan istilah khusus, nama komponen, rumus, atau definisi pendek yang tertulis di materi (idealAnswer berupa 1-3 kata/frasa kunci).
+4. Buat pertanyaan terarah dan spesifik berdasarkan isi materi, contoh:
+   - "Berdasarkan materi di atas, jelaskan pengertian ... dan sebutkan 3 poin pentingnya!"
+   - "Bagaimana proses/mekanisme ... terjadi sebagaimana diuraikan dalam materi?"
+   - "Sebutkan 3 contoh penerapan nyata dari ... yang dijelaskan dalam materi!"
+5. Distribusikan soal secara proporsional dari berbagai bagian materi (Pengertian, Prinsip, Klasifikasi, Mekanisme, Contoh Penerapan).
 
 Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown):
 [
   {
-    "question": "Jelaskan pengertian ... dan sebutkan 3 contoh penerapannya dalam kehidupan sehari-hari!",
+    "question": "Berdasarkan materi di atas, jelaskan pengertian ... dan sebutkan 3 karakteristik utamanya!",
     "questionType": "ESSAY",
-    "idealAnswer": "... adalah ... yang berfungsi untuk .... Tiga contoh penerapannya: 1) ..., 2) ..., 3) ...",
+    "idealAnswer": "Berdasarkan materi, ... adalah .... Tiga karakteristik utamanya adalah: 1) ..., 2) ..., 3) ...",
     "maxScore": ${scorePerQuestion}
   },
   {
-    "question": "Siapakah tokoh yang pertama kali menemukan ...?",
+    "question": "Istilah apa yang digunakan dalam materi untuk menggambarkan ...?",
     "questionType": "ISIAN_SINGKAT",
-    "idealAnswer": "Nama Tokoh, Nama Alternatif",
+    "idealAnswer": "Istilah Kunci, Nama Alternatif",
     "maxScore": ${scorePerQuestion}
   }
 ]`;
 
         try {
           const rawText = await callAICascade({
+            systemPrompt: "Anda adalah guru ahli kurikulum yang SANGAT KETAT. Anda WAJIB memastikan SELURUH pertanyaan dan kunci jawaban (idealAnswer) DAPAT DITEMUKAN secara langsung dan eksplisit di dalam teks materi yang diberikan. DILARANG membuat soal dari informasi di luar materi.",
             prompt,
             responseJson: true,
             maxTokens: 4096,
-            temperature: 0.3,
+            temperature: 0.2,
             logPrefix: "[Essay Question AI Cascade]",
           });
 

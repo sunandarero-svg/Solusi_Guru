@@ -113,6 +113,9 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
         if (responseJson) {
           config.responseMimeType = "application/json";
         }
+        if (systemPrompt) {
+          config.systemInstruction = systemPrompt;
+        }
 
         const response = await ai.models.generateContent({
           model: geminiModel,
