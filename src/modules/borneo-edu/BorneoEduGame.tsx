@@ -135,25 +135,66 @@ export default function BorneoEduGame() {
 
   // Mobile Orientation & Landscape helper
   const [isPortraitMobile, setIsPortraitMobile] = useState<boolean>(false);
+  const [isLandscapeMobile, setIsLandscapeMobile] = useState<boolean>(false);
   const [showOrientationBanner, setShowOrientationBanner] = useState<boolean>(true);
 
   useEffect(() => {
     const checkOrientation = () => {
       if (typeof window === 'undefined') return;
-      const isMobile = window.innerWidth <= 900;
-      const isPortrait = window.innerHeight > window.innerWidth;
-      setIsPortraitMobile(isMobile && isPortrait);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const isMobileDevice =
+        Math.min(w, h) <= 650 ||
+        (w <= 1024 && h <= 650) ||
+        /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+      const isLandscapeMedia =
+        window.matchMedia?.('(orientation: landscape)').matches ?? (w > h);
+      const isPortrait = !isLandscapeMedia || h > w;
+      const isLandscape = (isLandscapeMedia || w > h) && w > h;
+
+      setIsPortraitMobile(isMobileDevice && isPortrait);
+      setIsLandscapeMobile(isMobileDevice && isLandscape);
     };
 
     checkOrientation();
     window.addEventListener('resize', checkOrientation);
     window.addEventListener('orientationchange', checkOrientation);
 
+    const mql = window.matchMedia?.('(orientation: landscape)');
+    if (mql?.addEventListener) {
+      mql.addEventListener('change', checkOrientation);
+    }
+
     return () => {
       window.removeEventListener('resize', checkOrientation);
       window.removeEventListener('orientationchange', checkOrientation);
+      if (mql?.removeEventListener) {
+        mql.removeEventListener('change', checkOrientation);
+      }
     };
   }, []);
+
+  // Sync fullscreen state with document fullscreenchange
+  useEffect(() => {
+    const handleFsChange = () => {
+      if (typeof document === 'undefined') return;
+      const isFs = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement
+      );
+      if (!isFs && !isLandscapeMobile) {
+        setIsFullscreen(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, [isLandscapeMobile]);
 
   // Handle Fullscreen & Landscape Toggle
   const toggleFullscreen = () => {
@@ -240,6 +281,25 @@ export default function BorneoEduGame() {
   const handleStartGame = () => {
     sound.playPowerUp();
     setGameState('PLAYING');
+    if (typeof window !== 'undefined') {
+      const isMobileDevice = window.innerWidth <= 1024 || window.innerHeight <= 650;
+      if (isMobileDevice) {
+        setIsFullscreen(true);
+        const elem = gameContainerRef.current as any;
+        if (elem) {
+          if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(() => {});
+          } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+          }
+        }
+        try {
+          if (window.screen?.orientation && 'lock' in window.screen.orientation) {
+            (window.screen.orientation as any).lock('landscape').catch(() => {});
+          }
+        } catch (_) {}
+      }
+    }
   };
 
   // Select Level
@@ -253,6 +313,12 @@ export default function BorneoEduGame() {
     }));
     sound.playPowerUp();
     setGameState('PLAYING');
+    if (typeof window !== 'undefined') {
+      const isMobileDevice = window.innerWidth <= 1024 || window.innerHeight <= 650;
+      if (isMobileDevice) {
+        setIsFullscreen(true);
+      }
+    }
   };
 
   // Coin collected in arena
@@ -594,15 +660,21 @@ export default function BorneoEduGame() {
   };
 
   const currentWorldDef = WORLD_DEFINITIONS.find((w) => w.id === playerState.currentWorld) || WORLD_DEFINITIONS[0];
+  const isEdgeToEdge = isFullscreen || isLandscapeMobile;
 
   return (
     <div
       ref={gameContainerRef}
       className={`w-full ${
-        isFullscreen
-          ? 'fixed inset-0 z-[99999] bg-slate-950 p-0 sm:p-2 w-screen h-screen min-h-screen max-w-none max-h-none flex flex-col justify-between overflow-hidden'
-          : 'min-h-[520px] landscape:min-h-0 bg-slate-950 rounded-2xl sm:rounded-3xl p-2 sm:p-6 shadow-2xl relative select-none font-sans text-white border-2 border-slate-800'
+        isEdgeToEdge
+          ? `fixed inset-0 z-[99999] bg-slate-950 p-0 m-0 w-screen h-screen min-h-[100dvh] max-h-[100dvh] max-w-[100dvw] flex flex-col rounded-none border-none ${
+              gameState === 'MENU'
+                ? 'overflow-y-auto overscroll-contain touch-pan-y'
+                : 'overflow-hidden justify-between'
+            }`
+          : 'min-h-[520px] landscape:min-h-0 bg-slate-950 rounded-2xl sm:rounded-3xl p-2 sm:p-6 shadow-2xl relative font-sans text-white border-2 border-slate-800 flex flex-col overflow-y-auto overscroll-contain max-h-[100dvh]'
       }`}
+      style={isEdgeToEdge && gameState === 'MENU' ? { WebkitOverflowScrolling: 'touch' } : undefined}
     >
       {/* Smartphone Portrait Orientation Prompt */}
       {isPortraitMobile && showOrientationBanner && (
@@ -644,15 +716,21 @@ export default function BorneoEduGame() {
       {/* 1. HALAMAN UTAMA (MAIN MENU) */}
       {/* ========================================================================= */}
       {gameState === 'MENU' && (
-        <div className="relative min-h-[580px] rounded-3xl overflow-hidden flex flex-col justify-between p-6 sm:p-10 border-2 border-slate-800 bg-gradient-to-b from-teal-950 via-emerald-950 to-slate-950">
+        <div
+          className={`relative w-full flex flex-col justify-between p-3 sm:p-8 landscape:p-3 landscape:py-2.5 min-h-full ${
+            isEdgeToEdge
+              ? 'rounded-none border-none bg-gradient-to-b from-teal-950 via-emerald-950 to-slate-950'
+              : 'rounded-2xl sm:rounded-3xl border-2 border-slate-800 bg-gradient-to-b from-teal-950 via-emerald-950 to-slate-950'
+          }`}
+        >
           {/* Animated Background Decor */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
           {/* Floating Coins Decor */}
-          <div className="absolute top-16 left-12 text-3xl animate-bounce">🪙</div>
-          <div className="absolute top-28 right-24 text-2xl animate-bounce delay-300">🪙</div>
-          <div className="absolute bottom-28 left-20 text-2xl animate-bounce delay-500">🪙</div>
+          <div className="hidden sm:block landscape:hidden absolute top-16 left-12 text-3xl animate-bounce">🪙</div>
+          <div className="hidden sm:block landscape:hidden absolute top-28 right-24 text-2xl animate-bounce delay-300">🪙</div>
+          <div className="hidden sm:block landscape:hidden absolute bottom-28 left-20 text-2xl animate-bounce delay-500">🪙</div>
 
           {/* Top Bar on Main Menu */}
           <div className="relative z-10 flex items-center justify-between gap-3">
@@ -696,21 +774,21 @@ export default function BorneoEduGame() {
           </div>
 
           {/* Hero Banner: Large Game Title & Slogan */}
-          <div className="relative z-10 text-center my-6">
-            <div className="inline-block px-4 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black uppercase tracking-widest mb-3">
+          <div className="relative z-10 text-center my-2 sm:my-6 landscape:my-1.5 shrink-0">
+            <div className="inline-block px-3 py-0.5 sm:px-4 sm:py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1 sm:mb-2">
               SUPER MARIO EDU • EDISI BORNEO
             </div>
-            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-teal-200 drop-shadow-md">
+            <h1 className="text-3xl sm:text-6xl landscape:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-teal-200 drop-shadow-md">
               BORNEO EDU
             </h1>
-            <p className="text-base sm:text-xl font-extrabold text-amber-300 mt-2 tracking-wide drop-shadow">
+            <p className="text-xs sm:text-xl landscape:text-xs font-extrabold text-amber-300 mt-0.5 sm:mt-1 tracking-wide drop-shadow">
               "Petualangan Belajar, Kumpulkan Koin, Taklukkan Tantangan!"
             </p>
           </div>
 
           {/* Student Identity Card */}
-          <div className="relative z-10 max-w-lg mx-auto w-full p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 backdrop-blur-md mb-6 shadow-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
+          <div className="relative z-10 max-w-xl mx-auto w-full p-3 sm:p-4 landscape:p-2.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 backdrop-blur-md mb-3 sm:mb-6 landscape:mb-2 shadow-xl shrink-0">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 mb-2">
               <span className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                 <span>🎒</span>
                 <span>Identitas Siswa Petualang</span>
@@ -718,18 +796,18 @@ export default function BorneoEduGame() {
               <span className="text-[10px] text-slate-400">Login Otomatis</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 landscape:grid-cols-3 gap-2">
               <div>
                 <label className="text-[10px] text-slate-400 block mb-0.5 font-bold flex items-center justify-between">
                   <span>Nama Siswa</span>
-                  <span className="text-[9px] text-amber-400/90 font-medium">🔒 Terkunci (Sesuai Akun)</span>
+                  <span className="text-[9px] text-amber-400/90 font-medium">🔒 Terkunci</span>
                 </label>
                 <input
                   type="text"
                   value={playerState.studentName}
                   readOnly
                   disabled
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/80 text-xs font-bold text-slate-300 cursor-not-allowed select-none opacity-90 focus:outline-none"
+                  className="w-full px-2.5 py-1 rounded-xl bg-slate-800/60 border border-slate-700/80 text-xs font-bold text-slate-300 cursor-not-allowed select-none opacity-90 focus:outline-none"
                   title="Nama siswa terkunci sesuai akun yang terdaftar"
                 />
               </div>
@@ -742,7 +820,7 @@ export default function BorneoEduGame() {
                   type="text"
                   value={playerState.studentNumber}
                   onChange={(e) => updatePlayer((p) => ({ ...p, studentNumber: e.target.value }))}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-emerald-500/80 ring-1 ring-emerald-500/40 text-xs font-bold text-white focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/50"
+                  className="w-full px-2.5 py-1 rounded-xl bg-slate-800 border border-emerald-500/80 ring-1 ring-emerald-500/40 text-xs font-bold text-white focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/50"
                   placeholder="No. Absen"
                   title="Nomor absen siswa (dapat diubah)"
                 />
@@ -750,21 +828,21 @@ export default function BorneoEduGame() {
               <div>
                 <label className="text-[10px] text-slate-400 block mb-0.5 font-bold flex items-center justify-between">
                   <span>Kelas</span>
-                  <span className="text-[9px] text-amber-400/90 font-medium">🔒 Terkunci (Sesuai Akun)</span>
+                  <span className="text-[9px] text-amber-400/90 font-medium">🔒 Terkunci</span>
                 </label>
                 <input
                   type="text"
                   value={playerState.className}
                   readOnly
                   disabled
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/80 text-xs font-bold text-slate-300 cursor-not-allowed select-none opacity-90 focus:outline-none"
+                  className="w-full px-2.5 py-1 rounded-xl bg-slate-800/60 border border-slate-700/80 text-xs font-bold text-slate-300 cursor-not-allowed select-none opacity-90 focus:outline-none"
                   title="Kelas terkunci sesuai akun yang terdaftar"
                 />
               </div>
             </div>
 
             {/* Quick Status Bar */}
-            <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/80 text-xs">
+            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/80 text-[11px] sm:text-xs">
               <span className="text-slate-400">
                 Nyawa: <strong className="text-red-400">❤️ {playerState.lives}</strong>
               </span>
@@ -781,11 +859,11 @@ export default function BorneoEduGame() {
           </div>
 
           {/* Main Action Buttons Grid */}
-          <div className="relative z-10 max-w-lg mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <div className="relative z-10 max-w-xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 landscape:grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-6 landscape:mb-2 shrink-0">
             <button
               id="btn-mulai"
               onClick={handleStartGame}
-              className="py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm sm:text-base shadow-xl transition-transform active:scale-95 flex items-center justify-center gap-2 col-span-1 sm:col-span-2 border border-emerald-300"
+              className="py-3 sm:py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm sm:text-base shadow-xl transition-transform active:scale-95 flex items-center justify-center gap-2 col-span-1 sm:col-span-2 landscape:col-span-2 border border-emerald-300"
             >
               <span>🚀</span>
               <span>{playerState.completedLevels.length > 0 ? 'LANJUTKAN PETUALANGAN' : 'MULAI PETUALANGAN'}</span>
@@ -793,7 +871,7 @@ export default function BorneoEduGame() {
 
             <button
               onClick={() => setGameState('WORLD_SELECT')}
-              className="py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
+              className="py-2.5 sm:py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
             >
               <span>🗺️</span>
               <span>PILIH WORLD</span>
@@ -801,7 +879,7 @@ export default function BorneoEduGame() {
 
             <button
               onClick={() => setGameState('PRESTASI')}
-              className="py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
+              className="py-2.5 sm:py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
             >
               <span>🏆</span>
               <span>PRESTASI</span>
@@ -809,7 +887,7 @@ export default function BorneoEduGame() {
 
             <button
               onClick={() => setGameState('PETUNJUK')}
-              className="py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95 col-span-1 sm:col-span-2"
+              className="py-2.5 sm:py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95 col-span-1 sm:col-span-2 landscape:col-span-2"
             >
               <span>📖</span>
               <span>PETUNJUK PERMAINAN</span>
@@ -817,8 +895,8 @@ export default function BorneoEduGame() {
           </div>
 
           {/* Footer Requirement: Game Design by Sunandar Ero, S.Kom */}
-          <div className="relative z-10 text-center pt-2 border-t border-slate-800/60">
-            <p className="text-[11px] text-slate-400 tracking-wide font-medium">
+          <div className="relative z-10 text-center pt-2 pb-6 landscape:pb-10 border-t border-slate-800/60 shrink-0">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 tracking-wide font-medium">
               Game Design by Sunandar Ero, S.Kom
             </p>
           </div>
@@ -829,9 +907,9 @@ export default function BorneoEduGame() {
       {/* 2. IN-GAME ARENA & HUD */}
       {/* ========================================================================= */}
       {(gameState === 'PLAYING' || gameState === 'QUESTION' || gameState === 'BOSS') && (
-        <div className="flex flex-col gap-1.5 sm:gap-3 w-full h-full">
+        <div className="flex flex-col w-full h-full flex-1 min-h-0 bg-slate-950">
           {/* Top In-Game Heads-Up Display (HUD) */}
-          <div className="p-1.5 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2 shadow-lg shrink-0">
+          <div className="px-2 py-1 landscape:py-0.5 landscape:px-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-1 shadow-md shrink-0 z-20">
             {/* Player Stats */}
             <div className="flex items-center gap-1.5 sm:gap-3">
               {/* Lives */}
@@ -936,7 +1014,7 @@ export default function BorneoEduGame() {
             isPaused={gameState !== 'PLAYING'}
             levelQuestions={activeLevelQuestions}
             defeatedEnemyId={defeatedEnemyId}
-            isFullscreen={isFullscreen}
+            isFullscreen={isEdgeToEdge}
           />
         </div>
       )}

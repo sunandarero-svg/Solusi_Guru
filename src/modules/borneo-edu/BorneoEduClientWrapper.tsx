@@ -53,7 +53,7 @@ export default function BorneoEduClientWrapper({
   return (
     <div className="space-y-3 sm:space-y-6">
       {!showStandaloneHeader && (
-        <div className="landscape:hidden sm:landscape:flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="landscape:hidden lg:landscape:flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1.5 shadow-sm">

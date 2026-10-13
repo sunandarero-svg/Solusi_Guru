@@ -18,7 +18,7 @@ export default function VictoryModal({
   const accuracy = totalQuestions > 0 ? Math.round((playerState.correctCount / totalQuestions) * 100) : 100;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-in zoom-in-95 duration-500 overflow-y-auto">
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 backdrop-blur-xl animate-in zoom-in-95 duration-500 overflow-y-auto">
       <div className="bg-gradient-to-b from-slate-900 via-purple-950 to-slate-950 border-3 border-amber-400 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative text-center text-white my-8">
         {/* Confetti simulation particles */}
         <div className="absolute top-2 left-6 text-2xl animate-bounce">🎉</div>

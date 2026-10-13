@@ -624,10 +624,10 @@ export default function PlatformerCanvas({
         }
 
         // Camera smoothly follows player
-        const targetCamX = p.x - 300;
+        const targetCamX = p.x - (canvas ? canvas.width * 0.38 : 300);
         cameraXRef.current += (targetCamX - cameraXRef.current) * 0.12;
         if (cameraXRef.current < 0) cameraXRef.current = 0;
-        const maxCam = Math.max(0, levelLengthRef.current - 800);
+        const maxCam = Math.max(0, levelLengthRef.current - (canvas ? canvas.width : 800));
         if (cameraXRef.current > maxCam) cameraXRef.current = maxCam;
 
         // Player animation timer
@@ -957,17 +957,56 @@ export default function PlatformerCanvas({
     worldDef
   ]);
 
+  // Dynamically adapt canvas buffer width to fill container without letterboxing
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const updateCanvasResolution = () => {
+      const rect = parent.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        const aspect = rect.width / rect.height;
+        // Keep coordinate height at 540 for identical physics, adjust width to match screen aspect ratio
+        const virtualWidth = Math.round(540 * Math.max(1.33, aspect));
+        if (canvas.width !== virtualWidth || canvas.height !== 540) {
+          canvas.width = virtualWidth;
+          canvas.height = 540;
+        }
+      }
+    };
+
+    updateCanvasResolution();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        updateCanvasResolution();
+      });
+      ro.observe(parent);
+    }
+
+    window.addEventListener('resize', updateCanvasResolution);
+    window.addEventListener('orientationchange', updateCanvasResolution);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updateCanvasResolution);
+      window.removeEventListener('orientationchange', updateCanvasResolution);
+    };
+  }, [isFullscreen]);
+
   return (
-    <div className={`relative w-full flex-1 overflow-hidden select-none touch-none bg-slate-900 flex items-center justify-center transition-all ${
+    <div className={`relative w-full h-full flex-1 overflow-hidden select-none touch-none bg-slate-900 flex items-center justify-center transition-all ${
       isFullscreen
-        ? 'h-full max-h-[100dvh] max-w-[100dvw] rounded-none border-none p-0 m-0'
-        : 'max-h-[calc(100vh-65px)] landscape:max-h-[calc(100dvh-55px)] sm:max-h-[620px] rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-slate-800 shadow-2xl'
+        ? 'h-full max-h-none max-w-none rounded-none border-none p-0 m-0'
+        : 'h-full max-h-[calc(100vh-65px)] landscape:max-h-none landscape:h-full sm:max-h-[620px] rounded-xl sm:rounded-3xl border-2 sm:border-4 border-slate-800 shadow-2xl'
     }`}>
       <canvas
         ref={canvasRef}
         width={800}
         height={540}
-        className="w-full h-full max-h-[100dvh] max-w-[100dvw] aspect-[800/540] object-contain block mx-auto"
+        className="w-full h-full block object-cover touch-none select-none"
       />
 
       {/* On-screen Mobile & Tablet Touch Controls (Landscape & Portrait Ergonomic) */}
