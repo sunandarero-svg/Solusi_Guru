@@ -243,7 +243,7 @@ export default function TeacherMaterialsPage() {
     setSelectedMaterialForQuestions(material);
     setQuestionForm({
       targetType: "BORNEO_EDU",
-      questionCount: 10,
+      questionCount: 101,
       assignmentTitle: `Tugas Tulisan Tangan: ${material.title}`,
       deadline: "",
     });
@@ -835,14 +835,16 @@ export default function TeacherMaterialsPage() {
                   required
                   className="w-full px-4 py-3.5 rounded-xl border-2 border-amber-300 text-sm font-bold text-slate-900 bg-amber-50/50 focus:ring-2 focus:ring-amber-500/40 focus:outline-none"
                   value={questionForm.targetType}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const val = e.target.value as "BORNEO_EDU" | "NEW_ASSIGNMENT";
                     setQuestionForm({
                       ...questionForm,
-                      targetType: e.target.value as "BORNEO_EDU" | "NEW_ASSIGNMENT",
-                    })
-                  }
+                      targetType: val,
+                      questionCount: val === "BORNEO_EDU" ? 101 : 10,
+                    });
+                  }}
                 >
-                  <option value="BORNEO_EDU" className="text-slate-900 bg-white">🎮 Game Borneo EDU (Dimasukkan ke Level Game Kelas Ini)</option>
+                  <option value="BORNEO_EDU" className="text-slate-900 bg-white">🎮 Game Borneo EDU (Paket Lengkap 101 Soal: World 1 - 5 & Boss)</option>
                   <option value="NEW_ASSIGNMENT" className="text-slate-900 bg-white">📝 Tugas Baru (Ditulis Tangan oleh Siswa di Buku Tulis)</option>
                 </select>
               </div>
@@ -854,7 +856,7 @@ export default function TeacherMaterialsPage() {
                     <span>🎮 Penjelasan Tujuan Borneo Edu:</span>
                   </div>
                   <p className="leading-relaxed">
-                    Soal pilihan ganda bergradasi (Pengetahuan, Pemahaman, Penerapan, Analisis, HOTS, hingga Boss) akan digenerate otomatis dan dimasukkan ke dalam game petualangan <strong>khusus untuk kelas ini</strong>. Setiap kelas memiliki bank soal masing-masing sesuai materi yang diajarkan!
+                    AI akan otomatis menyusun <strong>tepat 101 soal pilihan ganda bergradasi</strong> (4 soal per level dari Level 1 s.d. 25 + Final Boss) yang bersumber <strong>100% dari teks materi ini</strong>. Kunci jawaban didistribusikan bervariasi dan merata (A, B, C, D) sehingga tidak monoton.
                   </p>
                 </div>
               ) : (
@@ -869,22 +871,40 @@ export default function TeacherMaterialsPage() {
               )}
 
               {/* Jumlah Soal */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Jumlah Soal yang Digenerate:
-                </label>
-                <select
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-amber-500/40 focus:outline-none bg-white text-slate-900"
-                  value={questionForm.questionCount}
-                  onChange={(e) => setQuestionForm({ ...questionForm, questionCount: Number(e.target.value) })}
-                >
-                  <option value={5} className="text-slate-900 bg-white">5 Soal</option>
-                  <option value={10} className="text-slate-900 bg-white">10 Soal (Direkomendasikan)</option>
-                  <option value={15} className="text-slate-900 bg-white">15 Soal</option>
-                  <option value={20} className="text-slate-900 bg-white">20 Soal</option>
-                  <option value={25} className="text-slate-900 bg-white">25 Soal (Mencakup Semua Level 1 s.d. 25 & Boss)</option>
-                </select>
-              </div>
+              {questionForm.targetType === "BORNEO_EDU" ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Jumlah Soal Game Borneo EDU:
+                  </label>
+                  <div className="w-full px-4 py-3 rounded-xl border border-amber-300 bg-amber-50/80 text-sm font-bold text-amber-950 flex items-center justify-between shadow-inner">
+                    <span className="flex items-center gap-2">
+                      <span>🎮</span>
+                      <span>Paket Lengkap Game: 101 Soal</span>
+                    </span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-extrabold border border-amber-300">
+                      World 1 - 5 (Level 1 - 25 & Boss)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    4 soal per level (Level 1 - 24 = 96 soal) + Level 25 (4 Final Boss + 1 Boss Cadangan = 5 soal).
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Jumlah Soal Tugas Tulisan Tangan:
+                  </label>
+                  <select
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none bg-white text-slate-900"
+                    value={questionForm.questionCount}
+                    onChange={(e) => setQuestionForm({ ...questionForm, questionCount: Number(e.target.value) })}
+                  >
+                    <option value={5} className="text-slate-900 bg-white">5 Soal Uraian Mandiri</option>
+                    <option value={10} className="text-slate-900 bg-white">10 Soal Uraian (Direkomendasikan)</option>
+                    <option value={15} className="text-slate-900 bg-white">15 Soal Uraian Komprehensif</option>
+                  </select>
+                </div>
+              )}
 
               {/* Judul Tugas Khusus Jika Tugas Baru */}
               {questionForm.targetType === "NEW_ASSIGNMENT" && (
@@ -917,19 +937,27 @@ export default function TeacherMaterialsPage() {
               <button
                 type="submit"
                 disabled={questionGenerating}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm flex items-center justify-center gap-2 transition disabled:opacity-60 shadow-xl shadow-amber-500/20 hover:scale-[1.01]"
+                className={`w-full py-4 rounded-xl text-white font-black text-sm flex items-center justify-center gap-2 transition disabled:opacity-60 shadow-xl hover:scale-[1.01] ${
+                  questionForm.targetType === "BORNEO_EDU"
+                    ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/20"
+                    : "bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/20"
+                }`}
               >
                 {questionGenerating ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    <span>AI sedang merancang soal berdasarkan materi...</span>
+                    <span>
+                      {questionForm.targetType === "BORNEO_EDU"
+                        ? "AI sedang menyusun 101 soal Borneo EDU dari materi..."
+                        : "AI sedang merancang soal penugasan dari materi..."}
+                    </span>
                   </>
                 ) : (
                   <>
                     <Sparkles size={18} />
                     <span>
                       {questionForm.targetType === "BORNEO_EDU"
-                        ? "🚀 Masukkan Soal ke Game Borneo EDU"
+                        ? "🚀 Generate 101 Soal & Masukkan ke Game Borneo EDU"
                         : "📝 Buat Penugasan Buku Tulis Baru"}
                     </span>
                   </>
