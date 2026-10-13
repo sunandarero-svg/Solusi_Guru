@@ -7,7 +7,7 @@ import { TeacherProfile } from "@/models/Profile";
 import { Material } from "@/models/Material";
 import { Class } from "@/models/Class";
 import { BorneoEduQuestion } from "@/models/BorneoEdu";
-import { Assignment, AssignmentStatus } from "@/models/Assignment";
+import { Assignment, AssignmentStatus, AssignmentQuestion } from "@/models/Assignment";
 import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: NextRequest) {
@@ -56,7 +56,18 @@ export async function POST(req: NextRequest) {
     }
 
     const cls = await Class.findById(classId).lean();
-    const materialText = material.content || material.summary || material.title || "";
+    // Build materialText with best available content — support both AI-generated and manually uploaded materials
+    let materialText = "";
+    if (material.content && material.content.trim().length > 50) {
+      // AI-generated materials or extracted text from PDF/DOCX
+      materialText = material.content;
+    } else if (material.summary && material.summary.trim().length > 30) {
+      materialText = material.summary;
+    } else {
+      // Fallback for video/PPT uploads or files with no extractable text
+      materialText = `Judul Materi: ${material.title}. ${material.description || ""}`;
+    }
+    const isSparseContent = materialText.length < 200;
 
     const apiKey = process.env.GEMINI_API_KEY;
     const count = Math.min(25, Math.max(3, Number(questionCount) || 5));
@@ -77,6 +88,7 @@ Judul Materi: ${material.title}
 Isi Materi:
 ${materialText.substring(0, 5000)}
 ---
+${isSparseContent ? `PERHATIAN: Teks materi yang tersedia sangat terbatas. Gunakan pengetahuan umum Anda tentang topik "${material.title}" untuk membuat soal yang relevan dan berkualitas. Pastikan soal tetap akurat secara ilmiah dan sesuai kurikulum Indonesia.\n` : ""}
 Ketentuan Soal Game:
 - Distribusikan soal dari level awal sampai level akhir (World 1 sampai 5, Level 1 sampai 25).
 - Tipe soal bergradasi: 'Pengetahuan', 'Pemahaman', 'Penerapan', 'Analisis', 'HOTS'.
@@ -186,25 +198,55 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown pembungkus):
 
     // =========================================================================
     // CASE B: TARGET ADALAH TUGAS BARU (DITULIS TANGAN OLEH SISWA)
+    // Soal di-generate BESERTA KUNCI JAWABAN agar AI grader dapat menilai.
     // =========================================================================
     if (targetType === "NEW_ASSIGNMENT") {
-      let essayQuestions: string[] = [];
+      interface EssayQuestionWithKey {
+        question: string;
+        questionType: "ESSAY" | "ISIAN_SINGKAT";
+        idealAnswer: string;  // Kunci jawaban / jawaban ideal untuk penilaian AI
+        maxScore: number;
+      }
+
+      let structuredQuestions: EssayQuestionWithKey[] = [];
+      const essayCount = Math.min(count, 10);
+      const scorePerQuestion = Math.round(100 / essayCount);
 
       if (apiKey) {
         try {
           const ai = new GoogleGenAI({ apiKey });
-          const prompt = `Anda adalah guru ahli. Buatkan ${Math.min(count, 5)} soal uraian / esai mendalam untuk siswa sekolah berdasarkan materi berikut:
+          const prompt = `Anda adalah guru ahli kurikulum Indonesia. Buatkan ${essayCount} soal untuk siswa sekolah berdasarkan materi berikut:
+
 Judul Materi: ${material.title}
-Teks Materi: ${materialText.substring(0, 4000)}
+Teks Materi:
+${materialText.substring(0, 5000)}
+${isSparseContent ? `\nPERHATIAN: Teks materi yang tersedia sangat terbatas. Gunakan pengetahuan umum Anda tentang topik "${material.title}" untuk membuat soal yang relevan, akurat, dan sesuai kurikulum Indonesia.\n` : ""}
 
-Soal-soal ini WAJIB DIKERJAKAN DENGAN TULISAN TANGAN DI BUKU TULIS OLEH SISWA, kemudian difoto.
-Buatkan soal yang mengasah pemahaman konsep, penalaran sebab-akibat, dan analisis kritis.
+KETENTUAN PENTING:
+1. Soal-soal ini akan DIKERJAKAN DENGAN TULISAN TANGAN DI BUKU TULIS oleh siswa, kemudian difoto dan dinilai oleh AI.
+2. Setiap soal WAJIB dilengkapi dengan JAWABAN IDEAL (kunci jawaban) yang lengkap dan detail. Jawaban ideal ini digunakan sebagai referensi penilaian otomatis oleh AI.
+3. Variasikan tipe soal antara:
+   - "ESSAY": Soal uraian yang membutuhkan penjelasan panjang (2-4 kalimat jawaban ideal)
+   - "ISIAN_SINGKAT": Soal jawaban singkat (1-3 kata/frase jawaban ideal)
+4. Buatkan soal yang mengasah pemahaman konsep, penalaran, dan analisis kritis.
+5. Pastikan soal bergradasi dari mudah ke sulit.
+6. Jawaban ideal harus mencakup SEMUA poin kunci yang diharapkan ada dalam jawaban siswa.
+7. Untuk soal ISIAN_SINGKAT, jika ada beberapa kemungkinan jawaban benar, tuliskan semua dipisah koma.
 
-Format JSON yang DIHARUSKAN (hanya array string JSON murni):
+Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown):
 [
-  "1. Jelaskan konsep utama dari ... berdasarkan materi yang telah dipelajari!",
-  "2. Analisislah bagaimana fenomena ... dapat terjadi!",
-  "3. Berikan contoh nyata penerapan ... dalam kehidupan sehari-hari!"
+  {
+    "question": "Jelaskan pengertian ... dan sebutkan 3 contoh penerapannya dalam kehidupan sehari-hari!",
+    "questionType": "ESSAY",
+    "idealAnswer": "... adalah ... yang berfungsi untuk .... Tiga contoh penerapannya: 1) ..., 2) ..., 3) ...",
+    "maxScore": ${scorePerQuestion}
+  },
+  {
+    "question": "Siapakah tokoh yang pertama kali menemukan ...?",
+    "questionType": "ISIAN_SINGKAT",
+    "idealAnswer": "Nama Tokoh, Nama Alternatif",
+    "maxScore": ${scorePerQuestion}
+  }
 ]`;
 
           const response = await ai.models.generateContent({
@@ -218,31 +260,56 @@ Format JSON yang DIHARUSKAN (hanya array string JSON murni):
           const rawText = response.text || "[]";
           const parsed = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
           if (Array.isArray(parsed) && parsed.length > 0) {
-            essayQuestions = parsed;
+            structuredQuestions = parsed.map((q: any) => ({
+              question: q.question || "",
+              questionType: q.questionType === "ISIAN_SINGKAT" ? "ISIAN_SINGKAT" : "ESSAY",
+              idealAnswer: q.idealAnswer || q.ideal_answer || q.answer || "",
+              maxScore: q.maxScore || scorePerQuestion,
+            }));
           }
         } catch (aiErr) {
           console.warn("[Gemini Essay Gen Warning]", aiErr);
         }
       }
 
-      if (essayQuestions.length === 0) {
-        essayQuestions = [
-          `1. Jelaskan dengan kata-kata Anda sendiri konsep utama yang dipelajari pada materi "${material.title}"!`,
-          `2. Mengapa materi "${material.title}" penting untuk dipahami? Sebutkan setidaknya 2 alasan!`,
-          `3. Berikan satu contoh konkret penerapan materi ini di kehidupan sehari-hari atau di lingkungan sekitar Anda!`,
+      // Fallback if AI fails
+      if (structuredQuestions.length === 0) {
+        structuredQuestions = [
+          {
+            question: `Jelaskan dengan kata-kata Anda sendiri konsep utama yang dipelajari pada materi "${material.title}"!`,
+            questionType: "ESSAY",
+            idealAnswer: `Konsep utama dari materi "${material.title}" mencakup pengertian dasar, prinsip-prinsip utama, dan penerapannya. Siswa diharapkan mampu menjelaskan definisi, mengidentifikasi komponen kunci, dan menghubungkan konsep dengan kehidupan sehari-hari.`,
+            maxScore: 35,
+          },
+          {
+            question: `Mengapa materi "${material.title}" penting untuk dipahami? Sebutkan setidaknya 2 alasan!`,
+            questionType: "ESSAY",
+            idealAnswer: `Materi "${material.title}" penting karena: 1) Memberikan dasar pemahaman yang diperlukan untuk topik lanjutan, 2) Memiliki relevansi langsung dengan kehidupan sehari-hari dan perkembangan teknologi modern.`,
+            maxScore: 30,
+          },
+          {
+            question: `Berikan satu contoh konkret penerapan materi "${material.title}" di kehidupan sehari-hari atau di lingkungan sekitar Anda!`,
+            questionType: "ESSAY",
+            idealAnswer: `Contoh penerapan materi ini dapat ditemukan dalam berbagai aspek kehidupan, misalnya dalam teknologi, lingkungan, atau aktivitas sehari-hari. Siswa harus mampu memberikan contoh spesifik yang menunjukkan pemahaman terhadap konsep yang dipelajari.`,
+            maxScore: 35,
+          },
         ];
       }
 
-      const formattedQuestions = essayQuestions.map((q, idx) => {
-        return typeof q === "string" ? (q.startsWith(`${idx + 1}.`) ? q : `${idx + 1}. ${q}`) : `${idx + 1}. ${JSON.stringify(q)}`;
+      // Format questions for display in the assignment description
+      const formattedQuestions = structuredQuestions.map((q, idx) => {
+        return `${idx + 1}. ${q.question}`;
+      }).join("\n\n");
+
+      // Build answer key text for the assignment's aiAnswerKey field
+      const answerKeyText = structuredQuestions.map((q, idx) => {
+        return `Nomor ${idx + 1} (${q.questionType === "ISIAN_SINGKAT" ? "Isian Singkat" : "Essay"}, Bobot: ${q.maxScore}):\nSoal: ${q.question}\nKunci Jawaban: ${q.idealAnswer}`;
       }).join("\n\n");
 
       const title = assignmentTitle || `Tugas Tulisan Tangan: ${material.title}`;
-      const instructions = `PETUNJUK PENGERJAAN TULISAN TANGAN:
-1. Kerjakan semua soal di bawah ini di BUKU TULIS Anda dengan rapi dan tulisan tangan yang jelas terbaca.
-2. Tuliskan Nama Lengkap, Nomor Absen, dan Kelas di bagian atas lembar buku tulis.
-3. Setelah selesai, gunakan fitur "Kamera Kumpulkan Tugas" untuk memotret lembar jawaban Anda dan kirimkan ke sistem.`;
+      const instructions = `PETUNJUK PENGERJAAN TULISAN TANGAN:\n1. Kerjakan semua soal di bawah ini di BUKU TULIS Anda dengan rapi dan tulisan tangan yang jelas terbaca.\n2. Tuliskan Nama Lengkap, Nomor Absen, dan Kelas di bagian atas lembar buku tulis.\n3. Setelah selesai, gunakan fitur "Kamera Kumpulkan Tugas" untuk memotret lembar jawaban Anda dan kirimkan ke sistem.`;
 
+      // Create the assignment with answer key embedded
       const newAssignment = await Assignment.create({
         title,
         sessionName: cls?.name || "Tugas Kelas",
@@ -254,14 +321,28 @@ Format JSON yang DIHARUSKAN (hanya array string JSON murni):
         deadline: deadline ? new Date(deadline) : null,
         maxPages: 4,
         status: AssignmentStatus.PUBLISHED,
+        aiAnswerKey: answerKeyText,
       });
+
+      // Create AssignmentQuestion records WITH correctAnswer for AI grading
+      const questionRecords = structuredQuestions.map((q, idx) => ({
+        assignmentId: newAssignment._id,
+        order: idx + 1,
+        questionType: q.questionType,
+        maxScore: q.maxScore,
+        correctAnswer: q.idealAnswer,
+      }));
+
+      await AssignmentQuestion.deleteMany({ assignmentId: newAssignment._id });
+      await AssignmentQuestion.insertMany(questionRecords);
 
       return NextResponse.json({
         success: true,
         targetType: "NEW_ASSIGNMENT",
-        message: `Berhasil membuat Tugas Baru "${title}" untuk ${cls?.name} yang siap dikerjakan tulisan tangan oleh siswa.`,
+        message: `Berhasil membuat Tugas Baru "${title}" untuk ${cls?.name} dengan ${structuredQuestions.length} soal beserta kunci jawaban untuk penilaian otomatis.`,
         assignmentId: newAssignment._id,
-        questionsCount: essayQuestions.length,
+        questionsCount: structuredQuestions.length,
+        hasAnswerKeys: true,
       });
     }
 
