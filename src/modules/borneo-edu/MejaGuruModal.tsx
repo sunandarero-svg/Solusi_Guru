@@ -51,6 +51,7 @@ export default function MejaGuruModal({
   const [filterWorld, setFilterWorld] = useState<string>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [searchQuestion, setSearchQuestion] = useState<string>('');
+  const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
   const [showAddQuestionModal, setShowAddQuestionModal] = useState<boolean>(false);
   const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
 
@@ -169,8 +170,17 @@ export default function MejaGuruModal({
   };
 
   // Export Bank Soal to Excel
-  const handleDownloadQuestionsExcel = () => {
-    const rows = questions.map((q) => ({
+  const handleDownloadQuestionsExcel = (selectedOnly: boolean = false) => {
+    const listToExport = selectedOnly
+      ? questions.filter((q) => selectedQIds.includes(q.questionId))
+      : questions;
+
+    if (listToExport.length === 0) {
+      alert('Tidak ada soal untuk diunduh.');
+      return;
+    }
+
+    const rows = listToExport.map((q) => ({
       'ID Soal': q.questionId,
       'World': q.world,
       'Level': q.level,
@@ -182,13 +192,19 @@ export default function MejaGuruModal({
       'Kunci Jawaban': q.correctAnswer,
       'Tingkat Kesulitan': q.difficulty,
       'Tahap Materi': q.stage || 'Pengetahuan',
+      'Soal Boss': q.isBossQuestion ? 'YA' : 'TIDAK',
       'Pembahasan Singkat': q.explanation
     }));
 
     const worksheet = xlsx.utils.json_to_sheet(rows);
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, 'Bank Soal Borneo Edu');
-    xlsx.writeFile(workbook, `Bank_Soal_Borneo_Edu_${questions.length}_Soal.xlsx`);
+    xlsx.writeFile(
+      workbook,
+      selectedOnly
+        ? `Bank_Soal_Terpilih_${listToExport.length}_Soal.xlsx`
+        : `Bank_Soal_Borneo_Edu_${questions.length}_Soal.xlsx`
+    );
   };
 
   // Download Bank Soal Template
@@ -198,30 +214,76 @@ export default function MejaGuruModal({
         'ID Soal': 'Q101',
         'World': 1,
         'Level': 1,
-        'Pertanyaan': 'Contoh pertanyaan baru edukatif di sini...',
-        'Pilihan A': 'Jawaban opsi A',
-        'Pilihan B': 'Jawaban opsi B',
-        'Pilihan C': 'Jawaban opsi C',
-        'Pilihan D': 'Jawaban opsi D',
+        'Pertanyaan': 'Perangkat keras komputer yang berfungsi menampilkan output visual kepada pengguna adalah...',
+        'Pilihan A': 'Monitor',
+        'Pilihan B': 'Keyboard',
+        'Pilihan C': 'Mouse',
+        'Pilihan D': 'Scanner',
         'Kunci Jawaban': 'A',
         'Tingkat Kesulitan': 'EASY',
         'Tahap Materi': 'Pengetahuan',
-        'Pembahasan Singkat': 'Pembahasan singkat dari jawaban yang benar.'
+        'Soal Boss': 'TIDAK',
+        'Pembahasan Singkat': 'Monitor merupakan perangkat keluaran visual (display).'
+      },
+      {
+        'ID Soal': 'Q102',
+        'World': 1,
+        'Level': 2,
+        'Pertanyaan': 'Manakah di bawah ini yang merupakan contoh bahasa pemrograman tingkat tinggi?',
+        'Pilihan A': 'Python',
+        'Pilihan B': 'Assembly',
+        'Pilihan C': 'Machine Code',
+        'Pilihan D': 'Binary Code',
+        'Kunci Jawaban': 'A',
+        'Tingkat Kesulitan': 'MEDIUM',
+        'Tahap Materi': 'Pemahaman',
+        'Soal Boss': 'TIDAK',
+        'Pembahasan Singkat': 'Python adalah bahasa pemrograman tingkat tinggi yang mudah dipahami manusia.'
+      },
+      {
+        'ID Soal': 'Q105_BOSS',
+        'World': 1,
+        'Level': 5,
+        'Pertanyaan': 'Tantangan Raja Hutan: Mengapa algoritma Binary Search lebih efisien daripada Linear Search?',
+        'Pilihan A': 'Membagi ruang pencarian menjadi separuh pada tiap langkah',
+        'Pilihan B': 'Memeriksa setiap elemen satu per satu secara berurutan',
+        'Pilihan C': 'Dapat beroperasi pada data acak tanpa sorting',
+        'Pilihan D': 'Menggunakan memori lebih kecil',
+        'Kunci Jawaban': 'A',
+        'Tingkat Kesulitan': 'BOSS',
+        'Tahap Materi': 'Analisis',
+        'Soal Boss': 'YA',
+        'Pembahasan Singkat': 'Binary search bekerja dengan divide and conquer pada data terurut berorde O(log n).'
       }
     ];
     const worksheet = xlsx.utils.json_to_sheet(templateRows);
+    worksheet['!cols'] = [
+      { wch: 14 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 45 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 45 }
+    ];
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, 'Template Bank Soal');
-    xlsx.writeFile(workbook, 'Template_Bank_Soal_Borneo_Edu.xlsx');
+    xlsx.writeFile(workbook, 'Template_Upload_Bank_Soal_Borneo_Edu.xlsx');
   };
 
-  // Upload Bank Soal Excel/CSV
-  const handleUploadQuestions = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload Bank Soal Excel/CSV (Bulk Upload)
+  const handleUploadQuestions = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
         const wb = xlsx.read(bstr, { type: 'binary' });
@@ -229,34 +291,144 @@ export default function MejaGuruModal({
         const ws = wb.Sheets[wsname];
         const parsedRows: any[] = xlsx.utils.sheet_to_json(ws);
 
-        const newLoaded: QuestionItem[] = parsedRows.map((r, i) => ({
-          questionId: r['ID Soal'] || `Q_IMP_${i + 1}`,
-          world: Number(r['World']) || 1,
-          level: Number(r['Level']) || 1,
-          question: r['Pertanyaan'] || '',
-          options: {
-            A: r['Pilihan A'] || '',
-            B: r['Pilihan B'] || '',
-            C: r['Pilihan C'] || '',
-            D: r['Pilihan D'] || ''
-          },
-          correctAnswer: (r['Kunci Jawaban'] || 'A').toUpperCase() as any,
-          difficulty: (r['Tingkat Kesulitan'] || 'MEDIUM').toUpperCase() as any,
-          explanation: r['Pembahasan Singkat'] || '',
-          stage: r['Tahap Materi'] || 'Pengetahuan'
-        }));
+        if (!parsedRows || parsedRows.length === 0) {
+          alert('File Excel kosong atau tidak memiliki baris data.');
+          return;
+        }
 
-        if (newLoaded.length > 0) {
-          const combined = [...questions, ...newLoaded];
+        const validQuestions: QuestionItem[] = [];
+        const timestamp = Date.now();
+
+        parsedRows.forEach((r, idx) => {
+          const qText = String(r['Pertanyaan'] || r['pertanyaan'] || r['Question'] || '').trim();
+          const optA = String(r['Pilihan A'] || r['Opsi A'] || r['A'] || '').trim();
+          const optB = String(r['Pilihan B'] || r['Opsi B'] || r['B'] || '').trim();
+          const optC = String(r['Pilihan C'] || r['Opsi C'] || r['C'] || '').trim();
+          const optD = String(r['Pilihan D'] || r['Opsi D'] || r['D'] || '').trim();
+          let key = String(r['Kunci Jawaban'] || r['Kunci'] || r['Jawaban'] || 'A').trim().toUpperCase();
+          if (!['A', 'B', 'C', 'D'].includes(key)) key = 'A';
+
+          if (qText && optA && optB) {
+            const worldVal = Math.min(5, Math.max(1, Number(r['World'] || r['world']) || 1));
+            const levelVal = Math.min(25, Math.max(1, Number(r['Level'] || r['level']) || 1));
+            let diffVal = String(r['Tingkat Kesulitan'] || r['Kesulitan'] || 'MEDIUM').toUpperCase().trim();
+            if (!['EASY', 'MEDIUM', 'HARD', 'HOTS', 'BOSS'].includes(diffVal)) {
+              diffVal = 'MEDIUM';
+            }
+            const bossRaw = String(r['Soal Boss'] || r['isBoss'] || '').toUpperCase().trim();
+            const isBoss = bossRaw === 'YA' || bossRaw === 'TRUE' || bossRaw === '1' || diffVal === 'BOSS';
+            const qId = String(r['ID Soal'] || r['id'] || `Q_${worldVal}_${levelVal}_${timestamp}_${idx + 1}`).trim();
+
+            validQuestions.push({
+              questionId: qId,
+              world: worldVal,
+              level: levelVal,
+              question: qText,
+              options: {
+                A: optA,
+                B: optB,
+                C: optC || '-',
+                D: optD || '-'
+              },
+              correctAnswer: key as 'A' | 'B' | 'C' | 'D',
+              difficulty: diffVal as any,
+              stage: (r['Tahap Materi'] || 'Pengetahuan') as any,
+              isBossQuestion: isBoss,
+              explanation: String(r['Pembahasan Singkat'] || r['Pembahasan'] || `Kunci jawaban adalah opsi ${key}`).trim()
+            });
+          }
+        });
+
+        if (validQuestions.length > 0) {
+          const map = new Map<string, QuestionItem>();
+          questions.forEach((q) => map.set(q.questionId, q));
+          validQuestions.forEach((q) => map.set(q.questionId, q));
+          const combined = Array.from(map.values());
+
           setQuestions(combined);
           saveStoredQuestions(combined);
-          alert(`Berhasil mengunggah ${newLoaded.length} soal ke Bank Soal!`);
+
+          // Sync to Database
+          await fetch('/api/borneo-edu/questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(validQuestions)
+          });
+
+          alert(`Berhasil mengunggah ${validQuestions.length} soal secara massal ke Bank Soal!`);
+        } else {
+          alert('Tidak ditemukan baris soal yang valid dalam berkas.');
         }
       } catch (err: any) {
         alert('Gagal membaca file: ' + err.message);
       }
     };
     reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  // Delete Single Question
+  const handleDeleteSingleQuestion = async (id: string) => {
+    if (!confirm(`Hapus soal "${id}"?`)) return;
+    const updated = questions.filter((q) => q.questionId !== id);
+    setQuestions(updated);
+    setSelectedQIds((prev) => prev.filter((item) => item !== id));
+    saveStoredQuestions(updated);
+    try {
+      await fetch(`/api/borneo-edu/questions?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Bulk Delete Questions
+  const handleBulkDeleteQuestions = async () => {
+    if (selectedQIds.length === 0) return;
+    if (!confirm(`Yakin ingin menghapus ${selectedQIds.length} soal terpilih secara massal?`)) return;
+
+    const idsToDelete = [...selectedQIds];
+    const updated = questions.filter((q) => !idsToDelete.includes(q.questionId));
+    setQuestions(updated);
+    setSelectedQIds([]);
+    saveStoredQuestions(updated);
+
+    try {
+      await fetch('/api/borneo-edu/questions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: idsToDelete })
+      });
+      alert(`Berhasil menghapus ${idsToDelete.length} soal terpilih.`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Save Edit Question
+  const handleSaveEditQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingQuestion) return;
+
+    const updated = questions.map((q) =>
+      q.questionId === editingQuestion.questionId ? editingQuestion : q
+    );
+    setQuestions(updated);
+    saveStoredQuestions(updated);
+
+    try {
+      await fetch('/api/borneo-edu/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingQuestion)
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    setEditingQuestion(null);
+    alert('Perubahan soal berhasil disimpan!');
   };
 
   // Save Settings
@@ -282,7 +454,7 @@ export default function MejaGuruModal({
   };
 
   // Add question to Bank
-  const handleSaveNewQuestion = (e: React.FormEvent) => {
+  const handleSaveNewQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQuestionForm.question) {
       alert('Pertanyaan wajib diisi.');
@@ -293,7 +465,29 @@ export default function MejaGuruModal({
     setQuestions(updated);
     saveStoredQuestions(updated);
     setShowAddQuestionModal(false);
-    alert('Soal baru berhasil ditambahkan!');
+
+    try {
+      await fetch('/api/borneo-edu/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newQuestionForm)
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    alert('Soal baru berhasil ditambahkan dan disimpan!');
+    setNewQuestionForm({
+      questionId: `Q${String(Math.floor(Math.random() * 900) + 100)}`,
+      world: 1,
+      level: 1,
+      question: '',
+      options: { A: '', B: '', C: '', D: '' },
+      correctAnswer: 'A',
+      difficulty: 'EASY',
+      explanation: '',
+      stage: 'Pengetahuan'
+    });
   };
 
   // Reset Data
@@ -377,6 +571,25 @@ export default function MejaGuruModal({
       q.questionId.toLowerCase().includes(searchQuestion.toLowerCase());
     return matchW && matchDiff && matchSearch;
   });
+
+  const isAllFilteredSelected =
+    filteredQuestions.length > 0 &&
+    filteredQuestions.every((q) => selectedQIds.includes(q.questionId));
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedQIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllFiltered = () => {
+    const filteredIds = filteredQuestions.map((q) => q.questionId);
+    if (isAllFilteredSelected) {
+      setSelectedQIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+    } else {
+      setSelectedQIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
@@ -656,22 +869,72 @@ export default function MejaGuruModal({
                 </div>
               </div>
 
+              {/* Bulk Actions Bar */}
+              {selectedQIds.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-indigo-950/80 border border-indigo-500/50 rounded-2xl animate-in fade-in">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-200">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>{selectedQIds.length} soal dipilih (Centang)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleBulkDeleteQuestions}
+                      className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                    >
+                      <span>🗑️</span>
+                      <span>Hapus Massal ({selectedQIds.length})</span>
+                    </button>
+                    <button
+                      onClick={() => handleDownloadQuestionsExcel(true)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                    >
+                      <span>📥</span>
+                      <span>Unduh Terpilih ({selectedQIds.length})</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedQIds([])}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Questions List Table */}
               <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 max-h-[55vh]">
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-slate-800 text-[10px] uppercase font-black text-slate-400 sticky top-0 border-b border-slate-700">
                     <tr>
+                      <th className="p-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isAllFilteredSelected}
+                          onChange={handleSelectAllFiltered}
+                          className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                          title="Pilih Semua yang Ditampilkan"
+                        />
+                      </th>
                       <th className="p-3">ID</th>
                       <th className="p-3">W / Lvl</th>
                       <th className="p-3">Kesulitan</th>
                       <th className="p-3">Pertanyaan</th>
                       <th className="p-3">Kunci</th>
                       <th className="p-3">Pembahasan</th>
+                      <th className="p-3 text-center">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                     {filteredQuestions.map((q) => (
-                      <tr key={q.questionId} className="hover:bg-slate-800/40">
+                      <tr key={q.questionId} className={`hover:bg-slate-800/40 ${selectedQIds.includes(q.questionId) ? 'bg-indigo-950/20' : ''}`}>
+                        <td className="p-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedQIds.includes(q.questionId)}
+                            onChange={() => handleToggleSelect(q.questionId)}
+                            className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                          />
+                        </td>
                         <td className="p-3 font-bold text-emerald-400 whitespace-nowrap">{q.questionId}</td>
                         <td className="p-3 whitespace-nowrap">W{q.world} • L{q.level}</td>
                         <td className="p-3 whitespace-nowrap">
@@ -695,6 +958,24 @@ export default function MejaGuruModal({
                         </td>
                         <td className="p-3 font-black text-emerald-400">{q.correctAnswer}</td>
                         <td className="p-3 text-[11px] text-slate-400 max-w-xs">{q.explanation}</td>
+                        <td className="p-3 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => setEditingQuestion(q)}
+                              className="px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold border border-indigo-500/40"
+                              title="Edit Soal"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSingleQuestion(q.questionId)}
+                              className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold border border-red-500/40"
+                              title="Hapus Soal"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1191,6 +1472,173 @@ export default function MejaGuruModal({
                     className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black"
                   >
                     Simpan Soal
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Question Modal */}
+        {editingQuestion && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-slate-900 border border-indigo-500/50 rounded-3xl max-w-lg w-full p-6 text-white max-h-[88vh] overflow-y-auto shadow-2xl">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">✏️</span>
+                  <div>
+                    <h3 className="text-sm font-black text-indigo-400 uppercase tracking-wide">
+                      Edit Soal: {editingQuestion.questionId}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">Ubah materi, pilihan opsi, dan kunci jawaban</p>
+                  </div>
+                </div>
+                <button onClick={() => setEditingQuestion(null)} className="text-slate-400 hover:text-white">✕</button>
+              </div>
+
+              <form onSubmit={handleSaveEditQuestion} className="space-y-3 text-xs">
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-slate-400 block mb-1">ID Soal</label>
+                    <input
+                      type="text"
+                      value={editingQuestion.questionId}
+                      disabled
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700 text-slate-400 cursor-not-allowed font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">World (1-5)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={editingQuestion.world}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, world: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Level (1-25)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={25}
+                      value={editingQuestion.level}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, level: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-slate-400 block mb-1">Isi Pertanyaan</label>
+                  <textarea
+                    rows={2}
+                    value={editingQuestion.question}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, question: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-slate-400 block mb-0.5">Opsi A</label>
+                    <input
+                      type="text"
+                      value={editingQuestion.options.A}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, options: { ...editingQuestion.options, A: e.target.value } })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-0.5">Opsi B</label>
+                    <input
+                      type="text"
+                      value={editingQuestion.options.B}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, options: { ...editingQuestion.options, B: e.target.value } })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-0.5">Opsi C</label>
+                    <input
+                      type="text"
+                      value={editingQuestion.options.C}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, options: { ...editingQuestion.options, C: e.target.value } })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-0.5">Opsi D</label>
+                    <input
+                      type="text"
+                      value={editingQuestion.options.D}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, options: { ...editingQuestion.options, D: e.target.value } })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-slate-400 block mb-1">Kunci Jawaban</label>
+                    <select
+                      value={editingQuestion.correctAnswer}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, correctAnswer: e.target.value as any })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    >
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Kesulitan</label>
+                    <select
+                      value={editingQuestion.difficulty}
+                      onChange={(e) => setEditingQuestion({ ...editingQuestion, difficulty: e.target.value as any })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    >
+                      <option value="EASY">EASY</option>
+                      <option value="MEDIUM">MEDIUM</option>
+                      <option value="HARD">HARD</option>
+                      <option value="HOTS">HOTS</option>
+                      <option value="BOSS">BOSS</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-slate-400 block mb-1">Pembahasan Singkat</label>
+                  <input
+                    type="text"
+                    value={editingQuestion.explanation}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, explanation: e.target.value })}
+                    className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingQuestion(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black shadow-md transition-transform active:scale-95"
+                  >
+                    Simpan Perubahan 💾
                   </button>
                 </div>
               </form>
