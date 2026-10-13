@@ -130,7 +130,20 @@ export function getSavedPlayerState(): PlayerState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PLAYER);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const initial = createInitialPlayerState();
+    return {
+      ...initial,
+      ...parsed,
+      powerUps: {
+        ...initial.powerUps,
+        ...(parsed.powerUps || {})
+      },
+      badges: Array.isArray(parsed.badges) ? parsed.badges : initial.badges,
+      completedLevels: Array.isArray(parsed.completedLevels) ? parsed.completedLevels : initial.completedLevels,
+      questionHistory: Array.isArray(parsed.questionHistory) ? parsed.questionHistory : initial.questionHistory
+    };
   } catch (e) {
     console.error('Error loading player state:', e);
     return null;

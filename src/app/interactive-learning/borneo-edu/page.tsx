@@ -2,9 +2,11 @@ import React from 'react';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import BorneoEduGame from '@/modules/borneo-edu/BorneoEduGame';
 import Link from 'next/link';
 import { ArrowLeft, Gamepad2 } from 'lucide-react';
+import BorneoEduClientWrapper from '@/modules/borneo-edu/BorneoEduClientWrapper';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Borneo Edu — Game Edukasi Platformer 2D',
@@ -19,7 +21,7 @@ export default async function StandaloneBorneoEduPage() {
     redirect('/login');
   }
 
-  // Jika guru/admin, arahkan ke halaman progress guru
+  // Jika guru/admin, arahkan ke halaman progress guru di dashboard
   if (session.user.role === 'TEACHER' || session.user.role === 'ADMIN' || session.user.role === 'PRINCIPAL') {
     redirect('/dashboard/interactive-learning/borneo-edu');
   }
@@ -46,7 +48,11 @@ export default async function StandaloneBorneoEduPage() {
       </div>
 
       <div className="max-w-6xl mx-auto w-full flex-1">
-        <BorneoEduGame />
+        <BorneoEduClientWrapper
+          userRole={session.user.role}
+          teacherName={session.user.name || 'Siswa'}
+          showStandaloneHeader={true}
+        />
       </div>
 
       <div className="max-w-6xl mx-auto w-full text-center py-4 mt-6 border-t border-slate-900 text-slate-600 text-xs">

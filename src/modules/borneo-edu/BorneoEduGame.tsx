@@ -68,6 +68,27 @@ export default function BorneoEduGame() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Sync / Persist progress automatically
+  const persistState = useCallback((stateToSave: PlayerState) => {
+    savePlayerStateToLocal(stateToSave);
+
+    // Sync to backend API
+    fetch('/api/borneo-edu/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stateToSave)
+    }).catch(() => {});
+  }, []);
+
+  // Update player state helper with auto-save
+  const updatePlayer = useCallback((updater: (prev: PlayerState) => PlayerState) => {
+    setPlayerState((prev) => {
+      const updated = updater(prev);
+      persistState(updated);
+      return updated;
+    });
+  }, [persistState]);
+
   // Auto-fill student profile from registered account database
   useEffect(() => {
     fetch('/api/borneo-edu/student-info')
@@ -112,27 +133,6 @@ export default function BorneoEduGame() {
       .catch(() => {});
   }, []);
 
-  // Sync / Persist progress automatically
-  const persistState = useCallback((stateToSave: PlayerState) => {
-    savePlayerStateToLocal(stateToSave);
-
-    // Sync to backend API
-    fetch('/api/borneo-edu/results', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(stateToSave)
-    }).catch(() => {});
-  }, []);
-
-  // Update player state helper with auto-save
-  const updatePlayer = useCallback((updater: (prev: PlayerState) => PlayerState) => {
-    setPlayerState((prev) => {
-      const updated = updater(prev);
-      persistState(updated);
-      return updated;
-    });
-  }, [persistState]);
-
   // Mobile Orientation & Landscape helper
   const [isPortraitMobile, setIsPortraitMobile] = useState<boolean>(false);
   const [showOrientationBanner, setShowOrientationBanner] = useState<boolean>(true);
@@ -172,25 +172,27 @@ export default function BorneoEduGame() {
         }
       }
       try {
-        if (screen.orientation && 'lock' in screen.orientation) {
-          (screen.orientation as any).lock('landscape').catch(() => {});
+        if (typeof window !== 'undefined' && typeof window.screen !== 'undefined' && window.screen.orientation && 'lock' in window.screen.orientation) {
+          (window.screen.orientation as any).lock('landscape').catch(() => {});
         }
       } catch (_) {}
     } else {
       setIsFullscreen(false);
-      const doc = document as any;
-      if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement) {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        } else if (doc.webkitExitFullscreen) {
-          doc.webkitExitFullscreen();
-        } else if (doc.mozCancelFullScreen) {
-          doc.mozCancelFullScreen();
+      if (typeof document !== 'undefined') {
+        const doc = document as any;
+        if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement) {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          } else if (doc.webkitExitFullscreen) {
+            doc.webkitExitFullscreen();
+          } else if (doc.mozCancelFullScreen) {
+            doc.mozCancelFullScreen();
+          }
         }
       }
       try {
-        if (screen.orientation && 'unlock' in screen.orientation) {
-          (screen.orientation as any).unlock();
+        if (typeof window !== 'undefined' && typeof window.screen !== 'undefined' && window.screen.orientation && 'unlock' in window.screen.orientation) {
+          (window.screen.orientation as any).unlock();
         }
       } catch (_) {}
     }

@@ -42,6 +42,14 @@ export default function QuestionModal({
     setUsedHint(false);
   }, [question.questionId, timeLimitSeconds]);
 
+  const handleTimeUp = () => {
+    if (isAnswered) return;
+    setIsAnswered(true);
+    setIsCorrect(false);
+    sound.playWrong();
+    onAnswerResolved(false, timeLimitSeconds, 'TIMEOUT', 0, 0);
+  };
+
   // Timer countdown
   useEffect(() => {
     if (isAnswered) return;
@@ -67,14 +75,6 @@ export default function QuestionModal({
 
     return () => clearInterval(timer);
   }, [timeLeft, isAnswered]);
-
-  const handleTimeUp = () => {
-    if (isAnswered) return;
-    setIsAnswered(true);
-    setIsCorrect(false);
-    sound.playWrong();
-    onAnswerResolved(false, timeLimitSeconds, 'TIMEOUT', 0, 0);
-  };
 
   const handleSelectOption = (optKey: 'A' | 'B' | 'C' | 'D') => {
     if (isAnswered) return;
