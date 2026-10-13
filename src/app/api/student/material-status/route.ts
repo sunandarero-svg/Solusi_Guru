@@ -60,21 +60,30 @@ export async function GET() {
 
     const hasUnread = unreadMaterials.length > 0;
 
+    const mapMaterial = (m: any) => ({
+      id: m._id.toString(),
+      title: m.title,
+      description: m.description,
+      className: m.className || m.classId?.name || "Kelas",
+      subjectName: m.subjectId?.name || "Umum",
+      fileType: m.fileType,
+      sourceType: m.sourceType,
+      fileUrl: m.fileUrl,
+      fileName: m.fileName,
+      content: m.content,
+      summary: m.summary,
+      isReadByMe: Boolean(
+        m.readByStudents?.some((sId: any) => sId.toString() === studentProfile._id.toString())
+      ),
+    });
+
     return NextResponse.json({
       isAllowed: !hasUnread,
       hasUnreadMaterials: hasUnread,
-      unreadMaterials: unreadMaterials.map((m: any) => ({
-        id: m._id.toString(),
-        title: m.title,
-        description: m.description,
-        className: m.className || m.classId?.name || "Kelas",
-        subjectName: m.subjectId?.name || "Umum",
-        fileType: m.fileType,
-        sourceType: m.sourceType,
-        fileUrl: m.fileUrl,
-        content: m.content,
-      })),
+      unreadMaterials: unreadMaterials.map(mapMaterial),
+      allMaterials: materials.map(mapMaterial),
       totalMaterials: materials.length,
+      readMaterialsCount: materials.length - unreadMaterials.length,
     });
   } catch (error: any) {
     console.error("[Student Material Status Error]", error);

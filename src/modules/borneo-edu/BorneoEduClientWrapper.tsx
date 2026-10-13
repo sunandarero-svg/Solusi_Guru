@@ -1,8 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Loader2, Gamepad2, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Loader2, Gamepad2, Sparkles, BookOpen, Lock, RotateCcw } from 'lucide-react';
 
 const BorneoEduGame = dynamic(
   () => import('./BorneoEduGame'),
@@ -44,10 +46,95 @@ export default function BorneoEduClientWrapper({
   teacherName = 'Bapak/Ibu Guru',
   showStandaloneHeader = false
 }: BorneoEduClientWrapperProps) {
+  const router = useRouter();
   const isTeacherOrAdmin = userRole === 'TEACHER' || userRole === 'ADMIN' || userRole === 'PRINCIPAL';
+
+  const [checkingMaterials, setCheckingMaterials] = useState(!isTeacherOrAdmin);
+  const [hasUnreadMaterials, setHasUnreadMaterials] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    if (!isTeacherOrAdmin) {
+      fetch('/api/student/material-status')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.hasUnreadMaterials) {
+            setHasUnreadMaterials(true);
+          } else {
+            setHasUnreadMaterials(false);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setCheckingMaterials(false));
+    }
+  }, [isTeacherOrAdmin]);
+
+  const handleResetMaterialsAndExit = async () => {
+    const confirmed = window.confirm(
+      "Apakah Anda yakin ingin reset dan kembali membaca materi?\n\nGame Borneo Edu dan Kamera Tugas akan KEMBALI TERKUNCI sampai Anda selesai membaca materi di halaman Dashboard."
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+    try {
+      const res = await fetch("/api/student/reset-materials", { method: "POST" });
+      if (res.ok) {
+        alert("🔒 Status materi berhasil di-reset!\n\nSemua fitur game dan foto tugas telah terkunci kembali. Mengalihkan ke dashboard materi...");
+        router.push("/dashboard");
+      } else {
+        alert("Gagal mereset materi.");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setResetting(false);
+    }
+  };
 
   if (isTeacherOrAdmin) {
     return <BorneoEduTeacherProgress userRole={userRole} teacherName={teacherName} />;
+  }
+
+  // Jika sedang memeriksa status materi siswa
+  if (checkingMaterials) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8 bg-slate-950 rounded-3xl text-white space-y-3">
+        <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
+        <p className="text-sm font-bold text-slate-300">Memverifikasi izin materi belajar...</p>
+      </div>
+    );
+  }
+
+  // Proteksi jika siswa belum membaca materi
+  if (hasUnreadMaterials) {
+    return (
+      <div className="rounded-3xl p-8 sm:p-12 bg-slate-950 border-2 border-amber-500/40 text-white shadow-2xl max-w-2xl mx-auto my-8 text-center space-y-6 animate-in fade-in duration-300">
+        <div className="w-20 h-20 rounded-3xl bg-amber-500/20 border border-amber-500/40 text-amber-400 mx-auto flex items-center justify-center text-4xl shadow-inner">
+          🔒
+        </div>
+        <div className="space-y-2">
+          <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-black uppercase tracking-wider border border-amber-500/30">
+            Akses Game Terkunci
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-white">
+            Materi Pelajaran Belum Selesai Dibaca
+          </h2>
+          <p className="text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+            Sesuai aturan pembelajaran kelas, Anda harus membaca dan mempelajari materi pelajaran terlebih dahulu sebelum memulai petualangan di Borneo Edu.
+          </p>
+        </div>
+
+        <div className="pt-2">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/20 hover:scale-105 active:scale-95 transition-all"
+          >
+            <BookOpen size={18} />
+            <span>📖 Buka Materi Pelajaran di Dashboard</span>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -71,6 +158,19 @@ export default function BorneoEduClientWrapper({
             <p className="text-sm font-medium text-slate-500">
               Petualangan Belajar, Kumpulkan Koin, Taklukkan Tantangan!
             </p>
+          </div>
+
+          {/* TOMBOL RESET KEMBALI KE MATERI & KUNCI GAME */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetMaterialsAndExit}
+              disabled={resetting}
+              className="px-4 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-2 shadow-sm"
+              title="Reset status belajar dan kunci kembali fitur game serta foto tugas"
+            >
+              <RotateCcw size={14} className={resetting ? "animate-spin" : ""} />
+              <span>{resetting ? "Mereset..." : "🔄 Reset Kembali ke Materi & Kunci"}</span>
+            </button>
           </div>
         </div>
       )}

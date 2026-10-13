@@ -2,7 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Gamepad2, Sparkles, BookOpen, CheckCircle, FileText, Video, Eye, Lock, ArrowRight } from "lucide-react";
+import {
+  Gamepad2,
+  Sparkles,
+  BookOpen,
+  CheckCircle,
+  FileText,
+  Video,
+  Eye,
+  Lock,
+  ArrowRight,
+  RotateCcw,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
 import StudentQuickScan from "@/components/StudentQuickScan";
 import MaterialReaderModal from "@/components/MaterialReaderModal";
 
@@ -15,14 +28,21 @@ interface MaterialItem {
   fileType?: string;
   sourceType?: string;
   fileUrl?: string;
+  fileName?: string;
   content?: string;
+  summary?: string;
+  isReadByMe?: boolean;
 }
 
 export default function StudentInteractiveDashboard() {
   const [loading, setLoading] = useState(true);
   const [hasUnread, setHasUnread] = useState(false);
   const [unreadMaterials, setUnreadMaterials] = useState<MaterialItem[]>([]);
+  const [allMaterials, setAllMaterials] = useState<MaterialItem[]>([]);
+  const [totalMaterials, setTotalMaterials] = useState(0);
+  const [readMaterialsCount, setReadMaterialsCount] = useState(0);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const fetchStatus = async () => {
     try {
@@ -31,6 +51,9 @@ export default function StudentInteractiveDashboard() {
       if (data) {
         setHasUnread(Boolean(data.hasUnreadMaterials));
         setUnreadMaterials(data.unreadMaterials || []);
+        setAllMaterials(data.allMaterials || []);
+        setTotalMaterials(Number(data.totalMaterials) || 0);
+        setReadMaterialsCount(Number(data.readMaterialsCount) || 0);
       }
     } catch (err) {
       console.error("Gagal mengecek status materi", err);
@@ -54,25 +77,117 @@ export default function StudentInteractiveDashboard() {
     }
   };
 
+  const handleResetMaterials = async () => {
+    const confirmed = window.confirm(
+      "Apakah Anda yakin ingin reset kembali ke materi?\n\nSemua materi pelajaran kelas Anda akan kembali berstatus BELUM DIBACA. Fitur Game Petualangan Borneo Edu dan Kamera Kumpulkan Tugas akan KEMBALI TERKUNCI sampai Anda membaca materi pelajaran."
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+    try {
+      const res = await fetch("/api/student/reset-materials", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(
+          "🔒 Status membaca materi berhasil di-reset!\n\nFitur Game Borneo Edu dan Kamera Tugas telah terkunci kembali. Silakan baca dan pelajari materi pelajaran untuk membuka kuncinya."
+        );
+        await fetchStatus();
+      } else {
+        alert(data.error || "Gagal mereset status materi.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan jaringan saat mereset materi.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* 1. KARTU MATERI BELAJAR WAJIB DIBACA (Jika ada materi belum dibaca) */}
+      {/* 1A. KARTU STATUS SELESAI & TOMBOL RESET KEMBALI KE MATERI (Jika semua materi sudah dibaca) */}
+      {!hasUnread && totalMaterials > 0 && (
+        <div className="rounded-3xl p-6 sm:p-7 bg-slate-900 border-2 border-emerald-500/30 text-white shadow-xl relative overflow-hidden animate-in fade-in duration-300">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shrink-0">
+                <CheckCircle size={26} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-black uppercase tracking-wider border border-emerald-500/30">
+                    ✓ Status Membaca Selesai ({totalMaterials} Materi)
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30">
+                    🎮 Game & 📷 Kamera Terbuka
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-white">
+                  Materi Pelajaran Telah Selesai Dibaca
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                  Seluruh materi kelas telah Anda pelajari. Jika Anda ingin membaca ulang dari awal dan menguji pemahaman, tekan tombol di samping untuk <strong>mereset materi dan mengunci kembali semua fitur</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto shrink-0">
+              {allMaterials.length > 0 && (
+                <button
+                  onClick={() => setSelectedMaterial(allMaterials[0])}
+                  className="px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Eye size={15} className="text-amber-300" />
+                  <span>Baca Ulang Materi</span>
+                </button>
+              )}
+
+              {/* TOMBOL RESET KEMBALI KE MATERI AGAR SEMUA FITUR TERKUNCI KEMBALI */}
+              <button
+                onClick={handleResetMaterials}
+                disabled={resetting}
+                className="px-5 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/25 hover:scale-105"
+                title="Reset status belajar agar semua materi kembali belum dibaca dan fitur Game serta Kamera Foto terkunci kembali"
+              >
+                <RotateCcw size={15} className={resetting ? "animate-spin" : ""} />
+                <span>{resetting ? "Mereset..." : "🔄 Reset Kembali ke Materi (Kunci Game & Foto)"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1B. KARTU MATERI BELAJAR WAJIB DIBACA (Jika ada materi belum dibaca) */}
       {hasUnread && (
         <div className="rounded-3xl p-6 sm:p-7 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white shadow-xl shadow-amber-500/20 relative overflow-hidden border border-amber-400/40 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
 
           <div className="relative z-10 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/20 text-white text-xs font-black uppercase tracking-wider backdrop-blur-md">
                 <BookOpen size={14} className="text-amber-200" />
                 <span>Materi Wajib Dibaca Terlebih Dahulu</span>
                 <span className="px-1.5 py-0.2 bg-white text-amber-700 rounded-full text-[10px] font-black">
-                  {unreadMaterials.length} Materi
+                  {unreadMaterials.length} Belum Dibaca
                 </span>
               </div>
-              <span className="text-xs font-bold text-amber-100 flex items-center gap-1">
-                <Lock size={12} /> Akses Game & Tugas Terkunci
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-amber-100 flex items-center gap-1">
+                  <Lock size={12} /> Akses Game & Tugas Terkunci
+                </span>
+                {readMaterialsCount > 0 && (
+                  <button
+                    onClick={handleResetMaterials}
+                    disabled={resetting}
+                    className="px-3 py-1 rounded-xl bg-black/30 hover:bg-black/50 text-[11px] font-bold text-amber-100 transition flex items-center gap-1 border border-white/20"
+                    title="Reset semua status membaca ke awal"
+                  >
+                    <RotateCcw size={11} className={resetting ? "animate-spin" : ""} />
+                    <span>Reset ke Awal</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div>

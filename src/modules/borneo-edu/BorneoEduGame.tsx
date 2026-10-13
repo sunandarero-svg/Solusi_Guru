@@ -892,10 +892,27 @@ export default function BorneoEduGame() {
 
             <button
               onClick={() => setGameState('PETUNJUK')}
-              className="py-2.5 sm:py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95 col-span-1 sm:col-span-2 landscape:col-span-2"
+              className="py-2.5 sm:py-3 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-extrabold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
             >
               <span>📖</span>
               <span>PETUNJUK PERMAINAN</span>
+            </button>
+
+            {/* Tombol Reset Kembali ke Materi & Kunci Game/Foto */}
+            <button
+              onClick={async () => {
+                if (window.confirm("Apakah Anda ingin reset dan kembali membaca materi?\n\nSemua fitur Game Borneo Edu dan Kamera Tugas akan KEMBALI TERKUNCI sampai Anda membaca materi pelajaran di Dashboard.")) {
+                  try {
+                    await fetch('/api/student/reset-materials', { method: 'POST' });
+                  } catch (_) {}
+                  window.location.href = '/dashboard';
+                }
+              }}
+              className="py-2.5 sm:py-3 px-4 rounded-2xl bg-rose-950/70 hover:bg-rose-900 text-rose-200 font-extrabold text-xs sm:text-sm border border-rose-700/80 shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
+              title="Reset status belajar dan kunci kembali semua fitur game dan foto tugas"
+            >
+              <span>🔄</span>
+              <span>KEMBALI KE MATERI (RESET & KUNCI)</span>
             </button>
           </div>
 

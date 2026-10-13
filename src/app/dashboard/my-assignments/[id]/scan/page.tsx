@@ -32,6 +32,21 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   const [fileQueue, setFileQueue] = useState<File[]>([]);
   const [pendingCrop, setPendingCrop] = useState<{ file: File, dataUrl: string, corners: CornerPoints | null } | null>(null);
 
+  const [checkingLock, setCheckingLock] = useState(true);
+  const [isLockedByMaterial, setIsLockedByMaterial] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/student/material-status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.hasUnreadMaterials) {
+          setIsLockedByMaterial(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCheckingLock(false));
+  }, []);
+
   // Proses antrean file
   useEffect(() => {
     if (!pendingCrop && fileQueue.length > 0) {
@@ -232,6 +247,30 @@ export default function ScannerPage({ params }: { params: Promise<{ id: string }
   };
 
   const previewImage = previewImageId ? images.find(img => img.id === previewImageId) : null;
+
+  if (isLockedByMaterial) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 fixed inset-0 z-50">
+        <div className="max-w-md w-full p-8 bg-slate-900 border-2 border-amber-500/40 rounded-3xl text-center space-y-5 shadow-2xl">
+          <div className="w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-400 mx-auto flex items-center justify-center text-3xl">
+            🔒
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white">Fitur Foto Tugas Terkunci</h2>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Anda harus menyelesaikan membaca materi pelajaran kelas terlebih dahulu di Dashboard sebelum dapat mengambil foto atau mengumpulkan tugas.
+            </p>
+          </div>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-sm transition shadow-lg shadow-amber-500/20"
+          >
+            📖 Buka Materi Pelajaran di Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col fixed inset-0 z-40">
