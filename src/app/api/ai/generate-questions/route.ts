@@ -8,7 +8,7 @@ import { Material } from "@/models/Material";
 import { Class } from "@/models/Class";
 import { BorneoEduQuestion } from "@/models/BorneoEdu";
 import { Assignment, AssignmentStatus, AssignmentQuestion } from "@/models/Assignment";
-import { GoogleGenAI } from "@google/genai";
+import { callAICascade } from "@/modules/ai/aiCascade";
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,8 +68,6 @@ export async function POST(req: NextRequest) {
       materialText = `Judul Materi: ${material.title}. ${material.description || ""}`;
     }
     const isSparseContent = materialText.length < 200;
-
-    const apiKey = process.env.GEMINI_API_KEY;
     const count = Math.min(25, Math.max(3, Number(questionCount) || 5));
 
     // =========================================================================
@@ -78,10 +76,7 @@ export async function POST(req: NextRequest) {
     if (targetType === "BORNEO_EDU") {
       let questionsList: any[] = [];
 
-      if (apiKey) {
-        try {
-          const ai = new GoogleGenAI({ apiKey });
-          const prompt = `Anda adalah pembuat soal kurikulum game edukasi platformer 2D "Borneo Edu".
+      const prompt = `Anda adalah pembuat soal kurikulum game edukasi platformer 2D "Borneo Edu".
 Buatkan ${count} soal pilihan ganda (A, B, C, D) yang edukatif dan menarik berdasarkan materi berikut:
 ---
 Judul Materi: ${material.title}
@@ -117,45 +112,33 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown pembungkus):
   }
 ]`;
 
-          const primaryModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-          let response: any = null;
+        try {
+          const rawText = await callAICascade({
+            prompt,
+            responseJson: true,
+            maxTokens: 4096,
+            temperature: 0.3,
+            logPrefix: "[Borneo Question AI Cascade]",
+          });
 
+          // Parse JSON murni dari respon AI
+          const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          let parsed: any = null;
           try {
-            response = await ai.models.generateContent({
-              model: primaryModel,
-              contents: prompt,
-              config: {
-                responseMimeType: "application/json",
-              },
-            });
-          } catch (firstErr: any) {
-            console.warn(`[Gemini Question Gen] Primary ${primaryModel} failed:`, firstErr?.message || firstErr);
-            const fallbackModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
-            for (const fbModel of fallbackModels) {
-              try {
-                response = await ai.models.generateContent({
-                  model: fbModel,
-                  contents: prompt,
-                  config: {
-                    responseMimeType: "application/json",
-                  },
-                });
-                if (response?.text) break;
-              } catch (fbErr) {
-                // Continue to next fallback
-              }
-            }
+            parsed = JSON.parse(cleaned);
+          } catch {
+            const match = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            if (match) parsed = JSON.parse(match[0]);
           }
 
-          const rawText = response?.text || "[]";
-          const parsed = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
           if (Array.isArray(parsed) && parsed.length > 0) {
             questionsList = parsed;
+          } else if (parsed && Array.isArray(parsed.questions)) {
+            questionsList = parsed.questions;
           }
         } catch (aiErr) {
-          console.warn("[Gemini Question Gen Warning]", aiErr);
+          console.warn("[Borneo Question AI Cascade Warning]", aiErr);
         }
-      }
 
       // Fallback jika AI tidak tersedia
       if (questionsList.length === 0) {
@@ -234,10 +217,7 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown pembungkus):
       const essayCount = Math.min(count, 10);
       const scorePerQuestion = Math.round(100 / essayCount);
 
-      if (apiKey) {
-        try {
-          const ai = new GoogleGenAI({ apiKey });
-          const prompt = `Anda adalah guru ahli kurikulum Indonesia. Buatkan ${essayCount} soal untuk siswa sekolah berdasarkan materi berikut:
+      const prompt = `Anda adalah guru ahli kurikulum Indonesia. Buatkan ${essayCount} soal untuk siswa sekolah berdasarkan materi berikut:
 
 Judul Materi: ${material.title}
 Teks Materi:
@@ -271,40 +251,28 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown):
   }
 ]`;
 
-          const primaryModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-          let response: any = null;
+        try {
+          const rawText = await callAICascade({
+            prompt,
+            responseJson: true,
+            maxTokens: 4096,
+            temperature: 0.3,
+            logPrefix: "[Essay Question AI Cascade]",
+          });
 
+          // Parse JSON murni dari respon AI
+          const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          let parsed: any = null;
           try {
-            response = await ai.models.generateContent({
-              model: primaryModel,
-              contents: prompt,
-              config: {
-                responseMimeType: "application/json",
-              },
-            });
-          } catch (firstErr: any) {
-            console.warn(`[Gemini Essay Gen] Primary ${primaryModel} failed:`, firstErr?.message || firstErr);
-            const fallbackModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
-            for (const fbModel of fallbackModels) {
-              try {
-                response = await ai.models.generateContent({
-                  model: fbModel,
-                  contents: prompt,
-                  config: {
-                    responseMimeType: "application/json",
-                  },
-                });
-                if (response?.text) break;
-              } catch (fbErr) {
-                // Continue to next fallback
-              }
-            }
+            parsed = JSON.parse(cleaned);
+          } catch {
+            const match = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            if (match) parsed = JSON.parse(match[0]);
           }
 
-          const rawText = response?.text || "[]";
-          const parsed = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            structuredQuestions = parsed.map((q: any) => ({
+          const questionArray = Array.isArray(parsed) ? parsed : (parsed?.questions || []);
+          if (Array.isArray(questionArray) && questionArray.length > 0) {
+            structuredQuestions = questionArray.map((q: any) => ({
               question: q.question || "",
               questionType: q.questionType === "ISIAN_SINGKAT" ? "ISIAN_SINGKAT" : "ESSAY",
               idealAnswer: q.idealAnswer || q.ideal_answer || q.answer || "",
@@ -312,9 +280,8 @@ Format JSON yang DIHARUSKAN (hanya array JSON murni tanpa markdown):
             }));
           }
         } catch (aiErr) {
-          console.warn("[Gemini Essay Gen Warning]", aiErr);
+          console.warn("[Essay Question AI Cascade Warning]", aiErr);
         }
-      }
 
       // Fallback if AI fails
       if (structuredQuestions.length === 0) {

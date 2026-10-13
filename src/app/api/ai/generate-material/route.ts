@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { GoogleGenAI } from "@google/genai";
+import { callAICascade } from "@/modules/ai/aiCascade";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,14 +16,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Topik materi wajib diisi." }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     let generatedContent = "";
     let generatedSummary = "";
 
-    if (apiKey) {
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Anda adalah seorang penulis materi kurikulum profesional tingkat nasional di Indonesia. Tugas Anda adalah membuat materi pembelajaran yang LENGKAP, MENDALAM, dan KOMPREHENSIF untuk siswa sekolah. Materi harus mencakup seluruh aspek topik secara tuntas.
+    const prompt = `Anda adalah seorang penulis materi kurikulum profesional tingkat nasional di Indonesia. Tugas Anda adalah membuat materi pembelajaran yang LENGKAP, MENDALAM, dan KOMPREHENSIF untuk siswa sekolah. Materi harus mencakup seluruh aspek topik secara tuntas.
 
 Topik Pembelajaran: ${topic}
 Sasaran Kelas: ${className || "Semua Kelas"}
@@ -70,58 +66,39 @@ Lalu tulis bagian Rangkuman Akhir berupa 2 paragraf padat yang merangkum seluruh
 
 INGAT: Tulis semuanya sebagai teks biasa yang bersih. Jangan gunakan simbol Markdown. Jangan buat pertanyaan. Buat materi yang sangat lengkap dan mendalam.`;
 
-        const primaryModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-        let response: any = null;
+    try {
+      const rawText = await callAICascade({
+        prompt,
+        maxTokens: 8192,
+        temperature: 0.5,
+        logPrefix: "[Material AI Cascade]",
+      });
 
-        try {
-          response = await ai.models.generateContent({
-            model: primaryModel,
-            contents: prompt,
-          });
-        } catch (firstErr: any) {
-          console.warn(`[Gemini Generate Material] Primary model ${primaryModel} failed:`, firstErr?.message || firstErr);
-          const fallbackModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
-          for (const fallbackModel of fallbackModels) {
-            try {
-              console.log(`[Gemini Generate Material] Trying fallback model: ${fallbackModel}...`);
-              response = await ai.models.generateContent({
-                model: fallbackModel,
-                contents: prompt,
-              });
-              if (response?.text) break;
-            } catch (fbErr: any) {
-              console.warn(`[Gemini Generate Material] Fallback ${fallbackModel} failed:`, fbErr?.message || fbErr);
-            }
-          }
-          if (!response?.text) throw firstErr;
-        }
+      generatedContent = rawText || "";
 
-        generatedContent = response?.text || "";
+      // Strip any remaining Markdown formatting the AI might have included
+      generatedContent = generatedContent
+        .replace(/^#{1,6}\s+/gm, "")       // Remove heading markers (# ## ### etc.)
+        .replace(/\*\*([^*]+)\*\*/g, "$1")  // Remove bold markers **text** -> text
+        .replace(/\*([^*]+)\*/g, "$1")      // Remove italic markers *text* -> text
+        .replace(/__([^_]+)__/g, "$1")       // Remove bold markers __text__ -> text
+        .replace(/_([^_]+)_/g, "$1")         // Remove italic markers _text_ -> text
+        .replace(/^[-*]\s+/gm, "")           // Remove bullet point markers
+        .replace(/^>\s+/gm, "")              // Remove blockquote markers
+        .replace(/```[\s\S]*?```/g, "")      // Remove code blocks
+        .replace(/`([^`]+)`/g, "$1");        // Remove inline code markers
 
-        // Strip any remaining Markdown formatting the AI might have included
-        generatedContent = generatedContent
-          .replace(/^#{1,6}\s+/gm, "")       // Remove heading markers (# ## ### etc.)
-          .replace(/\*\*([^*]+)\*\*/g, "$1")  // Remove bold markers **text** -> text
-          .replace(/\*([^*]+)\*/g, "$1")      // Remove italic markers *text* -> text
-          .replace(/__([^_]+)__/g, "$1")       // Remove bold markers __text__ -> text
-          .replace(/_([^_]+)_/g, "$1")         // Remove italic markers _text_ -> text
-          .replace(/^[-*]\s+/gm, "")           // Remove bullet point markers
-          .replace(/^>\s+/gm, "")              // Remove blockquote markers
-          .replace(/```[\s\S]*?```/g, "")      // Remove code blocks
-          .replace(/`([^`]+)`/g, "$1");        // Remove inline code markers
-
-        // Extract summary from the first 2 substantive paragraphs
-        const paragraphs = generatedContent.split(/\n\n+/).filter((p: string) => p.trim().length > 50);
-        if (paragraphs.length >= 2) {
-          generatedSummary = paragraphs[1].trim().substring(0, 300);
-        } else if (paragraphs.length >= 1) {
-          generatedSummary = paragraphs[0].trim().substring(0, 300);
-        } else {
-          generatedSummary = `Materi pembelajaran mendalam tentang ${topic} untuk ${className || "siswa"}.`;
-        }
-      } catch (aiErr: any) {
-        console.warn("[Gemini Generate Material Warning]", aiErr);
+      // Extract summary from the first 2 substantive paragraphs
+      const paragraphs = generatedContent.split(/\n\n+/).filter((p: string) => p.trim().length > 50);
+      if (paragraphs.length >= 2) {
+        generatedSummary = paragraphs[1].trim().substring(0, 300);
+      } else if (paragraphs.length >= 1) {
+        generatedSummary = paragraphs[0].trim().substring(0, 300);
+      } else {
+        generatedSummary = `Materi pembelajaran mendalam tentang ${topic} untuk ${className || "siswa"}.`;
       }
+    } catch (aiErr: any) {
+      console.warn("[Material AI Cascade Warning] Semua provider AI gagal, menggunakan fallback template:", aiErr?.message || aiErr);
     }
 
     // Fallback template jika Gemini gagal atau API key sedang rate limited
