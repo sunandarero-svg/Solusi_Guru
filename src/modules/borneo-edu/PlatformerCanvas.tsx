@@ -17,6 +17,8 @@ interface PlatformerCanvasProps {
   onPlayerFell: () => void;
   isPaused: boolean;
   levelQuestions: QuestionItem[];
+  defeatedEnemyId?: string | null;
+  isFullscreen?: boolean;
 }
 
 interface Entity {
@@ -70,7 +72,9 @@ export default function PlatformerCanvas({
   onTriggerBossBattle,
   onPlayerFell,
   isPaused,
-  levelQuestions
+  levelQuestions,
+  defeatedEnemyId,
+  isFullscreen
 }: PlatformerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -318,6 +322,21 @@ export default function PlatformerCanvas({
     }
   }, [worldNumber, levelNumber, buildLevel]);
 
+  // Handle enemy defeated from question resolution
+  useEffect(() => {
+    if (defeatedEnemyId) {
+      enemiesRef.current.forEach((enemy) => {
+        if (enemy.id === defeatedEnemyId) {
+          enemy.isDefeated = true;
+        }
+      });
+      if (playerRef.current) {
+        playerRef.current.invincibleTimer = 60;
+        playerRef.current.vy = -6; // Joyful bounce after defeating enemy
+      }
+    }
+  }, [defeatedEnemyId]);
+
   // Keyboard and focus events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -450,6 +469,11 @@ export default function PlatformerCanvas({
           sound.playJump();
         }
 
+        // Invulnerability timer countdown
+        if (p.invincibleTimer > 0) {
+          p.invincibleTimer -= 1;
+        }
+
         // Apply Gravity
         p.vy += GRAVITY;
         if (p.vy > 14) p.vy = 14;
@@ -562,10 +586,14 @@ export default function PlatformerCanvas({
               p.y + p.height > enemy.y &&
               p.y < enemy.y + enemy.height
             ) {
-              const questionsList = levelQuestionsRef.current;
-              const enemyQ = questionsList[enemy.questionIndex] || questionsList[0];
-              if (enemyQ) {
-                callbacksRef.current.onTriggerQuestion(enemyQ, true, enemy.id);
+              if (p.invincibleTimer <= 0) {
+                const questionsList = levelQuestionsRef.current;
+                if (questionsList && questionsList.length > 0) {
+                  // Acak soal dari bank soal yang tersedia untuk kelas
+                  const randomIndex = Math.floor(Math.random() * questionsList.length);
+                  const enemyQ = questionsList[randomIndex] || questionsList[0];
+                  callbacksRef.current.onTriggerQuestion(enemyQ, true, enemy.id);
+                }
               }
               break;
             }
@@ -805,6 +833,11 @@ export default function PlatformerCanvas({
       ctx.translate(px + p.width / 2, py + p.height / 2);
       ctx.scale(facing, 1);
 
+      // Invulnerability flash effect
+      if (p.invincibleTimer > 0 && Math.floor(p.invincibleTimer / 4) % 2 === 0) {
+        ctx.globalAlpha = 0.4;
+      }
+
       // Shield Aura Effect if active
       if (playerStateRef.current.shieldActive || playerStateRef.current.powerUps.shield > 0) {
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
@@ -925,16 +958,20 @@ export default function PlatformerCanvas({
   ]);
 
   return (
-    <div className="relative w-full flex-1 max-h-[calc(100vh-65px)] landscape:max-h-[calc(100dvh-55px)] sm:max-h-[620px] overflow-hidden select-none touch-none rounded-2xl sm:rounded-3xl shadow-2xl border-2 sm:border-4 border-slate-800 bg-slate-900 flex items-center justify-center">
+    <div className={`relative w-full flex-1 overflow-hidden select-none touch-none bg-slate-900 flex items-center justify-center transition-all ${
+      isFullscreen
+        ? 'h-full max-h-[100dvh] max-w-[100dvw] rounded-none border-none p-0 m-0'
+        : 'max-h-[calc(100vh-65px)] landscape:max-h-[calc(100dvh-55px)] sm:max-h-[620px] rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-slate-800 shadow-2xl'
+    }`}>
       <canvas
         ref={canvasRef}
         width={800}
         height={540}
-        className="max-h-full max-w-full w-auto h-auto aspect-[800/540] object-contain block mx-auto"
+        className="w-full h-full max-h-[100dvh] max-w-[100dvw] aspect-[800/540] object-contain block mx-auto"
       />
 
       {/* On-screen Mobile & Tablet Touch Controls (Landscape & Portrait Ergonomic) */}
-      <div className="absolute inset-x-0 bottom-1 sm:bottom-4 px-2 sm:px-6 flex justify-between items-end pointer-events-none z-30 select-none touch-none">
+      <div className={`absolute inset-x-0 ${isFullscreen ? 'bottom-2 px-3 sm:px-8' : 'bottom-1 sm:bottom-4 px-2 sm:px-6'} flex justify-between items-end pointer-events-none z-30 select-none touch-none`}>
         {/* D-Pad Buttons (Left & Right) */}
         <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto p-1 sm:p-1.5 rounded-xl sm:rounded-2xl bg-slate-950/60 backdrop-blur-md border border-white/10 shadow-2xl">
           {/* Tombol Kiri */}

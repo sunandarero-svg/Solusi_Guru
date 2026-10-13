@@ -93,14 +93,6 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/subjects", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/dashboard/my-assignments", label: "Tugas Saya", icon: CheckSquare },
-      {
-        href: "/dashboard/interactive-learning",
-        label: "Pembelajaran Interaktif",
-        icon: Gamepad2,
-        subItems: [
-          { href: "/dashboard/interactive-learning/borneo-edu", label: "Game Borneo Edu", icon: Sparkles }
-        ]
-      },
       { href: "/dashboard/settings", label: "Pengaturan Akun", icon: ShieldCheck },
     ];
   };

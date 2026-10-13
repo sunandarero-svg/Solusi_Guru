@@ -49,8 +49,8 @@ export default function StudentQuickScan() {
             <Camera size={32} />
           </div>
           <div className="text-left">
-            <h3 className="text-xl font-bold">Mulai Scan Tugas</h3>
-            <p className="text-emerald-100 text-sm">Foto lembar jawaban dan otomatis terkirim</p>
+            <h3 className="text-xl font-bold">Kamera Kumpulkan Tugas</h3>
+            <p className="text-emerald-100 text-sm">Foto lembar jawaban buku tulis & tugas refleksi game</p>
           </div>
         </div>
         <div className="bg-white text-emerald-600 px-6 py-3 rounded-xl font-bold">

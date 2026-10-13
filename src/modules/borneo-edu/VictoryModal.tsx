@@ -99,6 +99,40 @@ export default function VictoryModal({
           </div>
         </div>
 
+        {/* 5 PERTANYAAN REFLEKSI KHUSUS (DIKERJAKAN DI BUKU TULIS & DIKUMPUL VIA KAMERA FOTO TUGAS) */}
+        <div className="bg-gradient-to-b from-amber-950/40 to-slate-900 border-2 border-amber-400/50 rounded-2xl p-5 text-left mb-6 shadow-xl">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-amber-500/30">
+            <span className="text-2xl animate-pulse">📝</span>
+            <div>
+              <h4 className="text-sm font-black text-amber-300 uppercase tracking-wide">
+                Tugas Khusus: 5 Pertanyaan Refleksi
+              </h4>
+              <p className="text-[11px] text-slate-300">
+                Wajib dikerjakan di buku tulis Anda & dikumpulkan via Kamera Foto Tugas!
+              </p>
+            </div>
+          </div>
+
+          <ol className="list-decimal list-inside space-y-2 text-xs text-slate-200 font-medium leading-relaxed my-3">
+            <li><span className="text-amber-200 font-semibold">Pemahaman Materi:</span> Materi atau konsep apa yang paling kamu pahami setelah menaklukkan petualangan game ini?</li>
+            <li><span className="text-amber-200 font-semibold">Tantangan & Strategi:</span> Soal atau rintangan mana yang paling sulit bagi kamu, dan bagaimana strategimu agar bisa menyelesaikannya?</li>
+            <li><span className="text-amber-200 font-semibold">Refleksi Karakter:</span> Sikap positif apa (kejujuran, ketelitian, ketekunan, pantang menyerah) yang kamu latih saat bermain game ini?</li>
+            <li><span className="text-amber-200 font-semibold">Kesan Belajar:</span> Apa manfaat dan perbedaan belajar melalui game edukasi interaktif ini dibandingkan metode belajar biasa di kelas?</li>
+            <li><span className="text-amber-200 font-semibold">Rencana Belajar:</span> Apa komitmen atau langkah perbaikan belajar yang ingin kamu lakukan untuk topik berikutnya?</li>
+          </ol>
+
+          <div className="mt-4 pt-3 border-t border-amber-500/20">
+            <a
+              href="/dashboard"
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 text-center"
+            >
+              <span>📷</span>
+              <span>Buka Kamera & Kumpulkan Tugas Refleksi</span>
+              <span>▶</span>
+            </a>
+          </div>
+        </div>
+
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3">
           <button

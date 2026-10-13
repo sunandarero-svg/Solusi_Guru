@@ -12,6 +12,7 @@ interface QuestionModalProps {
   onAnswerResolved: (isCorrect: boolean, timeSpent: number, chosenOption: string, pointsEarned: number, coinsEarned: number) => void;
   onUseHintFlower: () => void;
   onClose: () => void;
+  onNextQuestion?: () => void;
 }
 
 export default function QuestionModal({
@@ -21,7 +22,8 @@ export default function QuestionModal({
   timeLimitSeconds,
   onAnswerResolved,
   onUseHintFlower,
-  onClose
+  onClose,
+  onNextQuestion
 }: QuestionModalProps) {
   const [timeLeft, setTimeLeft] = useState(timeLimitSeconds);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -29,6 +31,16 @@ export default function QuestionModal({
   const [isCorrect, setIsCorrect] = useState(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [usedHint, setUsedHint] = useState(false);
+
+  // Reset state when question changes (e.g. when answering wrong on enemy battle)
+  useEffect(() => {
+    setTimeLeft(timeLimitSeconds);
+    setSelectedOption(null);
+    setIsAnswered(false);
+    setIsCorrect(false);
+    setEliminatedOptions([]);
+    setUsedHint(false);
+  }, [question.questionId, timeLimitSeconds]);
 
   // Timer countdown
   useEffect(() => {
@@ -262,14 +274,50 @@ export default function QuestionModal({
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button
-                onClick={onClose}
-                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-lg transition-transform active:scale-95"
-              >
-                Lanjutkan Petualangan ▶
-              </button>
-            </div>
+            {/* Action Button: Branching for Enemy Challenge vs Question Block */}
+            {isEnemy ? (
+              isCorrect ? (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    <span>✨</span>
+                    <span>Musuh berhasil dikalahkan! Game siap dilanjutkan.</span>
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>Kembali ke Permainan</span>
+                    <span>▶</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    <span>⚔️</span>
+                    <span>Jawaban salah! Kamu harus menyelesaikan soal agar kembali ke permainan.</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (onNextQuestion) onNextQuestion();
+                      else onClose();
+                    }}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:brightness-110 text-slate-950 font-black text-sm shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>Pertanyaan Lainnya</span>
+                    <span>▶</span>
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="flex justify-end">
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-lg transition-transform active:scale-95"
+                >
+                  Lanjutkan Petualangan ▶
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -29,8 +29,6 @@ export default function NavLinks({ role }: NavLinksProps) {
   const studentLinks = [
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/dashboard/my-assignments", label: "📚 Tugas Saya" },
-    { href: "/dashboard/interactive-learning", label: "🎮 Pembelajaran Interaktif" },
-    { href: "/dashboard/interactive-learning/borneo-edu", label: "🕹️ Game Borneo Edu" },
   ];
 
   const principalLinks = [

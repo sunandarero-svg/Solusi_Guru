@@ -26,6 +26,16 @@ import PetunjukModal from './PetunjukModal';
 import WorldSelectModal from './WorldSelectModal';
 import MejaGuruModal from './MejaGuruModal';
 
+// Fisher-Yates array shuffle for randomizing questions across classes
+function shuffleQuestions<T>(array: T[]): T[] {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 export default function BorneoEduGame() {
   const { data: session } = useSession();
 
@@ -51,28 +61,56 @@ export default function BorneoEduGame() {
   const [currentTriggeredQuestion, setCurrentTriggeredQuestion] = useState<QuestionItem | null>(null);
   const [isEnemyTrigger, setIsEnemyTrigger] = useState<boolean>(false);
   const [currentEnemyId, setCurrentEnemyId] = useState<string | undefined>(undefined);
+  const [defeatedEnemyId, setDefeatedEnemyId] = useState<string | null>(null);
 
   // Audio / Display settings
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-fill student profile from NextAuth session
+  // Auto-fill student profile from registered account database
   useEffect(() => {
-    if (session?.user?.email) {
-      const emailName = session.user.email.split('@')[0];
-      const defaultName = session.user.name || (emailName ? emailName.toUpperCase() : 'Siswa');
-      setPlayerState((prev) => {
-        if (prev.studentName === 'Siswa Petualang') {
-          return {
+    fetch('/api/borneo-edu/student-info')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.studentName) {
+          updatePlayer((prev) => ({
             ...prev,
-            studentName: defaultName
-          };
+            studentName: data.studentName,
+            // Keep customized absent number if student modified it, otherwise use registered studentNumber
+            studentNumber: prev.studentNumber && prev.studentNumber !== '01' ? prev.studentNumber : (data.studentNumber || '01'),
+            className: data.className || prev.className || 'Kelas 7A'
+          }));
         }
-        return prev;
+      })
+      .catch(() => {
+        if (session?.user?.email) {
+          const emailName = session.user.email.split('@')[0];
+          const defaultName = session.user.name || (emailName ? emailName.toUpperCase() : 'Siswa');
+          setPlayerState((prev) => {
+            if (prev.studentName === 'Siswa Petualang') {
+              return {
+                ...prev,
+                studentName: defaultName
+              };
+            }
+            return prev;
+          });
+        }
       });
-    }
-  }, [session]);
+  }, [session, updatePlayer]);
+
+  // Load and shuffle questions for class
+  useEffect(() => {
+    fetch('/api/borneo-edu/questions')
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData?.data && Array.isArray(resData.data) && resData.data.length > 0) {
+          setAllQuestions(shuffleQuestions(resData.data));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Sync / Persist progress automatically
   const persistState = useCallback((stateToSave: PlayerState) => {
@@ -119,34 +157,42 @@ export default function BorneoEduGame() {
 
   // Handle Fullscreen & Landscape Toggle
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      if (gameContainerRef.current?.requestFullscreen) {
-        gameContainerRef.current
-          .requestFullscreen()
-          .then(() => {
-            setIsFullscreen(true);
-            try {
-              if (screen.orientation && 'lock' in screen.orientation) {
-                (screen.orientation as any).lock('landscape').catch(() => {});
-              }
-            } catch (_) {}
-          })
-          .catch(() => {});
+    const elem = gameContainerRef.current as any;
+    if (!isFullscreen) {
+      setIsFullscreen(true);
+      if (elem) {
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen().catch(() => {});
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+          elem.mozRequestFullScreen();
+        } else if (elem.msRequestFullscreen) {
+          elem.msRequestFullscreen();
+        }
       }
+      try {
+        if (screen.orientation && 'lock' in screen.orientation) {
+          (screen.orientation as any).lock('landscape').catch(() => {});
+        }
+      } catch (_) {}
     } else {
-      if (document.exitFullscreen) {
-        document
-          .exitFullscreen()
-          .then(() => {
-            setIsFullscreen(false);
-            try {
-              if (screen.orientation && 'unlock' in screen.orientation) {
-                (screen.orientation as any).unlock();
-              }
-            } catch (_) {}
-          })
-          .catch(() => {});
+      setIsFullscreen(false);
+      const doc = document as any;
+      if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (doc.webkitExitFullscreen) {
+          doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          doc.mozCancelFullScreen();
+        }
       }
+      try {
+        if (screen.orientation && 'unlock' in screen.orientation) {
+          (screen.orientation as any).unlock();
+        }
+      } catch (_) {}
     }
   };
 
@@ -166,12 +212,13 @@ export default function BorneoEduGame() {
     }
   }, [gameState, playerState.currentWorld]);
 
-  // Current level's questions
+  // Current level's questions (acak untuk setiap sesi kelas)
   const activeLevelQuestions = useMemo(() => {
     const currentLevelQuestions = allQuestions.filter(
       (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && !q.isBossQuestion
     );
-    return currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.slice(0, 5);
+    const pool = currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.filter((q) => !q.isBossQuestion);
+    return shuffleQuestions(pool);
   }, [allQuestions, playerState.currentWorld, playerState.currentLevel]);
 
   // Boss questions
@@ -334,12 +381,26 @@ export default function BorneoEduGame() {
       };
     });
 
+    // If answered correctly on enemy challenge, defeat the enemy
+    if (isEnemyTrigger && isCorrect && currentEnemyId) {
+      setDefeatedEnemyId(currentEnemyId);
+    }
+
     // Check if player died
     if (playerState.lives <= 1 && !isCorrect && !playerState.shieldActive && playerState.powerUps.shield <= 0) {
       setTimeout(() => {
         setGameState('GAME_OVER');
       }, 800);
     }
+  };
+
+  // Jika salah saat terkena musuh, muncul pertanyaan lainnya
+  const handleNextEnemyQuestion = () => {
+    const remaining = allQuestions.filter(
+      (q) => q.questionId !== currentTriggeredQuestion?.questionId && !q.isBossQuestion
+    );
+    const nextQ = remaining[Math.floor(Math.random() * remaining.length)] || allQuestions[0];
+    setCurrentTriggeredQuestion(nextQ);
   };
 
   // Close question modal
@@ -350,6 +411,8 @@ export default function BorneoEduGame() {
       setGameState('PLAYING');
     }
     setCurrentTriggeredQuestion(null);
+    setIsEnemyTrigger(false);
+    setCurrentEnemyId(undefined);
   };
 
   // Pit Fall
@@ -535,7 +598,7 @@ export default function BorneoEduGame() {
       ref={gameContainerRef}
       className={`w-full ${
         isFullscreen
-          ? 'fixed inset-0 z-50 bg-slate-950 p-1 sm:p-4 flex flex-col justify-between overflow-hidden'
+          ? 'fixed inset-0 z-[99999] bg-slate-950 p-0 sm:p-2 w-screen h-screen min-h-screen max-w-none max-h-none flex flex-col justify-between overflow-hidden'
           : 'min-h-[520px] landscape:min-h-0 bg-slate-950 rounded-2xl sm:rounded-3xl p-2 sm:p-6 shadow-2xl relative select-none font-sans text-white border-2 border-slate-800'
       }`}
     >
@@ -655,30 +718,45 @@ export default function BorneoEduGame() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
-                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">Nama Siswa</label>
+                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold flex items-center justify-between">
+                  <span>Nama Siswa</span>
+                  <span className="text-[9px] text-amber-400/90 font-medium">🔒 Terkunci (Sesuai Akun)</span>
+                </label>
                 <input
                   type="text"
                   value={playerState.studentName}
-                  onChange={(e) => updatePlayer((p) => ({ ...p, studentName: e.target.value }))}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                  readOnly
+                  disabled
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/80 text-xs font-bold text-slate-300 cursor-not-allowed select-none opacity-90 focus:outline-none"
+                  title="Nama siswa terkunci sesuai akun yang terdaftar"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">Nomor Absen</label>
+                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold flex items-center justify-between">
+                  <span>Nomor Absen</span>
+                  <span className="text-[9px] text-emerald-400 font-semibold">✏️ Bisa Diedit</span>
+                </label>
                 <input
                   type="text"
                   value={playerState.studentNumber}
                   onChange={(e) => updatePlayer((p) => ({ ...p, studentNumber: e.target.value }))}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-emerald-500/80 ring-1 ring-emerald-500/40 text-xs font-bold text-white focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/50"
+                  placeholder="No. Absen"
+                  title="Nomor absen siswa (dapat diubah)"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">Kelas</label>
+                <label className="text-[10px] text-slate-400 block mb-0.5 font-bold flex items-center justify-between">
+                  <span>Kelas</span>
+                  <span className="text-[9px] text-amber-400/90 font-medium">🔒 Terkunci (Sesuai Akun)</span>
+                </label>
                 <input
                   type="text"
                   value={playerState.className}
-                  onChange={(e) => updatePlayer((p) => ({ ...p, className: e.target.value }))}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                  readOnly
+                  disabled
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/80 text-xs font-bold text-slate-300 cursor-not-allowed select-none opacity-90 focus:outline-none"
+                  title="Kelas terkunci sesuai akun yang terdaftar"
                 />
               </div>
             </div>
@@ -855,6 +933,8 @@ export default function BorneoEduGame() {
             onPlayerFell={handlePlayerFell}
             isPaused={gameState !== 'PLAYING'}
             levelQuestions={activeLevelQuestions}
+            defeatedEnemyId={defeatedEnemyId}
+            isFullscreen={isFullscreen}
           />
         </div>
       )}
@@ -885,6 +965,7 @@ export default function BorneoEduGame() {
             }));
           }}
           onClose={handleCloseQuestionModal}
+          onNextQuestion={handleNextEnemyQuestion}
         />
       )}
 
