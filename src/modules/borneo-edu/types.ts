@@ -18,6 +18,7 @@ export interface QuestionItem {
   explanation: string;
   stage?: QuestionStage;
   isBossQuestion?: boolean;
+  isActive?: boolean; // Guru bisa menonaktifkan soal tertentu
 }
 
 export interface QuestionAttempt {
@@ -86,6 +87,10 @@ export interface TeacherConfig {
   badgeSuperScore: number;
   badgeSuperCombo: number;
   soundEnabled: boolean;
+  // Pengaturan jumlah soal & level yang dimainkan siswa
+  maxQuestionsPerLevel: number; // Maks soal per level (default 4)
+  activeLevelStart: number; // Level awal aktif (default 1)
+  activeLevelEnd: number; // Level akhir aktif (default 25)
 }
 
 export interface WorldDefinition {

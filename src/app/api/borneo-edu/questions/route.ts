@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongoose';
-import { BorneoEduQuestion } from '@/models/BorneoEdu';
+import { BorneoEduQuestion, BorneoEduConfig } from '@/models/BorneoEdu';
 import { DEFAULT_QUESTIONS } from '@/modules/borneo-edu/defaultQuestions';
 
 export async function GET(req: NextRequest) {
@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const levelParam = searchParams.get('level');
     const diffParam = searchParams.get('difficulty');
     const classIdParam = searchParams.get('classId');
+    const activeOnly = searchParams.get('activeOnly'); // 'true' = hanya soal aktif (untuk game siswa)
 
     const hasDb = process.env.DATABASE_URL || process.env.MONGODB_URI;
     if (!hasDb) {
@@ -43,19 +44,61 @@ export async function GET(req: NextRequest) {
       filterQuery.difficulty = diffParam;
     }
 
+    // Jika activeOnly=true, pastikan hanya mengambil soal aktif
+    if (activeOnly === 'true') {
+      filterQuery.isActive = { $ne: false };
+    }
+
+    // Ambil config guru jika activeOnly=true untuk filter scope soal & level
+    let teacherConfig: any = null;
+    if (activeOnly === 'true') {
+      try {
+        teacherConfig = await BorneoEduConfig.findOne().lean();
+      } catch (_) {}
+    }
+
+    // Helper untuk memfilter soal berdasarkan config guru
+    const applyTeacherConfigFilter = (questionsList: any[]) => {
+      if (!teacherConfig || activeOnly !== 'true') return questionsList;
+      const start = teacherConfig.activeLevelStart || 1;
+      const end = teacherConfig.activeLevelEnd || 25;
+      const maxPerLevel = teacherConfig.maxQuestionsPerLevel || 4;
+
+      // Filter level aktif
+      let result = questionsList.filter((q: any) => q.level >= start && q.level <= end);
+
+      // Batasi soal per level
+      if (maxPerLevel < 4) {
+        const grouped: Record<number, any[]> = {};
+        for (const q of result) {
+          if (!grouped[q.level]) grouped[q.level] = [];
+          grouped[q.level].push(q);
+        }
+        result = [];
+        for (const level of Object.keys(grouped).map(Number).sort((a, b) => a - b)) {
+          result.push(...grouped[level].slice(0, maxPerLevel));
+        }
+      }
+      return result;
+    };
+
     // Jika ada parameter classId, periksa apakah kelas tersebut memiliki soal khusus yang digenerate oleh guru
     if (classIdParam && classIdParam !== 'all') {
-      const classQuestions = await BorneoEduQuestion.find({
+      const classFilter: any = {
         ...filterQuery,
         classId: classIdParam,
-      }).sort({ world: 1, level: 1 }).lean();
+      };
+
+      const classQuestions = await BorneoEduQuestion.find(classFilter)
+        .sort({ world: 1, level: 1 }).lean();
 
       if (classQuestions && classQuestions.length > 0) {
+        const filteredQuestions = applyTeacherConfigFilter(classQuestions);
         return NextResponse.json({
           success: true,
           mode: 'class-specific',
-          count: classQuestions.length,
-          data: classQuestions,
+          count: filteredQuestions.length,
+          data: filteredQuestions,
         });
       }
     }
@@ -63,11 +106,12 @@ export async function GET(req: NextRequest) {
     const dbQuestions = await BorneoEduQuestion.find(filterQuery).sort({ world: 1, level: 1 }).lean();
 
     if (dbQuestions && dbQuestions.length > 0) {
+      const filteredDbQuestions = applyTeacherConfigFilter(dbQuestions);
       return NextResponse.json({
         success: true,
         mode: 'database',
-        count: dbQuestions.length,
-        data: dbQuestions
+        count: filteredDbQuestions.length,
+        data: filteredDbQuestions
       });
     }
 
@@ -77,26 +121,31 @@ export async function GET(req: NextRequest) {
         const ops = DEFAULT_QUESTIONS.map((q) => ({
           updateOne: {
             filter: { questionId: q.questionId },
-            update: { $set: q },
+            update: { $set: { ...q, isActive: true } },
             upsert: true
           }
         }));
         await BorneoEduQuestion.bulkWrite(ops);
         const initialized = await BorneoEduQuestion.find().sort({ world: 1, level: 1 }).lean();
+        const filteredInit = applyTeacherConfigFilter(initialized);
         return NextResponse.json({
           success: true,
           mode: 'database-seeded',
-          count: initialized.length,
-          data: initialized
+          count: filteredInit.length,
+          data: filteredInit
         });
       } catch (_) {}
     }
 
+    let defaultFiltered = DEFAULT_QUESTIONS;
+    if (activeOnly === 'true') {
+      defaultFiltered = applyTeacherConfigFilter(DEFAULT_QUESTIONS);
+    }
     return NextResponse.json({
       success: true,
       mode: 'default',
-      count: DEFAULT_QUESTIONS.length,
-      data: DEFAULT_QUESTIONS
+      count: defaultFiltered.length,
+      data: defaultFiltered
     });
   } catch (error: any) {
     return NextResponse.json({

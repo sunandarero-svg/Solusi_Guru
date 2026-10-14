@@ -17,7 +17,11 @@ export const DEFAULT_TEACHER_CONFIG: TeacherConfig = {
   badgeGoldAccuracy: 85,
   badgeSuperScore: 4000,
   badgeSuperCombo: 5,
-  soundEnabled: true
+  soundEnabled: true,
+  // Pengaturan jumlah soal & level yang dimainkan siswa
+  maxQuestionsPerLevel: 4,
+  activeLevelStart: 1,
+  activeLevelEnd: 25
 };
 
 const STORAGE_KEY_PLAYER = 'borneo_edu_player_state_v1';

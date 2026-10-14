@@ -113,6 +113,7 @@ export interface IBorneoEduQuestion extends Document {
   explanation: string;
   stage?: 'Pengetahuan' | 'Pemahaman' | 'Penerapan' | 'Analisis' | 'HOTS';
   isBossQuestion: boolean;
+  isActive: boolean; // Guru bisa menonaktifkan soal tertentu
   classId?: mongoose.Types.ObjectId;
   className?: string;
   materialId?: mongoose.Types.ObjectId;
@@ -136,6 +137,7 @@ const BorneoEduQuestionSchema: Schema = new Schema({
   explanation: { type: String, default: 'Penjelasan materi.', required: true },
   stage: { type: String, default: 'Pengetahuan' },
   isBossQuestion: { type: Boolean, default: false },
+  isActive: { type: Boolean, default: true }, // Guru bisa menonaktifkan soal tertentu
   classId: { type: Schema.Types.ObjectId, ref: 'Class', index: true },
   className: { type: String },
   materialId: { type: Schema.Types.ObjectId, ref: 'Material' }
@@ -163,6 +165,10 @@ export interface IBorneoEduConfig extends Document {
   badgeSuperScore: number;
   badgeSuperCombo: number;
   soundEnabled: boolean;
+  // Pengaturan jumlah soal & level yang dimainkan siswa
+  maxQuestionsPerLevel: number; // Maks soal per level (default 4)
+  activeLevelStart: number; // Level awal yang aktif (default 1)
+  activeLevelEnd: number; // Level akhir yang aktif (default 25)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -183,7 +189,11 @@ const BorneoEduConfigSchema: Schema = new Schema({
   badgeGoldAccuracy: { type: Number, default: 85 },
   badgeSuperScore: { type: Number, default: 4000 },
   badgeSuperCombo: { type: Number, default: 5 },
-  soundEnabled: { type: Boolean, default: true }
+  soundEnabled: { type: Boolean, default: true },
+  // Pengaturan jumlah soal & level yang dimainkan siswa
+  maxQuestionsPerLevel: { type: Number, default: 4 },
+  activeLevelStart: { type: Number, default: 1 },
+  activeLevelEnd: { type: Number, default: 25 }
 }, {
   timestamps: true
 });

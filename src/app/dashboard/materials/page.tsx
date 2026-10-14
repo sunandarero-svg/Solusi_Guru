@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Filter,
   Download,
+  Copy,
 } from "lucide-react";
 
 interface ClassItem {
@@ -56,6 +57,13 @@ export default function TeacherMaterialsPage() {
   const [showQuestionGenModal, setShowQuestionGenModal] = useState(false);
   const [selectedMaterialForQuestions, setSelectedMaterialForQuestions] = useState<MaterialItem | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<MaterialItem | null>(null);
+
+  // Modal State: Duplikasi Materi ke Kelas Lain
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [selectedMaterialForDuplicate, setSelectedMaterialForDuplicate] = useState<MaterialItem | null>(null);
+  const [duplicateClassId, setDuplicateClassId] = useState("");
+  const [duplicateSubjectId, setDuplicateSubjectId] = useState("");
+  const [duplicating, setDuplicating] = useState(false);
 
   // Form State: Buat Materi dari AI
   const [aiForm, setAiForm] = useState({
@@ -303,6 +311,50 @@ export default function TeacherMaterialsPage() {
     }
   };
 
+  // 5. Duplicate Handler
+  const handleOpenDuplicateModal = (material: MaterialItem) => {
+    setSelectedMaterialForDuplicate(material);
+    const currentClassId = typeof material.classId === "object" ? material.classId?._id : material.classId;
+    const otherClass = classes.find((c) => c.id !== currentClassId) || classes[0];
+    const initialClassId = otherClass ? otherClass.id : "";
+    setDuplicateClassId(initialClassId);
+    setDuplicateSubjectId(otherClass?.subjects?.[0]?.id || "");
+    setShowDuplicateModal(true);
+  };
+
+  const handleDuplicateMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMaterialForDuplicate || !duplicateClassId) {
+      alert("Harap pilih kelas tujuan duplikasi.");
+      return;
+    }
+
+    setDuplicating(true);
+    try {
+      const res = await fetch(`/api/materials/${selectedMaterialForDuplicate._id}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId: duplicateClassId,
+          subjectId: duplicateSubjectId || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(`🎉 ${data.message || "Materi berhasil diduplikasi ke kelas tujuan!"}`);
+        setShowDuplicateModal(false);
+        fetchMaterials(selectedClassFilter);
+      } else {
+        alert(data.error || "Gagal menduplikasi materi.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan sistem saat menduplikasi materi.");
+    } finally {
+      setDuplicating(false);
+    }
+  };
+  
   return (
     <div className="space-y-8 animate-in fade-in duration-300 pb-12">
       {/* Page Header */}
@@ -462,7 +514,7 @@ export default function TeacherMaterialsPage() {
                   </div>
                 </div>
 
-                {/* Card Action Buttons */}
+                  {/* Card Action Buttons */}
                 <div className="pt-5 mt-4 space-y-2">
                   {/* TOMBOL UTAMA: GENERATE SOAL AI BERDASARKAN MATERI INI */}
                   <button
@@ -471,6 +523,16 @@ export default function TeacherMaterialsPage() {
                   >
                     <Sparkles size={15} className="text-yellow-200" />
                     <span>🤖 Buat Soal dari AI</span>
+                  </button>
+
+                  {/* TOMBOL DUPLIKASI KE KELAS LAIN (TERUTAMA UNTUK MATERI AI) */}
+                  <button
+                    onClick={() => handleOpenDuplicateModal(mat)}
+                    className="w-full py-2 px-4 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 hover:border-indigo-300 text-indigo-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                    title="Duplikasi materi ini ke kelas lain"
+                  >
+                    <Copy size={14} className="text-indigo-600" />
+                    <span>🔁 Duplikasi ke Kelas Lain</span>
                   </button>
 
                   <button
@@ -963,6 +1025,116 @@ export default function TeacherMaterialsPage() {
                   </>
                 )}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL BARU: DUPLIKASI MATERI KE KELAS LAIN */}
+      {/* ========================================================================= */}
+      {showDuplicateModal && selectedMaterialForDuplicate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6">
+            <div className="flex items-start justify-between border-b pb-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-black uppercase mb-1">
+                  <Copy size={12} />
+                  <span>Duplikasi Materi</span>
+                </div>
+                <h2 className="text-2xl font-black text-slate-800">Duplikasi ke Kelas Lain</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Salin materi <strong className="text-slate-800">"{selectedMaterialForDuplicate.title}"</strong> ke kelas lain tanpa perlu input ulang.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDuplicateModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleDuplicateMaterial} className="space-y-4">
+              <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-xs text-indigo-900 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span>ℹ️ Info Duplikasi Materi</span>
+                </p>
+                <p className="text-indigo-700 leading-relaxed">
+                  Semua isi materi{selectedMaterialForDuplicate.sourceType === "AI" ? " yang disusun oleh AI" : ""}, ringkasan, dan lampiran file akan disalin utuh untuk siswa di kelas tujuan.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Pilih Kelas Tujuan <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold focus:ring-2 focus:ring-indigo-500/40 focus:outline-none bg-white text-slate-900"
+                  value={duplicateClassId}
+                  onChange={(e) => {
+                    const cId = e.target.value;
+                    const cObj = classes.find((c) => c.id === cId);
+                    setDuplicateClassId(cId);
+                    setDuplicateSubjectId(cObj?.subjects?.[0]?.id || "");
+                  }}
+                >
+                  <option value="" className="text-slate-900 bg-white">-- Pilih Kelas Tujuan --</option>
+                  {classes.map((c) => {
+                    const currentClassId = typeof selectedMaterialForDuplicate.classId === "object"
+                      ? selectedMaterialForDuplicate.classId?._id
+                      : selectedMaterialForDuplicate.classId;
+                    const isCurrent = c.id === currentClassId;
+
+                    return (
+                      <option key={c.id} value={c.id} className="text-slate-900 bg-white">
+                        {c.name} {isCurrent ? "(Kelas Saat Ini)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Mata Pelajaran (Opsional)
+                </label>
+                <select
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500/40 focus:outline-none bg-white text-slate-900"
+                  value={duplicateSubjectId}
+                  onChange={(e) => setDuplicateSubjectId(e.target.value)}
+                >
+                  <option value="" className="text-slate-900 bg-white">-- Sama dengan Materi Asli / Umum --</option>
+                  {classes
+                    .find((c) => c.id === duplicateClassId)
+                    ?.subjects?.map((s) => (
+                      <option key={s.id} value={s.id} className="text-slate-900 bg-white">
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={duplicating || !duplicateClassId}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-sm flex items-center justify-center gap-2 transition disabled:opacity-50 shadow-lg shadow-indigo-500/20"
+                >
+                  {duplicating ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Menduplikasi materi ke kelas tujuan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={18} />
+                      <span>Duplikasi Materi Sekarang</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>

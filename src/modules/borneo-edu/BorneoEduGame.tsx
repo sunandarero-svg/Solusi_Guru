@@ -89,9 +89,9 @@ export default function BorneoEduGame() {
     });
   }, [persistState]);
 
-  // Load and shuffle questions for class
+  // Load and shuffle questions for class (hanya memuat soal aktif untuk siswa)
   const loadQuestions = useCallback((classId?: string | null) => {
-    const url = classId ? `/api/borneo-edu/questions?classId=${encodeURIComponent(classId)}` : '/api/borneo-edu/questions';
+    const url = classId ? `/api/borneo-edu/questions?classId=${encodeURIComponent(classId)}&activeOnly=true` : '/api/borneo-edu/questions?activeOnly=true';
     fetch(url)
       .then((res) => res.json())
       .then((resData) => {
@@ -136,6 +136,16 @@ export default function BorneoEduGame() {
           });
         }
       });
+
+    // Sinkronkan pengaturan guru dari database backend
+    fetch('/api/borneo-edu/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && data?.data) {
+          setTeacherConfig((prev) => ({ ...prev, ...data.data }));
+        }
+      })
+      .catch(() => {});
   }, [session, updatePlayer, loadQuestions]);
 
   // Mobile Orientation & Landscape helper
@@ -260,31 +270,44 @@ export default function BorneoEduGame() {
     }
   }, [gameState, playerState.currentWorld]);
 
-  // Current level's questions (acak untuk setiap sesi kelas)
+  // Current level's questions (acak untuk setiap sesi kelas & batasi jumlah sesuai pengaturan guru)
   const activeLevelQuestions = useMemo(() => {
+    const maxQ = teacherConfig.maxQuestionsPerLevel || 4;
     const currentLevelQuestions = allQuestions.filter(
-      (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && !q.isBossQuestion
+      (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && !q.isBossQuestion && q.isActive !== false
     );
-    const pool = currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.filter((q) => !q.isBossQuestion);
-    return shuffleQuestions(pool);
-  }, [allQuestions, playerState.currentWorld, playerState.currentLevel]);
+    const pool = currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.filter((q) => !q.isBossQuestion && q.isActive !== false);
+    return shuffleQuestions(pool).slice(0, maxQ);
+  }, [allQuestions, playerState.currentWorld, playerState.currentLevel, teacherConfig.maxQuestionsPerLevel]);
 
   // Boss questions
   const currentBossQuestions = useMemo(() => {
     return allQuestions.filter(
-      (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && q.isBossQuestion
+      (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && q.isBossQuestion && q.isActive !== false
     );
   }, [allQuestions, playerState.currentWorld, playerState.currentLevel]);
 
   const backupBossQuestions = useMemo(() => {
     return allQuestions.filter(
-      (q) => q.isBossQuestion && q.world === playerState.currentWorld
+      (q) => q.isBossQuestion && q.world === playerState.currentWorld && q.isActive !== false
     );
   }, [allQuestions, playerState.currentWorld]);
 
   // Start / Continue Game
   const handleStartGame = () => {
     sound.playPowerUp();
+
+    // Pastikan level mulai minimal sesuai rentang level aktif yang diatur Guru
+    const startLvl = teacherConfig.activeLevelStart || 1;
+    if (playerState.currentLevel < startLvl) {
+      const targetWorld = Math.max(1, Math.min(5, Math.floor((startLvl - 1) / 5) + 1));
+      updatePlayer((prev) => ({
+        ...prev,
+        currentLevel: startLvl,
+        currentWorld: targetWorld
+      }));
+    }
+
     setGameState('PLAYING');
     if (typeof window !== 'undefined') {
       const isMobileDevice = window.innerWidth <= 1024 || window.innerHeight <= 650;
@@ -522,6 +545,26 @@ export default function BorneoEduGame() {
     sound.playPowerUp();
     const currentLvl = playerState.currentLevel;
     const isLastOfWorld = currentLvl % 5 === 0;
+    const endLevel = teacherConfig.activeLevelEnd || 25;
+
+    // Jika siswa telah mencapai batas level akhir yang ditentukan oleh Guru
+    if (currentLvl >= endLevel) {
+      updatePlayer((prev) => {
+        const completed = Array.from(new Set([...prev.completedLevels, currentLvl]));
+        return {
+          ...prev,
+          coins: prev.coins + 25,
+          completedLevels: completed,
+          checkpointScore: prev.score,
+          checkpointCoins: prev.coins + 25,
+          gameStatus: 'Selesai'
+        };
+      });
+      sound.playVictoryFanfare();
+      alert(`🎉 SELAMAT! Kamu telah menyelesaikan seluruh target Level ${endLevel} yang ditentukan oleh Guru!`);
+      setGameState('VICTORY');
+      return;
+    }
 
     updatePlayer((prev) => {
       const completed = Array.from(new Set([...prev.completedLevels, currentLvl]));
@@ -533,7 +576,7 @@ export default function BorneoEduGame() {
         nextWorld += 1;
         completedWorlds += 1;
       }
-      if (nextLvl > 25) nextLvl = 25;
+      if (nextLvl > endLevel) nextLvl = endLevel;
 
       return {
         ...prev,
@@ -1180,6 +1223,7 @@ export default function BorneoEduGame() {
       {gameState === 'WORLD_SELECT' && (
         <WorldSelectModal
           playerState={playerState}
+          teacherConfig={teacherConfig}
           onSelectLevel={handleSelectLevel}
           onClose={() => setGameState('MENU')}
         />

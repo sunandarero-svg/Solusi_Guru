@@ -50,6 +50,7 @@ export default function MejaGuruModal({
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [filterWorld, setFilterWorld] = useState<string>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
+  const [filterActiveStatus, setFilterActiveStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [searchQuestion, setSearchQuestion] = useState<string>('');
   const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
   const [showAddQuestionModal, setShowAddQuestionModal] = useState<boolean>(false);
@@ -65,7 +66,8 @@ export default function MejaGuruModal({
     correctAnswer: 'A',
     difficulty: 'EASY',
     explanation: '',
-    stage: 'Pengetahuan'
+    stage: 'Pengetahuan',
+    isActive: true
   });
 
   // Settings State Form
@@ -486,8 +488,50 @@ export default function MejaGuruModal({
       correctAnswer: 'A',
       difficulty: 'EASY',
       explanation: '',
-      stage: 'Pengetahuan'
+      stage: 'Pengetahuan',
+      isActive: true
     });
+  };
+
+  // Toggle individual question active status
+  const handleToggleQuestionActive = async (questionId: string, newActiveState: boolean) => {
+    const updated = questions.map((q) =>
+      q.questionId === questionId ? { ...q, isActive: newActiveState } : q
+    );
+    setQuestions(updated);
+    saveStoredQuestions(updated);
+
+    try {
+      await fetch('/api/borneo-edu/questions/toggle', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: [questionId], isActive: newActiveState })
+      });
+    } catch (e) {
+      console.error('Failed to toggle question active status:', e);
+    }
+  };
+
+  // Bulk toggle question active status
+  const handleBulkToggleActive = async (newActiveState: boolean) => {
+    if (selectedQIds.length === 0) return;
+    const idsToToggle = [...selectedQIds];
+    const updated = questions.map((q) =>
+      idsToToggle.includes(q.questionId) ? { ...q, isActive: newActiveState } : q
+    );
+    setQuestions(updated);
+    saveStoredQuestions(updated);
+
+    try {
+      await fetch('/api/borneo-edu/questions/toggle', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: idsToToggle, isActive: newActiveState })
+      });
+      alert(`Berhasil ${newActiveState ? 'mengaktifkan' : 'menonaktifkan'} ${idsToToggle.length} soal terpilih.`);
+    } catch (e) {
+      console.error('Failed to bulk toggle question active status:', e);
+    }
   };
 
   // Reset Data
@@ -566,11 +610,18 @@ export default function MejaGuruModal({
   const filteredQuestions = questions.filter((q) => {
     const matchW = filterWorld === 'all' || String(q.world) === filterWorld;
     const matchDiff = filterDifficulty === 'all' || q.difficulty === filterDifficulty;
+    const matchActive =
+      filterActiveStatus === 'all' ||
+      (filterActiveStatus === 'active' && q.isActive !== false) ||
+      (filterActiveStatus === 'inactive' && q.isActive === false);
     const matchSearch =
       q.question.toLowerCase().includes(searchQuestion.toLowerCase()) ||
       q.questionId.toLowerCase().includes(searchQuestion.toLowerCase());
-    return matchW && matchDiff && matchSearch;
+    return matchW && matchDiff && matchActive && matchSearch;
   });
+
+  const activeQuestionsCount = questions.filter((q) => q.isActive !== false).length;
+  const inactiveQuestionsCount = questions.length - activeQuestionsCount;
 
   const isAllFilteredSelected =
     filteredQuestions.length > 0 &&
@@ -841,6 +892,15 @@ export default function MejaGuruModal({
                     <option value="HOTS" className="bg-slate-900 text-white">HOTS</option>
                     <option value="BOSS" className="bg-slate-900 text-white">BOSS</option>
                   </select>
+                  <select
+                    value={filterActiveStatus}
+                    onChange={(e) => setFilterActiveStatus(e.target.value as any)}
+                    className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white font-bold"
+                  >
+                    <option value="all" className="bg-slate-900 text-white">Semua Status</option>
+                    <option value="active" className="bg-slate-900 text-emerald-400">🟢 Dimainkan ({activeQuestionsCount})</option>
+                    <option value="inactive" className="bg-slate-900 text-slate-400">⚪ Nonaktif ({inactiveQuestionsCount})</option>
+                  </select>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -876,7 +936,23 @@ export default function MejaGuruModal({
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span>{selectedQIds.length} soal dipilih (Centang)</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleBulkToggleActive(true)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                      title="Aktifkan soal terpilih agar dikerjakan siswa"
+                    >
+                      <span>🟢</span>
+                      <span>Aktifkan ({selectedQIds.length})</span>
+                    </button>
+                    <button
+                      onClick={() => handleBulkToggleActive(false)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                      title="Nonaktifkan soal terpilih dari game siswa"
+                    >
+                      <span>⚪</span>
+                      <span>Nonaktifkan ({selectedQIds.length})</span>
+                    </button>
                     <button
                       onClick={handleBulkDeleteQuestions}
                       className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-1 shadow-sm transition-transform active:scale-95"
@@ -886,7 +962,7 @@ export default function MejaGuruModal({
                     </button>
                     <button
                       onClick={() => handleDownloadQuestionsExcel(true)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-transform active:scale-95"
                     >
                       <span>📥</span>
                       <span>Unduh Terpilih ({selectedQIds.length})</span>
@@ -900,6 +976,24 @@ export default function MejaGuruModal({
                   </div>
                 </div>
               )}
+
+              {/* Status Banner Soal Aktif / Nonaktif */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs">
+                <div className="flex items-center gap-4">
+                  <span className="text-slate-400">Total Soal: <strong className="text-white">{questions.length}</strong></span>
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>Dimainkan Siswa: <strong>{activeQuestionsCount}</strong></span>
+                  </span>
+                  <span className="text-slate-400 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                    <span>Dinonaktifkan: <strong>{inactiveQuestionsCount}</strong></span>
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  💡 <em>Klik tombol status pada setiap baris soal untuk memilih soal mana saja yang dikerjakan siswa.</em>
+                </div>
+              </div>
 
               {/* Questions List Table */}
               <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 max-h-[55vh]">
@@ -916,6 +1010,7 @@ export default function MejaGuruModal({
                         />
                       </th>
                       <th className="p-3">ID</th>
+                      <th className="p-3">Status Main</th>
                       <th className="p-3">W / Lvl</th>
                       <th className="p-3">Kesulitan</th>
                       <th className="p-3">Pertanyaan</th>
@@ -925,59 +1020,77 @@ export default function MejaGuruModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
-                    {filteredQuestions.map((q) => (
-                      <tr key={q.questionId} className={`hover:bg-slate-800/40 ${selectedQIds.includes(q.questionId) ? 'bg-indigo-950/20' : ''}`}>
-                        <td className="p-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedQIds.includes(q.questionId)}
-                            onChange={() => handleToggleSelect(q.questionId)}
-                            className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
-                          />
-                        </td>
-                        <td className="p-3 font-bold text-emerald-400 whitespace-nowrap">{q.questionId}</td>
-                        <td className="p-3 whitespace-nowrap">W{q.world} • L{q.level}</td>
-                        <td className="p-3 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            q.difficulty === 'BOSS' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' :
-                            q.difficulty === 'HOTS' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
-                            q.difficulty === 'HARD' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
-                            'bg-slate-800 text-slate-300'
-                          }`}>
-                            {q.difficulty}
-                          </span>
-                        </td>
-                        <td className="p-3 max-w-md font-medium text-slate-200">
-                          {q.question}
-                          <div className="text-[11px] text-slate-400 mt-1 grid grid-cols-2 gap-1">
-                            <span>A: {q.options.A}</span>
-                            <span>B: {q.options.B}</span>
-                            <span>C: {q.options.C}</span>
-                            <span>D: {q.options.D}</span>
-                          </div>
-                        </td>
-                        <td className="p-3 font-black text-emerald-400">{q.correctAnswer}</td>
-                        <td className="p-3 text-[11px] text-slate-400 max-w-xs">{q.explanation}</td>
-                        <td className="p-3 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                    {filteredQuestions.map((q) => {
+                      const isActive = q.isActive !== false;
+
+                      return (
+                        <tr key={q.questionId} className={`hover:bg-slate-800/40 ${selectedQIds.includes(q.questionId) ? 'bg-indigo-950/20' : ''} ${!isActive ? 'opacity-60 bg-slate-950/30' : ''}`}>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedQIds.includes(q.questionId)}
+                              onChange={() => handleToggleSelect(q.questionId)}
+                              className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-3 font-bold text-emerald-400 whitespace-nowrap">{q.questionId}</td>
+                          <td className="p-3 whitespace-nowrap">
                             <button
-                              onClick={() => setEditingQuestion(q)}
-                              className="px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold border border-indigo-500/40"
-                              title="Edit Soal"
+                              onClick={() => handleToggleQuestionActive(q.questionId, !isActive)}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-black transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                                isActive
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:bg-slate-700'
+                              }`}
+                              title={isActive ? 'Klik untuk menonaktifkan soal ini dari game siswa' : 'Klik untuk mengaktifkan soal ini agar dimainkan siswa'}
                             >
-                              ✏️ Edit
+                              <span>{isActive ? '🟢' : '⚪'}</span>
+                              <span>{isActive ? 'Aktif' : 'Nonaktif'}</span>
                             </button>
-                            <button
-                              onClick={() => handleDeleteSingleQuestion(q.questionId)}
-                              className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold border border-red-500/40"
-                              title="Hapus Soal"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-3 whitespace-nowrap">W{q.world} • L{q.level}</td>
+                          <td className="p-3 whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                              q.difficulty === 'BOSS' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' :
+                              q.difficulty === 'HOTS' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                              q.difficulty === 'HARD' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                              'bg-slate-800 text-slate-300'
+                            }`}>
+                              {q.difficulty}
+                            </span>
+                          </td>
+                          <td className="p-3 max-w-md font-medium text-slate-200">
+                            {q.question}
+                            <div className="text-[11px] text-slate-400 mt-1 grid grid-cols-2 gap-1">
+                              <span>A: {q.options.A}</span>
+                              <span>B: {q.options.B}</span>
+                              <span>C: {q.options.C}</span>
+                              <span>D: {q.options.D}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 font-black text-emerald-400">{q.correctAnswer}</td>
+                          <td className="p-3 text-[11px] text-slate-400 max-w-xs">{q.explanation}</td>
+                          <td className="p-3 whitespace-nowrap text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => setEditingQuestion(q)}
+                                className="px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold border border-indigo-500/40"
+                                title="Edit Soal"
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSingleQuestion(q.questionId)}
+                                className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold border border-red-500/40"
+                                title="Hapus Soal"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -994,6 +1107,94 @@ export default function MejaGuruModal({
                   {settingsMessage}
                 </div>
               )}
+
+              {/* Cakupan Level & Jumlah Soal Game Siswa */}
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border-2 border-indigo-500/40 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-indigo-300 uppercase tracking-wide flex items-center gap-2">
+                      <span>🎯</span>
+                      <span>PENGATURAN JUMLAH SOAL & LEVEL SISWA</span>
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Atur berapa banyak soal yang harus diselesaikan siswa per level dan batasi rentang level permainan
+                    </p>
+                  </div>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 font-extrabold border border-indigo-500/40">
+                    Kendali Guru
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                  <div>
+                    <label className="text-xs text-slate-300 font-bold block mb-1">
+                      Maksimal Soal per Level:
+                    </label>
+                    <select
+                      value={settingsForm.maxQuestionsPerLevel ?? 4}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, maxQuestionsPerLevel: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold text-white focus:border-indigo-400"
+                    >
+                      <option value={1} className="bg-slate-900">1 Soal / Level (Kilat)</option>
+                      <option value={2} className="bg-slate-900">2 Soal / Level (Ringkas)</option>
+                      <option value={3} className="bg-slate-900">3 Soal / Level (Sedang)</option>
+                      <option value={4} className="bg-slate-900">4 Soal / Level (Standar)</option>
+                      <option value={5} className="bg-slate-900">5 Soal / Level (Maksimal)</option>
+                    </select>
+                    <span className="text-[10px] text-slate-400 mt-1 block">Default: 4 soal tiap level</span>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-300 font-bold block mb-1">
+                      Level Mulai Aktif:
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={settingsForm.activeLevelEnd ?? 25}
+                      value={settingsForm.activeLevelStart ?? 1}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, activeLevelStart: Math.max(1, Math.min(25, Number(e.target.value))) })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold text-white focus:border-indigo-400"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">Level terendah yang dapat dimainkan</span>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-300 font-bold block mb-1">
+                      Level Akhir Aktif:
+                    </label>
+                    <input
+                      type="number"
+                      min={settingsForm.activeLevelStart ?? 1}
+                      max={25}
+                      value={settingsForm.activeLevelEnd ?? 25}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, activeLevelEnd: Math.max(1, Math.min(25, Number(e.target.value))) })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold text-white focus:border-indigo-400"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">Level tertinggi yang dapat dimainkan (1 - 25)</span>
+                  </div>
+                </div>
+
+                {/* Live calculation info box */}
+                {(() => {
+                  const start = settingsForm.activeLevelStart ?? 1;
+                  const end = settingsForm.activeLevelEnd ?? 25;
+                  const perLvl = settingsForm.maxQuestionsPerLevel ?? 4;
+                  const totalLvls = Math.max(1, end - start + 1);
+                  const estimatedQuestions = totalLvls * perLvl;
+
+                  return (
+                    <div className="p-3.5 rounded-xl bg-indigo-950/50 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="text-indigo-200">
+                        📊 Total Level Aktif: <strong className="text-white">{totalLvls} Level</strong> (Level {start} s.d. Level {end})
+                      </div>
+                      <div className="text-emerald-300 font-bold">
+                        🎮 Estimasi Total Soal Dikerjakan Siswa: <strong className="text-white text-sm bg-emerald-500/25 px-2.5 py-0.5 rounded-lg border border-emerald-500/40">{estimatedQuestions} Soal</strong>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
 
               {/* Scoring Weights */}
               <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4">
@@ -1459,6 +1660,19 @@ export default function MejaGuruModal({
                   />
                 </div>
 
+                <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-between">
+                  <div>
+                    <label className="text-white font-bold block">Status Aktif Soal</label>
+                    <p className="text-[10px] text-slate-400">Centang agar soal ini dapat dimainkan oleh siswa</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={newQuestionForm.isActive !== false}
+                    onChange={(e) => setNewQuestionForm({ ...newQuestionForm, isActive: e.target.checked })}
+                    className="w-4 h-4 accent-emerald-500 rounded"
+                  />
+                </div>
+
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
@@ -1623,6 +1837,19 @@ export default function MejaGuruModal({
                     onChange={(e) => setEditingQuestion({ ...editingQuestion, explanation: e.target.value })}
                     className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
                     required
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-between">
+                  <div>
+                    <label className="text-white font-bold block">Status Aktif Soal</label>
+                    <p className="text-[10px] text-slate-400">Centang agar soal ini dapat dimainkan oleh siswa</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editingQuestion.isActive !== false}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, isActive: e.target.checked })}
+                    className="w-4 h-4 accent-emerald-500 rounded"
                   />
                 </div>
 
