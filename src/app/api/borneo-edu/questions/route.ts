@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
       const saved = await BorneoEduQuestion.findOneAndUpdate(
         { questionId: qData.questionId },
         { $set: qData },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
       return NextResponse.json({ success: true, data: saved });
     }

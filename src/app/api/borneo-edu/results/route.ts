@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
     const saved = await BorneoEduStudentResult.findOneAndUpdate(
       filter,
       { $set: update },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     return NextResponse.json({

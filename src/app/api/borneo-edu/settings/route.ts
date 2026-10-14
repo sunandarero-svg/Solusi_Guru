@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     const updated = await BorneoEduConfig.findOneAndUpdate(
       {},
       { $set: body },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     return NextResponse.json({
