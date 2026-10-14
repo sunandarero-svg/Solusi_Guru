@@ -19,6 +19,9 @@ export interface QuestionItem {
   stage?: QuestionStage;
   isBossQuestion?: boolean;
   isActive?: boolean; // Guru bisa menonaktifkan soal tertentu
+  classId?: string; // ID kelas target pemisahan soal
+  className?: string; // Nama kelas target (contoh: 'Kelas 7A')
+  materialId?: string;
 }
 
 export interface QuestionAttempt {

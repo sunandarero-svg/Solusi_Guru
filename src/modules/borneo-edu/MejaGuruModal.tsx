@@ -54,6 +54,8 @@ export default function MejaGuruModal({
 
   // Bank Soal Data
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [filterClassBank, setFilterClassBank] = useState<string>('all');
+  const [classList, setClassList] = useState<{ id: string; name: string }[]>([]);
   const [filterWorld, setFilterWorld] = useState<string>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [filterActiveStatus, setFilterActiveStatus] = useState<'all' | 'active' | 'inactive'>('all');
@@ -73,7 +75,9 @@ export default function MejaGuruModal({
     difficulty: 'EASY',
     explanation: '',
     stage: 'Pengetahuan',
-    isActive: true
+    isActive: true,
+    classId: undefined,
+    className: undefined
   });
 
   // Settings State Form
@@ -110,6 +114,15 @@ export default function MejaGuruModal({
       .then((data) => {
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
           setQuestions(data.data);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/classes')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.classes)) {
+          setClassList(data.classes.map((c: any) => ({ id: String(c._id || c.id), name: c.name })));
         }
       })
       .catch(() => {});
@@ -612,6 +625,21 @@ export default function MejaGuruModal({
     );
   }
 
+  // Available Classes for Bank Soal Filter
+  const availableClassesBank = React.useMemo(() => {
+    const set = new Set<string>();
+    classList.forEach((c) => {
+      if (c.name) set.add(c.name.trim());
+    });
+    records.forEach((r) => {
+      if (r.className) set.add(r.className.trim());
+    });
+    questions.forEach((q) => {
+      if (q.className) set.add(q.className.trim());
+    });
+    return Array.from(set).sort();
+  }, [classList, records, questions]);
+
   // Filtered Questions
   const filteredQuestions = questions.filter((q) => {
     const matchW = filterWorld === 'all' || String(q.world) === filterWorld;
@@ -620,10 +648,16 @@ export default function MejaGuruModal({
       filterActiveStatus === 'all' ||
       (filterActiveStatus === 'active' && q.isActive !== false) ||
       (filterActiveStatus === 'inactive' && q.isActive === false);
+    const matchClass =
+      filterClassBank === 'all' ||
+      (filterClassBank === 'general' && !q.classId && !q.className) ||
+      (filterClassBank !== 'general' &&
+        (q.classId === filterClassBank ||
+          (q.className && q.className.toLowerCase() === filterClassBank.toLowerCase())));
     const matchSearch =
       q.question.toLowerCase().includes(searchQuestion.toLowerCase()) ||
       q.questionId.toLowerCase().includes(searchQuestion.toLowerCase());
-    return matchW && matchDiff && matchActive && matchSearch;
+    return matchW && matchDiff && matchActive && matchClass && matchSearch;
   });
 
   const activeQuestionsCount = questions.filter((q) => q.isActive !== false).length;
@@ -899,6 +933,19 @@ export default function MejaGuruModal({
                     <option value="BOSS" className="bg-slate-900 text-white">BOSS</option>
                   </select>
                   <select
+                    value={filterClassBank}
+                    onChange={(e) => setFilterClassBank(e.target.value)}
+                    className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white font-bold"
+                  >
+                    <option value="all" className="bg-slate-900 text-white">Semua Kelas</option>
+                    <option value="general" className="bg-slate-900 text-white">🌐 Khusus Soal Umum</option>
+                    {availableClassesBank.map((cls) => (
+                      <option key={cls} value={cls} className="bg-slate-900 text-white">
+                        🏫 Kelas {cls}
+                      </option>
+                    ))}
+                  </select>
+                  <select
                     value={filterActiveStatus}
                     onChange={(e) => setFilterActiveStatus(e.target.value as any)}
                     className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white font-bold"
@@ -1016,6 +1063,7 @@ export default function MejaGuruModal({
                         />
                       </th>
                       <th className="p-3">ID</th>
+                      <th className="p-3">Target Kelas</th>
                       <th className="p-3">Status Main</th>
                       <th className="p-3">W / Lvl</th>
                       <th className="p-3">Kesulitan</th>
@@ -1040,6 +1088,17 @@ export default function MejaGuruModal({
                             />
                           </td>
                           <td className="p-3 font-bold text-emerald-400 whitespace-nowrap">{q.questionId}</td>
+                          <td className="p-3 whitespace-nowrap">
+                            {q.className ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/40 text-[10px]">
+                                🏫 {q.className}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-400 text-[10px] font-semibold border border-slate-700">
+                                🌐 Umum
+                              </span>
+                            )}
+                          </td>
                           <td className="p-3 whitespace-nowrap">
                             <button
                               onClick={() => handleToggleQuestionActive(q.questionId, !isActive)}
@@ -1572,6 +1631,34 @@ export default function MejaGuruModal({
                 </div>
 
                 <div>
+                  <label className="text-slate-400 block mb-1">Target Kelas (Fitur Pemisahan Soal)</label>
+                  <select
+                    value={newQuestionForm.className || (newQuestionForm.classId ? newQuestionForm.classId : 'general')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'general') {
+                        setNewQuestionForm({ ...newQuestionForm, classId: undefined, className: undefined });
+                      } else {
+                        const cObj = classList.find((c) => c.name === val || c.id === val);
+                        setNewQuestionForm({
+                          ...newQuestionForm,
+                          classId: cObj?.id,
+                          className: cObj?.name || val
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                  >
+                    <option value="general">🌐 Umum (Dapat Dimainkan Semua Siswa)</option>
+                    {availableClassesBank.map((cls) => (
+                      <option key={cls} value={cls}>
+                        🏫 Khusus Kelas {cls}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label className="text-slate-400 block mb-1">Isi Pertanyaan</label>
                   <textarea
                     rows={2}
@@ -1749,6 +1836,34 @@ export default function MejaGuruModal({
                       className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-slate-400 block mb-1">Target Kelas (Fitur Pemisahan Soal)</label>
+                  <select
+                    value={editingQuestion.className || (editingQuestion.classId ? editingQuestion.classId : 'general')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'general') {
+                        setEditingQuestion({ ...editingQuestion, classId: undefined, className: undefined });
+                      } else {
+                        const cObj = classList.find((c) => c.name === val || c.id === val);
+                        setEditingQuestion({
+                          ...editingQuestion,
+                          classId: cObj?.id,
+                          className: cObj?.name || val
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                  >
+                    <option value="general">🌐 Umum (Dapat Dimainkan Semua Siswa)</option>
+                    {availableClassesBank.map((cls) => (
+                      <option key={cls} value={cls}>
+                        🏫 Khusus Kelas {cls}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

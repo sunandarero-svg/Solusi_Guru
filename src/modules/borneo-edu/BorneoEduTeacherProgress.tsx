@@ -88,6 +88,8 @@ export default function BorneoEduTeacherProgress({
   const [qDiffFilter, setQDiffFilter] = useState<string>('all');
   const [qBossFilter, setQBossFilter] = useState<string>('all');
   const [qActiveStatusFilter, setQActiveStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [qClassFilter, setQClassFilter] = useState<string>('all');
+  const [classList, setClassList] = useState<{ id: string; name: string }[]>([]);
 
   // Preview & Settings state
   const [showGamePreview, setShowGamePreview] = useState<boolean>(false);
@@ -104,6 +106,13 @@ export default function BorneoEduTeacherProgress({
   const [bulkLevel, setBulkLevel] = useState<string>('keep');
   const [bulkDiff, setBulkDiff] = useState<string>('keep');
   const [bulkIsBoss, setBulkIsBoss] = useState<string>('keep');
+  const [bulkClass, setBulkClass] = useState<string>('keep');
+
+  // Modals for Class Separation & Duplication
+  const [showBulkAssignClassModal, setShowBulkAssignClassModal] = useState<boolean>(false);
+  const [bulkTargetClass, setBulkTargetClass] = useState<string>('general');
+  const [showBulkDuplicateModal, setShowBulkDuplicateModal] = useState<boolean>(false);
+  const [duplicateTargetClass, setDuplicateTargetClass] = useState<string>('');
 
   // New Question Form state
   const [newQForm, setNewQForm] = useState<QuestionItem>({
@@ -116,7 +125,9 @@ export default function BorneoEduTeacherProgress({
     difficulty: 'EASY',
     stage: 'Pengetahuan',
     isBossQuestion: false,
-    explanation: ''
+    explanation: '',
+    classId: undefined,
+    className: undefined
   });
 
   // Alert & Upload state
@@ -152,6 +163,17 @@ export default function BorneoEduTeacherProgress({
       if (cfgData.success && cfgData.data) {
         setConfig((prev) => ({ ...prev, ...cfgData.data }));
       }
+
+      // 4. Fetch registered classes for class-based separation
+      try {
+        const cRes = await fetch('/api/classes');
+        const cData = await cRes.json();
+        if (cData && Array.isArray(cData.classes)) {
+          setClassList(cData.classes.map((c: any) => ({ id: String(c._id || c.id), name: c.name })));
+        }
+      } catch (err) {
+        console.log('Error fetching class list:', err);
+      }
     } catch (e) {
       console.log('Borneo Edu local fallback mode:', e);
     } finally {
@@ -171,6 +193,21 @@ export default function BorneoEduTeacherProgress({
     });
     return Array.from(set);
   }, [records]);
+
+  // Combined Class Options (from registered classes API + records)
+  const combinedClassOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    classList.forEach((c) => {
+      if (c.name) map.set(c.name.trim().toLowerCase(), c);
+    });
+    availableClasses.forEach((name) => {
+      const key = name.trim().toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, { id: name, name });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [classList, availableClasses]);
 
   // Formatted & filtered rows
   const formattedRows: RecapStudentRow[] = useMemo(() => {
@@ -258,6 +295,12 @@ export default function BorneoEduTeacherProgress({
         qActiveStatusFilter === 'all' ||
         (qActiveStatusFilter === 'active' && q.isActive !== false) ||
         (qActiveStatusFilter === 'inactive' && q.isActive === false);
+      const matchClass =
+        qClassFilter === 'all' ||
+        (qClassFilter === 'general' && !q.classId && !q.className) ||
+        (qClassFilter !== 'general' &&
+          (q.classId === qClassFilter ||
+            (q.className && q.className.toLowerCase() === qClassFilter.toLowerCase())));
       const searchLower = qSearch.toLowerCase().trim();
       const matchSearch =
         !searchLower ||
@@ -266,9 +309,9 @@ export default function BorneoEduTeacherProgress({
         (q.explanation && q.explanation.toLowerCase().includes(searchLower)) ||
         Object.values(q.options).some((opt) => opt.toLowerCase().includes(searchLower));
 
-      return matchWorld && matchLevel && matchDiff && matchBoss && matchActive && matchSearch;
+      return matchWorld && matchLevel && matchDiff && matchBoss && matchActive && matchClass && matchSearch;
     });
-  }, [questions, qWorldFilter, qLevelFilter, qDiffFilter, qBossFilter, qActiveStatusFilter, qSearch]);
+  }, [questions, qWorldFilter, qLevelFilter, qDiffFilter, qBossFilter, qActiveStatusFilter, qClassFilter, qSearch]);
 
   const isAllFilteredSelected = useMemo(() => {
     return (
@@ -660,6 +703,16 @@ export default function BorneoEduTeacherProgress({
     if (bulkLevel !== 'keep') updates.level = Number(bulkLevel);
     if (bulkDiff !== 'keep') updates.difficulty = bulkDiff as any;
     if (bulkIsBoss !== 'keep') updates.isBossQuestion = bulkIsBoss === 'true';
+    if (bulkClass !== 'keep') {
+      if (bulkClass === 'general') {
+        updates.classId = null as any;
+        updates.className = null as any;
+      } else {
+        const cObj = combinedClassOptions.find((c) => c.id === bulkClass || c.name === bulkClass);
+        updates.classId = cObj ? cObj.id : bulkClass;
+        updates.className = cObj ? cObj.name : bulkClass;
+      }
+    }
 
     if (Object.keys(updates).length === 0) {
       alert('Pilih setidaknya satu atribut yang ingin diubah.');
@@ -679,7 +732,12 @@ export default function BorneoEduTeacherProgress({
       setQuestions((prev) => {
         const next = prev.map((q) => {
           if (selectedQIds.includes(q.questionId)) {
-            return { ...q, ...updates };
+            return {
+              ...q,
+              ...updates,
+              classId: updates.classId === null ? undefined : (updates.classId ?? q.classId),
+              className: updates.className === null ? undefined : (updates.className ?? q.className)
+            };
           }
           return q;
         });
@@ -695,6 +753,98 @@ export default function BorneoEduTeacherProgress({
       setTimeout(() => setQAlertMessage(null), 4000);
     } catch (err: any) {
       alert('Gagal melakukan update massal: ' + err.message);
+    }
+  };
+
+  // 6b. Bulk Assign Class
+  const handleBulkAssignClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedQIds.length === 0) return;
+
+    const targetObj = combinedClassOptions.find((c) => c.id === bulkTargetClass || c.name === bulkTargetClass);
+    const targetName = bulkTargetClass === 'general' ? null : (targetObj ? targetObj.name : bulkTargetClass);
+    const targetId = bulkTargetClass === 'general' ? null : (targetObj ? targetObj.id : null);
+
+    try {
+      await fetch('/api/borneo-edu/questions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionIds: selectedQIds,
+          updates: {
+            classId: targetId,
+            className: targetName
+          }
+        })
+      });
+
+      const nextQuestions = questions.map((q) => {
+        if (selectedQIds.includes(q.questionId)) {
+          return {
+            ...q,
+            classId: targetId || undefined,
+            className: targetName || undefined
+          };
+        }
+        return q;
+      });
+      setQuestions(nextQuestions);
+      saveStoredQuestions(nextQuestions);
+
+      setShowBulkAssignClassModal(false);
+      setQAlertMessage({
+        type: 'success',
+        text: `Berhasil menugaskan ${selectedQIds.length} butir soal ke ${targetName ? `Kelas ${targetName}` : 'Umum (Semua Siswa)'}!`
+      });
+      setTimeout(() => setQAlertMessage(null), 4000);
+    } catch (err: any) {
+      alert('Gagal menugaskan soal ke kelas: ' + err.message);
+    }
+  };
+
+  // 6c. Bulk Duplicate Questions to Target Class
+  const handleBulkDuplicateQuestions = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedQIds.length === 0) return;
+    if (!duplicateTargetClass) {
+      alert('Pilih kelas tujuan duplikasi terlebih dahulu.');
+      return;
+    }
+
+    const targetObj = combinedClassOptions.find((c) => c.id === duplicateTargetClass || c.name === duplicateTargetClass);
+    const targetName = duplicateTargetClass === 'general' ? 'Umum' : (targetObj ? targetObj.name : duplicateTargetClass);
+    const targetId = duplicateTargetClass === 'general' ? null : (targetObj ? targetObj.id : null);
+
+    try {
+      const res = await fetch('/api/borneo-edu/questions/duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionIds: selectedQIds,
+          targetClassId: targetId,
+          targetClassName: targetName
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Gagal menduplikasi butir soal');
+      }
+
+      const createdQuestions: QuestionItem[] = data.data || [];
+      const updatedList = [...createdQuestions, ...questions];
+      setQuestions(updatedList);
+      saveStoredQuestions(updatedList);
+
+      setShowBulkDuplicateModal(false);
+      setSelectedQIds([]);
+      setQAlertMessage({
+        type: 'success',
+        text: `Berhasil menduplikasi ${createdQuestions.length} butir soal khusus untuk kelas ${targetName}!`
+      });
+      setTimeout(() => setQAlertMessage(null), 4500);
+    } catch (err: any) {
+      alert('Gagal menduplikasi soal: ' + err.message);
     }
   };
 
@@ -1219,9 +1369,9 @@ export default function BorneoEduTeacherProgress({
           </div>
 
           {/* Filter & Search Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2.5">
             {/* Search Input */}
-            <div className="sm:col-span-2 lg:col-span-2 relative">
+            <div className="sm:col-span-2 lg:col-span-2 xl:col-span-2 relative">
               <Search size={15} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
@@ -1230,6 +1380,23 @@ export default function BorneoEduTeacherProgress({
                 onChange={(e) => setQSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
               />
+            </div>
+
+            {/* Filter Target Kelas */}
+            <div>
+              <select
+                value={qClassFilter}
+                onChange={(e) => setQClassFilter(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="all">Semua Target Kelas</option>
+                <option value="general">🌐 Khusus Soal Umum</option>
+                {combinedClassOptions.map((c) => (
+                  <option key={c.id || c.name} value={c.id || c.name}>
+                    🏫 Kelas {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Filter World */}
@@ -1343,6 +1510,32 @@ export default function BorneoEduTeacherProgress({
                   <span>⏸️ Nonaktifkan Terpilih</span>
                 </button>
 
+                {/* Bulk Assign to Class */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkTargetClass('general');
+                    setShowBulkAssignClassModal(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-600 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-transform active:scale-95"
+                  title="Tugaskan butir soal terpilih khusus untuk kelas tertentu"
+                >
+                  <span>🏫 Tugaskan ke Kelas</span>
+                </button>
+
+                {/* Bulk Duplicate to Class */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDuplicateTargetClass(combinedClassOptions[0]?.id || combinedClassOptions[0]?.name || '');
+                    setShowBulkDuplicateModal(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-transform active:scale-95"
+                  title="Duplikasi butir soal terpilih untuk kelas lain"
+                >
+                  <span>📋 Duplikasi ke Kelas</span>
+                </button>
+
                 {/* Bulk Edit Button */}
                 <button
                   type="button"
@@ -1351,6 +1544,7 @@ export default function BorneoEduTeacherProgress({
                     setBulkLevel('keep');
                     setBulkDiff('keep');
                     setBulkIsBoss('keep');
+                    setBulkClass('keep');
                     setShowBulkEditModal(true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-transform active:scale-95"
@@ -1406,6 +1600,7 @@ export default function BorneoEduTeacherProgress({
                     />
                   </th>
                   <th className="p-3 whitespace-nowrap">ID Soal</th>
+                  <th className="p-3 whitespace-nowrap">Target Kelas</th>
                   <th className="p-3 whitespace-nowrap">World & Level</th>
                   <th className="p-3 whitespace-nowrap">Kesulitan</th>
                   <th className="p-3 min-w-[280px]">Pertanyaan & Pilihan Jawaban</th>
@@ -1418,7 +1613,7 @@ export default function BorneoEduTeacherProgress({
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredQuestions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-10 text-center text-slate-400">
+                    <td colSpan={10} className="p-10 text-center text-slate-400">
                       <div className="text-3xl mb-2">🔍</div>
                       <p className="font-bold text-sm text-slate-600">Tidak ada soal yang cocok dengan filter.</p>
                       <p className="text-xs text-slate-400 mt-1">
@@ -1427,10 +1622,12 @@ export default function BorneoEduTeacherProgress({
                       <button
                         onClick={() => {
                           setQSearch('');
+                          setQClassFilter('all');
                           setQWorldFilter('all');
                           setQLevelFilter('all');
                           setQDiffFilter('all');
                           setQBossFilter('all');
+                          setQActiveStatusFilter('all');
                         }}
                         className="mt-3 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
                       >
@@ -1461,6 +1658,19 @@ export default function BorneoEduTeacherProgress({
                         {/* ID Soal */}
                         <td className="p-3 font-mono font-black text-emerald-700 whitespace-nowrap">
                           {q.questionId}
+                        </td>
+
+                        {/* Target Kelas */}
+                        <td className="p-3 whitespace-nowrap">
+                          {q.className ? (
+                            <span className="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 text-[10px] font-black border border-indigo-200 inline-flex items-center gap-1 shadow-sm">
+                              🏫 {q.className}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200 inline-flex items-center gap-1">
+                              🌐 Umum
+                            </span>
+                          )}
                         </td>
 
                         {/* World & Level */}
@@ -1941,6 +2151,40 @@ export default function BorneoEduTeacherProgress({
             </div>
 
             <form onSubmit={handleSaveNewQuestion} className="space-y-4">
+              {/* Target Kelas Selector */}
+              <div>
+                <label className="text-xs font-black text-slate-700 block mb-1">
+                  Target Kelas <span className="text-slate-400 font-normal">(Fitur Pemisahan Soal per Kelas)</span>
+                </label>
+                <select
+                  value={newQForm.classId || (newQForm.className ? newQForm.className : 'general')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'general') {
+                      setNewQForm({ ...newQForm, classId: undefined, className: undefined });
+                    } else {
+                      const cObj = combinedClassOptions.find((c) => c.id === val || c.name === val);
+                      setNewQForm({
+                        ...newQForm,
+                        classId: cObj ? cObj.id : val,
+                        className: cObj ? cObj.name : val
+                      });
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="general">🌐 Umum (Dapat Dimainkan Semua Siswa Tanpa Batasan Kelas)</option>
+                  {combinedClassOptions.map((c) => (
+                    <option key={c.id || c.name} value={c.id || c.name}>
+                      🏫 Khusus Kelas {c.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Pilih kelas agar butir soal ini hanya tampil dan dikerjakan oleh siswa yang login dari kelas tersebut.
+                </p>
+              </div>
+
               {/* World, Level, Kesulitan Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
@@ -2143,6 +2387,40 @@ export default function BorneoEduTeacherProgress({
             </div>
 
             <form onSubmit={handleSaveEditQuestion} className="space-y-4">
+              {/* Target Kelas Selector */}
+              <div>
+                <label className="text-xs font-black text-slate-700 block mb-1">
+                  Target Kelas <span className="text-slate-400 font-normal">(Fitur Pemisahan Soal per Kelas)</span>
+                </label>
+                <select
+                  value={editingQ.classId || (editingQ.className ? editingQ.className : 'general')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'general') {
+                      setEditingQ({ ...editingQ, classId: undefined, className: undefined });
+                    } else {
+                      const cObj = combinedClassOptions.find((c) => c.id === val || c.name === val);
+                      setEditingQ({
+                        ...editingQ,
+                        classId: cObj ? cObj.id : val,
+                        className: cObj ? cObj.name : val
+                      });
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="general">🌐 Umum (Dapat Dimainkan Semua Siswa Tanpa Batasan Kelas)</option>
+                  {combinedClassOptions.map((c) => (
+                    <option key={c.id || c.name} value={c.id || c.name}>
+                      🏫 Khusus Kelas {c.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Pilih kelas agar butir soal ini hanya tampil dan dikerjakan oleh siswa yang login dari kelas tersebut.
+                </p>
+              </div>
+
               {/* World, Level, Kesulitan Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
@@ -2406,6 +2684,24 @@ export default function BorneoEduTeacherProgress({
                 </select>
               </div>
 
+              {/* Ubah Target Kelas */}
+              <div>
+                <label className="text-xs font-black text-slate-700 block mb-1">Ubah Target Kelas</label>
+                <select
+                  value={bulkClass}
+                  onChange={(e) => setBulkClass(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white"
+                >
+                  <option value="keep" className="text-slate-900 bg-white">— Biarkan Seperti Semula —</option>
+                  <option value="general" className="text-slate-900 bg-white">🌐 Jadikan Soal Umum (Semua Siswa)</option>
+                  {combinedClassOptions.map((c) => (
+                    <option key={c.id || c.name} value={c.id || c.name} className="text-slate-900 bg-white">
+                      🏫 Khusus Kelas {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Actions */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
@@ -2420,6 +2716,166 @@ export default function BorneoEduTeacherProgress({
                   className="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-md transition-transform active:scale-95"
                 >
                   Terapkan & Simpan Massal ({selectedQIds.length})
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* MODAL 4: TUGASKAN SOAL KE KELAS (BULK ASSIGN) */}
+      {/* ===================================================================== */}
+      {showBulkAssignClassModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 my-6 text-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-2xl bg-indigo-100 text-indigo-800 font-black text-lg">
+                  🏫
+                </span>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    Tugaskan ke Kelas ({selectedQIds.length} Soal)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Pilih kelas siswa yang diizinkan mengerjakan {selectedQIds.length} butir soal ini.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkAssignClassModal(false)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkAssignClass} className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-200/60 text-xs text-indigo-950 space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-indigo-900">
+                  <span>🎯</span>
+                  <span>Fitur Pemisahan Soal Per Kelas:</span>
+                </p>
+                <p className="text-[11px] text-indigo-800 leading-relaxed">
+                  Soal yang ditugaskan ke kelas tertentu hanya akan dimainkan oleh siswa yang login dengan kelas tersebut. Siswa dari kelas lain tidak akan mendapatkan soal ini.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-slate-700 block mb-1">
+                  Pilih Kelas Tujuan
+                </label>
+                <select
+                  value={bulkTargetClass}
+                  onChange={(e) => setBulkTargetClass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="general">🌐 Umum (Bisa Dikerjakan Seluruh Siswa Tanpa Batasan Kelas)</option>
+                  {combinedClassOptions.map((c) => (
+                    <option key={c.id || c.name} value={c.id || c.name}>
+                      🏫 Khusus Kelas {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkAssignClassModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-md transition-transform active:scale-95"
+                >
+                  Tugaskan Sekarang ({selectedQIds.length} Soal)
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* MODAL 5: DUPLIKASI SOAL KE KELAS LAIN */}
+      {/* ===================================================================== */}
+      {showBulkDuplicateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 my-6 text-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-2xl bg-purple-100 text-purple-800 font-black text-lg">
+                  📋
+                </span>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    Duplikasi ke Kelas Lain ({selectedQIds.length} Soal)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Salin {selectedQIds.length} butir soal terpilih sebagai paket soal baru untuk kelas tujuan.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkDuplicateModal(false)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkDuplicateQuestions} className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-purple-50/80 border border-purple-200/60 text-xs text-purple-950 space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-purple-900">
+                  <span>💡</span>
+                  <span>Cara Kerja Duplikasi Soal:</span>
+                </p>
+                <p className="text-[11px] text-purple-800 leading-relaxed">
+                  Sistem akan membuat salinan baru lengkap dengan ID baru dari butir soal yang Anda pilih dan langsung menetapkannya khusus untuk kelas tujuan. Soal asli tidak akan berubah.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-slate-700 block mb-1">
+                  Pilih Kelas Tujuan Duplikasi <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={duplicateTargetClass}
+                  onChange={(e) => setDuplicateTargetClass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-purple-500"
+                  required
+                >
+                  <option value="">— Pilih Kelas Tujuan —</option>
+                  <option value="general">🌐 Jadikan Paket Soal Umum</option>
+                  {combinedClassOptions.map((c) => (
+                    <option key={c.id || c.name} value={c.id || c.name}>
+                      🏫 Khusus Kelas {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDuplicateModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md transition-transform active:scale-95 flex items-center gap-1.5"
+                >
+                  <span>📋 Gandakan & Simpan ({selectedQIds.length} Soal)</span>
                 </button>
               </div>
             </form>

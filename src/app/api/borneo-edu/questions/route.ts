@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongoose';
 import { BorneoEduQuestion, BorneoEduConfig } from '@/models/BorneoEdu';
 import { DEFAULT_QUESTIONS } from '@/modules/borneo-edu/defaultQuestions';
+import mongoose from 'mongoose';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,6 +11,7 @@ export async function GET(req: NextRequest) {
     const levelParam = searchParams.get('level');
     const diffParam = searchParams.get('difficulty');
     const classIdParam = searchParams.get('classId');
+    const classNameParam = searchParams.get('className');
     const activeOnly = searchParams.get('activeOnly'); // 'true' = hanya soal aktif (untuk game siswa)
 
     const hasDb = process.env.DATABASE_URL || process.env.MONGODB_URI;
@@ -62,13 +64,13 @@ export async function GET(req: NextRequest) {
       if (!teacherConfig || activeOnly !== 'true') return questionsList;
       const start = teacherConfig.activeLevelStart || 1;
       const end = teacherConfig.activeLevelEnd || 25;
-      const maxPerLevel = teacherConfig.maxQuestionsPerLevel || 4;
+      const maxPerLevel = teacherConfig.maxQuestionsPerLevel || 5;
 
       // Filter level aktif
       let result = questionsList.filter((q: any) => q.level >= start && q.level <= end);
 
-      // Batasi soal per level
-      if (maxPerLevel < 4) {
+      // Batasi soal per level jika diatur
+      if (maxPerLevel) {
         const grouped: Record<number, any[]> = {};
         for (const q of result) {
           if (!grouped[q.level]) grouped[q.level] = [];
@@ -82,24 +84,93 @@ export async function GET(req: NextRequest) {
       return result;
     };
 
-    // Jika ada parameter classId, periksa apakah kelas tersebut memiliki soal khusus yang digenerate oleh guru
+    // =========================================================================
+    // 1. MODE SISWA (activeOnly === 'true'): Pemisahan Soal Berdasarkan Kelas Siswa
+    // =========================================================================
+    if (activeOnly === 'true') {
+      const hasClassFilter = (classIdParam && classIdParam !== 'all') || (classNameParam && classNameParam !== 'all');
+
+      if (hasClassFilter) {
+        const classConditions: any[] = [];
+        if (classIdParam && classIdParam !== 'all') {
+          classConditions.push({ classId: classIdParam });
+          if (mongoose.Types.ObjectId.isValid(classIdParam)) {
+            classConditions.push({ classId: new mongoose.Types.ObjectId(classIdParam) });
+          }
+        }
+        if (classNameParam && classNameParam !== 'all') {
+          classConditions.push({ className: classNameParam });
+          classConditions.push({ className: new RegExp(`^${classNameParam}$`, 'i') });
+        }
+
+        // Cari soal khusus yang ditugaskan untuk kelas siswa ini
+        const classSpecificQuery = {
+          ...filterQuery,
+          $or: classConditions
+        };
+
+        const classQuestions = await BorneoEduQuestion.find(classSpecificQuery)
+          .sort({ world: 1, level: 1 }).lean();
+
+        // Jika ada soal khusus kelas tersebut, kirim HANYA soal kelas ini!
+        if (classQuestions && classQuestions.length > 0) {
+          const filteredQuestions = applyTeacherConfigFilter(classQuestions);
+          return NextResponse.json({
+            success: true,
+            mode: 'class-specific',
+            classId: classIdParam,
+            className: classNameParam,
+            count: filteredQuestions.length,
+            data: filteredQuestions,
+          });
+        }
+
+        // Jika belum ada soal khusus untuk kelas ini, fallback HANYA ke soal umum (tanpa kelas).
+        // PENTING: JANGAN PERNAH menampilkan soal yang dimiliki oleh kelas lain!
+        const generalQuery = {
+          ...filterQuery,
+          $or: [
+            { classId: null },
+            { classId: { $exists: false } },
+            { classId: '' }
+          ]
+        };
+
+        const generalQuestions = await BorneoEduQuestion.find(generalQuery)
+          .sort({ world: 1, level: 1 }).lean();
+
+        if (generalQuestions && generalQuestions.length > 0) {
+          const filteredQuestions = applyTeacherConfigFilter(generalQuestions);
+          return NextResponse.json({
+            success: true,
+            mode: 'general-fallback',
+            count: filteredQuestions.length,
+            data: filteredQuestions,
+          });
+        }
+      }
+    }
+
+    // =========================================================================
+    // 2. MODE GURU (activeOnly !== 'true') / FILTER KELAS MEJA GURU
+    // =========================================================================
     if (classIdParam && classIdParam !== 'all') {
-      const classFilter: any = {
-        ...filterQuery,
-        classId: classIdParam,
-      };
-
-      const classQuestions = await BorneoEduQuestion.find(classFilter)
-        .sort({ world: 1, level: 1 }).lean();
-
-      if (classQuestions && classQuestions.length > 0) {
-        const filteredQuestions = applyTeacherConfigFilter(classQuestions);
-        return NextResponse.json({
-          success: true,
-          mode: 'class-specific',
-          count: filteredQuestions.length,
-          data: filteredQuestions,
-        });
+      if (classIdParam === 'general') {
+        filterQuery.$or = [
+          { classId: null },
+          { classId: { $exists: false } },
+          { classId: '' }
+        ];
+      } else {
+        const classConditions: any[] = [{ classId: classIdParam }];
+        if (mongoose.Types.ObjectId.isValid(classIdParam)) {
+          classConditions.push({ classId: new mongoose.Types.ObjectId(classIdParam) });
+        }
+        if (classNameParam) {
+          classConditions.push({ className: classNameParam });
+          classConditions.push({ className: new RegExp(`^${classNameParam}$`, 'i') });
+        }
+        filterQuery.$or = classConditions;
       }
     }
 
@@ -175,19 +246,35 @@ export async function POST(req: NextRequest) {
 
     if (Array.isArray(body)) {
       // Bulk insert/upsert
-      const ops = body.map((q) => ({
-        updateOne: {
-          filter: { questionId: q.questionId },
-          update: { $set: q },
-          upsert: true
+      const ops = body.map((q) => {
+        const item = { ...q };
+        if (item.classId === 'general' || item.classId === 'all') {
+          item.classId = null;
+          item.className = null;
+        } else if (item.classId && mongoose.Types.ObjectId.isValid(item.classId)) {
+          item.classId = new mongoose.Types.ObjectId(item.classId);
         }
-      }));
+        return {
+          updateOne: {
+            filter: { questionId: item.questionId },
+            update: { $set: item },
+            upsert: true
+          }
+        };
+      });
       await BorneoEduQuestion.bulkWrite(ops);
       return NextResponse.json({ success: true, count: body.length });
     } else {
+      const qData = { ...body };
+      if (qData.classId === 'general' || qData.classId === 'all') {
+        qData.classId = null;
+        qData.className = null;
+      } else if (qData.classId && mongoose.Types.ObjectId.isValid(qData.classId)) {
+        qData.classId = new mongoose.Types.ObjectId(qData.classId);
+      }
       const saved = await BorneoEduQuestion.findOneAndUpdate(
-        { questionId: body.questionId },
-        { $set: body },
+        { questionId: qData.questionId },
+        { $set: qData },
         { upsert: true, new: true }
       );
       return NextResponse.json({ success: true, data: saved });
@@ -216,22 +303,39 @@ export async function PUT(req: NextRequest) {
     if (replaceAll && Array.isArray(questions)) {
       // Replace entire bank soal
       await BorneoEduQuestion.deleteMany({});
-      const ops = questions.map((q: any) => ({
-        updateOne: {
-          filter: { questionId: q.questionId },
-          update: { $set: q },
-          upsert: true
+      const ops = questions.map((q: any) => {
+        const item = { ...q };
+        if (item.classId === 'general' || item.classId === 'all') {
+          item.classId = null;
+          item.className = null;
+        } else if (item.classId && mongoose.Types.ObjectId.isValid(item.classId)) {
+          item.classId = new mongoose.Types.ObjectId(item.classId);
         }
-      }));
+        return {
+          updateOne: {
+            filter: { questionId: item.questionId },
+            update: { $set: item },
+            upsert: true
+          }
+        };
+      });
       await BorneoEduQuestion.bulkWrite(ops);
       return NextResponse.json({ success: true, count: questions.length, message: 'Seluruh bank soal berhasil diperbarui.' });
     }
 
     if (Array.isArray(questionIds) && questionIds.length > 0 && updates) {
       // Bulk update specific fields on selected questions
+      const updateData = { ...updates };
+      if (updateData.classId === 'general' || updateData.classId === 'all') {
+        updateData.classId = null;
+        updateData.className = null;
+      } else if (updateData.classId && mongoose.Types.ObjectId.isValid(updateData.classId)) {
+        updateData.classId = new mongoose.Types.ObjectId(updateData.classId);
+      }
+
       const result = await BorneoEduQuestion.updateMany(
         { questionId: { $in: questionIds } },
-        { $set: updates }
+        { $set: updateData }
       );
       return NextResponse.json({ success: true, modifiedCount: result.modifiedCount });
     }

@@ -91,8 +91,14 @@ export default function BorneoEduGame() {
   }, [persistState]);
 
   // Load and shuffle questions for class (hanya memuat soal aktif untuk siswa)
-  const loadQuestions = useCallback((classId?: string | null) => {
-    const url = classId ? `/api/borneo-edu/questions?classId=${encodeURIComponent(classId)}&activeOnly=true` : '/api/borneo-edu/questions?activeOnly=true';
+  const loadQuestions = useCallback((classId?: string | null, className?: string | null) => {
+    let url = '/api/borneo-edu/questions?activeOnly=true';
+    if (classId) {
+      url += `&classId=${encodeURIComponent(classId)}`;
+    }
+    if (className) {
+      url += `&className=${encodeURIComponent(className)}`;
+    }
     fetch(url)
       .then((res) => res.json())
       .then((resData) => {
@@ -116,7 +122,7 @@ export default function BorneoEduGame() {
             studentNumber: prev.studentNumber && prev.studentNumber !== '01' ? prev.studentNumber : (data.studentNumber || '01'),
             className: data.className || prev.className || 'Kelas 7A'
           }));
-          loadQuestions(data.classId);
+          loadQuestions(data.classId, data.className);
         } else {
           loadQuestions();
         }
@@ -916,6 +922,17 @@ export default function BorneoEduGame() {
               </span>
               <span className="text-slate-400">
                 Posisi: <strong className="text-emerald-400">W{playerState.currentWorld} L{playerState.currentLevel}</strong>
+              </span>
+            </div>
+
+            {/* Paket Soal Kelas Badge */}
+            <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 font-bold">
+                <span>🎯</span>
+                <span>Paket Soal: <strong className="text-white">{playerState.className ? `Kelas ${playerState.className}` : 'Umum (Semua Siswa)'}</strong></span>
+              </span>
+              <span className="text-slate-400 text-[10px]">
+                {allQuestions.length} Butir Soal Terpilih Aktif
               </span>
             </div>
           </div>
