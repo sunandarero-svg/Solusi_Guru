@@ -59,7 +59,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
           label: "Pembelajaran Interaktif",
           icon: Gamepad2,
           subItems: [
-            { href: "/dashboard/interactive-learning/borneo-edu", label: "Progress Borneo Edu Siswa", icon: Trophy }
+            { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy }
           ]
         },
       ];
@@ -79,7 +79,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
           label: "Pembelajaran Interaktif",
           icon: Gamepad2,
           subItems: [
-            { href: "/dashboard/interactive-learning/borneo-edu", label: "Progress Borneo Edu Siswa", icon: Trophy }
+            { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy }
           ]
         },
         { href: "/dashboard/settings", label: "Profil Guru", icon: ShieldCheck },

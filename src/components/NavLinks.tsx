@@ -23,7 +23,7 @@ export default function NavLinks({ role }: NavLinksProps) {
     { href: "/dashboard/attendance", label: "📝 Absensi" },
     { href: "/dashboard/journal", label: "📔 Jurnal Guru" },
     { href: "/dashboard/interactive-learning", label: "🎮 Pembelajaran Interaktif" },
-    { href: "/dashboard/interactive-learning/borneo-edu", label: "📊 Progress Borneo Edu Siswa" },
+    { href: "/dashboard/interactive-learning/borneo-edu", label: "👨‍🏫 Meja Guru (Borneo Edu)" },
   ];
 
   const studentLinks = [

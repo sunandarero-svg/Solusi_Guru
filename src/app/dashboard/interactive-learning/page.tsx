@@ -62,7 +62,7 @@ export default async function InteractiveLearningHubPage() {
               href="/dashboard/interactive-learning/borneo-edu"
               className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-sm shadow-xl transition-transform active:scale-95 flex items-center gap-2"
             >
-              <span>{isTeacher ? 'LIHAT PROGRESS HASIL SISWA' : 'MAINKAN BORNEO EDU SEKARANG'}</span>
+              <span>{isTeacher ? 'BUKA MEJA GURU (PROGRESS & BANK SOAL)' : 'MAINKAN BORNEO EDU SEKARANG'}</span>
               <ArrowRight size={18} />
             </Link>
           </div>
@@ -87,8 +87,8 @@ export default async function InteractiveLearningHubPage() {
           </div>
           <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
             <span className="text-xl block mb-1">👨‍🏫</span>
-            <span className="text-xs font-black block">Progress Guru</span>
-            <span className="text-[10px] text-slate-300">Ekspor Nilai Excel .xlsx</span>
+            <span className="text-xs font-black block">{isTeacher ? 'Meja Guru' : 'Progress Nilai'}</span>
+            <span className="text-[10px] text-slate-300">{isTeacher ? 'Bank Soal & Ekspor Excel' : 'Tantangan Belajar'}</span>
           </div>
         </div>
       </div>

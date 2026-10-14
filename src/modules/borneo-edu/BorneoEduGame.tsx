@@ -38,6 +38,7 @@ function shuffleQuestions<T>(array: T[]): T[] {
 
 export default function BorneoEduGame() {
   const { data: session } = useSession();
+  const isTeacher = session?.user?.role === 'TEACHER' || session?.user?.role === 'ADMIN' || session?.user?.role === 'PRINCIPAL';
 
   // Screen / Modal view states
   const [gameState, setGameState] = useState<
@@ -802,7 +803,7 @@ export default function BorneoEduGame() {
               </button>
             </div>
 
-            {/* Quick Student Features */}
+            {/* Quick Student Features & Teacher Access */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setGameState('PETUNJUK')}
@@ -818,6 +819,19 @@ export default function BorneoEduGame() {
                 <span>🏆</span>
                 <span className="hidden sm:inline">Prestasi</span>
               </button>
+
+              {/* MEJA GURU: Hanya tampil pada tampilan guru / admin */}
+              {isTeacher && (
+                <button
+                  id="btn-meja-guru"
+                  onClick={() => setGameState('MEJA_GURU')}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-xl transition-transform active:scale-95 flex items-center gap-1.5 border border-amber-300"
+                  title="Akses Meja Guru (Hanya untuk Guru)"
+                >
+                  <span>👨‍🏫</span>
+                  <span>MEJA GURU</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1230,9 +1244,9 @@ export default function BorneoEduGame() {
       )}
 
       {/* ========================================================================= */}
-      {/* 11. MEJA GURU MODAL */}
+      {/* 11. MEJA GURU MODAL (Hanya tampil pada pengguna guru) */}
       {/* ========================================================================= */}
-      {gameState === 'MEJA_GURU' && (
+      {gameState === 'MEJA_GURU' && isTeacher && (
         <MejaGuruModal
           teacherConfig={teacherConfig}
           onUpdateConfig={(cfg) => setTeacherConfig(cfg)}

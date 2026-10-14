@@ -30,8 +30,14 @@ export default function MejaGuruModal({
   onClose,
   userRole
 }: MejaGuruModalProps) {
+  // Strict role verification: Meja Guru hanya boleh tampil pada pengguna Guru dan Admin
+  const isTeacher = userRole === 'TEACHER' || userRole === 'ADMIN' || userRole === 'PRINCIPAL';
+  if (!isTeacher) {
+    return null;
+  }
+
   // Authentication PIN state
-  const isAutoAuthorized = userRole === 'TEACHER' || userRole === 'ADMIN';
+  const isAutoAuthorized = isTeacher;
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(isAutoAuthorized);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');

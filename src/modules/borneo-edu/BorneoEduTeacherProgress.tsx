@@ -13,6 +13,7 @@ import {
   getSavedConfig,
   saveTeacherConfigToLocal
 } from './storage';
+import dynamic from 'next/dynamic';
 import {
   Trophy,
   Users,
@@ -43,8 +44,22 @@ import {
   Settings2,
   X,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Gamepad2
 } from 'lucide-react';
+
+const BorneoEduGame = dynamic(
+  () => import('./BorneoEduGame'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8 bg-slate-950 rounded-3xl text-white space-y-3">
+        <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
+        <p className="text-sm font-bold text-slate-300">Menyiapkan Game Borneo Edu...</p>
+      </div>
+    )
+  }
+);
 
 interface BorneoEduTeacherProgressProps {
   userRole?: string;
@@ -72,6 +87,11 @@ export default function BorneoEduTeacherProgress({
   const [qLevelFilter, setQLevelFilter] = useState<string>('all');
   const [qDiffFilter, setQDiffFilter] = useState<string>('all');
   const [qBossFilter, setQBossFilter] = useState<string>('all');
+  const [qActiveStatusFilter, setQActiveStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  // Preview & Settings state
+  const [showGamePreview, setShowGamePreview] = useState<boolean>(false);
+  const [settingsMessage, setSettingsMessage] = useState<string>('');
 
   // Checkbox Selection for Bank Soal
   const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
@@ -124,6 +144,13 @@ export default function BorneoEduTeacherProgress({
       const qData = await qRes.json();
       if (qData.success && Array.isArray(qData.data) && qData.data.length > 0) {
         setQuestions(qData.data);
+      }
+
+      // 3. Fetch latest teacher config
+      const cfgRes = await fetch('/api/borneo-edu/settings');
+      const cfgData = await cfgRes.json();
+      if (cfgData.success && cfgData.data) {
+        setConfig((prev) => ({ ...prev, ...cfgData.data }));
       }
     } catch (e) {
       console.log('Borneo Edu local fallback mode:', e);
@@ -227,6 +254,10 @@ export default function BorneoEduTeacherProgress({
         qBossFilter === 'all' ||
         (qBossFilter === 'boss' && q.isBossQuestion) ||
         (qBossFilter === 'regular' && !q.isBossQuestion);
+      const matchActive =
+        qActiveStatusFilter === 'all' ||
+        (qActiveStatusFilter === 'active' && q.isActive !== false) ||
+        (qActiveStatusFilter === 'inactive' && q.isActive === false);
       const searchLower = qSearch.toLowerCase().trim();
       const matchSearch =
         !searchLower ||
@@ -235,9 +266,9 @@ export default function BorneoEduTeacherProgress({
         (q.explanation && q.explanation.toLowerCase().includes(searchLower)) ||
         Object.values(q.options).some((opt) => opt.toLowerCase().includes(searchLower));
 
-      return matchWorld && matchLevel && matchDiff && matchBoss && matchSearch;
+      return matchWorld && matchLevel && matchDiff && matchBoss && matchActive && matchSearch;
     });
-  }, [questions, qWorldFilter, qLevelFilter, qDiffFilter, qBossFilter, qSearch]);
+  }, [questions, qWorldFilter, qLevelFilter, qDiffFilter, qBossFilter, qActiveStatusFilter, qSearch]);
 
   const isAllFilteredSelected = useMemo(() => {
     return (
@@ -250,6 +281,74 @@ export default function BorneoEduTeacherProgress({
     setSelectedQIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  // Toggle Active Status for a single question
+  const handleToggleQuestionActive = async (questionId: string, currentActive?: boolean) => {
+    const nextStatus = currentActive === false ? true : false;
+    const nextQuestions = questions.map((q) =>
+      q.questionId === questionId ? { ...q, isActive: nextStatus } : q
+    );
+    setQuestions(nextQuestions);
+    saveStoredQuestions(nextQuestions);
+
+    try {
+      await fetch('/api/borneo-edu/questions/toggle', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: [questionId], isActive: nextStatus })
+      });
+      setQAlertMessage({
+        type: 'success',
+        text: `Status soal ${questionId} berhasil diubah menjadi ${nextStatus ? 'AKTIF' : 'NONAKTIF'}.`
+      });
+      setTimeout(() => setQAlertMessage(null), 3000);
+    } catch {
+      // Local storage saved
+    }
+  };
+
+  // Bulk Toggle Active Status
+  const handleBulkToggleActive = async (targetActive: boolean) => {
+    if (selectedQIds.length === 0) return;
+    const nextQuestions = questions.map((q) =>
+      selectedQIds.includes(q.questionId) ? { ...q, isActive: targetActive } : q
+    );
+    setQuestions(nextQuestions);
+    saveStoredQuestions(nextQuestions);
+
+    try {
+      await fetch('/api/borneo-edu/questions/toggle', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: selectedQIds, isActive: targetActive })
+      });
+      setQAlertMessage({
+        type: 'success',
+        text: `${selectedQIds.length} butir soal berhasil ${targetActive ? 'diaktifkan' : 'dinonaktifkan'}!`
+      });
+      setTimeout(() => setQAlertMessage(null), 3000);
+    } catch {
+      // Local storage saved
+    }
+  };
+
+  // Save Settings Config
+  const handleSaveSettingsConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    saveTeacherConfigToLocal(config);
+    try {
+      await fetch('/api/borneo-edu/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      });
+      setSettingsMessage('Pengaturan Meja Guru berhasil disimpan ke sistem!');
+      setTimeout(() => setSettingsMessage(''), 4000);
+    } catch {
+      setSettingsMessage('Pengaturan disimpan di penyimpanan browser lokal.');
+      setTimeout(() => setSettingsMessage(''), 4000);
+    }
   };
 
   const handleSelectAllFiltered = () => {
@@ -677,7 +776,7 @@ export default function BorneoEduTeacherProgress({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Top Banner & Header */}
+      {/* Top Banner & Header: MEJA GURU */}
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white shadow-2xl border border-emerald-500/30 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -686,23 +785,31 @@ export default function BorneoEduTeacherProgress({
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-black flex items-center gap-1.5 border border-emerald-400/40">
                 <ShieldCheck size={14} />
-                <span>Mode Guru & Pemantauan</span>
+                <span>MEJA GURU • KONTROL SOAL & PEMANTAUAN</span>
               </span>
               <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-black flex items-center gap-1.5 border border-amber-400/40">
                 <Trophy size={14} />
-                <span>Progress Borneo Edu</span>
+                <span>Borneo Edu</span>
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-              Progress & Rekap Hasil Borneo Edu
+              Meja Guru — Progress & Bank Soal Borneo Edu
             </h1>
             <p className="text-slate-300 text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
-              Halo, <strong>{teacherName}</strong>. Pantau keterlibatan belajar, capaian level petualangan, akurasi soal kurikulum, dan rekapitulasi nilai akhir siswa yang memainkan game Borneo Edu.
+              Halo, <strong>{teacherName}</strong>. Selamat datang di Meja Guru! Pantau keterlibatan belajar siswa, kelola bank soal kurikulum, serta atur jumlah butir soal dan rentang level yang dimainkan siswa.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              onClick={() => setShowGamePreview(true)}
+              className="px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-xs sm:text-sm shadow-xl transition-all active:scale-95 flex items-center gap-2"
+              title="Uji coba mainkan game dengan konfigurasi soal yang Anda atur"
+            >
+              <Gamepad2 size={18} />
+              <span>🎮 Uji Coba Game (Preview)</span>
+            </button>
             <button
               onClick={handleExportExcel}
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-xl transition-all active:scale-95 flex items-center gap-2"
@@ -803,7 +910,7 @@ export default function BorneoEduTeacherProgress({
           }`}
         >
           <Sliders size={16} />
-          <span>Bobot Penilaian & Timer</span>
+          <span>Pengaturan Soal, Level & Bobot</span>
         </button>
       </div>
 
@@ -1112,7 +1219,7 @@ export default function BorneoEduTeacherProgress({
           </div>
 
           {/* Filter & Search Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
             {/* Search Input */}
             <div className="sm:col-span-2 lg:col-span-2 relative">
               <Search size={15} className="absolute left-3 top-3 text-slate-400" />
@@ -1185,6 +1292,19 @@ export default function BorneoEduTeacherProgress({
                 <option value="boss">Soal Boss Battle</option>
               </select>
             </div>
+
+            {/* Filter Status Aktif */}
+            <div>
+              <select
+                value={qActiveStatusFilter}
+                onChange={(e) => setQActiveStatusFilter(e.target.value as any)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="all">Semua Status Soal</option>
+                <option value="active">✅ Hanya Soal Aktif</option>
+                <option value="inactive">⏸️ Hanya Soal Nonaktif</option>
+              </select>
+            </div>
           </div>
 
           {/* Sticky / Floating Bulk Actions Banner when items are selected */}
@@ -1205,6 +1325,24 @@ export default function BorneoEduTeacherProgress({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {/* Bulk Activate / Deactivate */}
+                <button
+                  type="button"
+                  onClick={() => handleBulkToggleActive(true)}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-transform active:scale-95"
+                  title="Aktifkan seluruh soal yang dicentang agar dikerjakan siswa"
+                >
+                  <span>✅ Aktifkan Terpilih</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkToggleActive(false)}
+                  className="px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs shadow-md flex items-center gap-1.5 transition-transform active:scale-95"
+                  title="Nonaktifkan seluruh soal yang dicentang agar tidak muncul dalam game"
+                >
+                  <span>⏸️ Nonaktifkan Terpilih</span>
+                </button>
+
                 {/* Bulk Edit Button */}
                 <button
                   type="button"
@@ -1273,13 +1411,14 @@ export default function BorneoEduTeacherProgress({
                   <th className="p-3 min-w-[280px]">Pertanyaan & Pilihan Jawaban</th>
                   <th className="p-3 text-center whitespace-nowrap">Kunci</th>
                   <th className="p-3 min-w-[180px]">Pembahasan</th>
+                  <th className="p-3 text-center whitespace-nowrap">Status Soal</th>
                   <th className="p-3 text-center whitespace-nowrap">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredQuestions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-10 text-center text-slate-400">
+                    <td colSpan={9} className="p-10 text-center text-slate-400">
                       <div className="text-3xl mb-2">🔍</div>
                       <p className="font-bold text-sm text-slate-600">Tidak ada soal yang cocok dengan filter.</p>
                       <p className="text-xs text-slate-400 mt-1">
@@ -1389,6 +1528,23 @@ export default function BorneoEduTeacherProgress({
                           {q.explanation || '-'}
                         </td>
 
+                        {/* Status Soal (Aktif / Nonaktif) */}
+                        <td className="p-3 text-center whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleQuestionActive(q.questionId, q.isActive)}
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-black border transition-all inline-flex items-center gap-1.5 ${
+                              q.isActive !== false
+                                ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border-emerald-300'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border-slate-300'
+                            }`}
+                            title={q.isActive !== false ? 'Klik untuk menonaktifkan soal ini dari permainan' : 'Klik untuk mengaktifkan soal ini ke permainan'}
+                          >
+                            <span>{q.isActive !== false ? '✅' : '⏸️'}</span>
+                            <span>{q.isActive !== false ? 'Aktif' : 'Nonaktif'}</span>
+                          </button>
+                        </td>
+
                         {/* Actions */}
                         <td className="p-3 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1">
@@ -1433,78 +1589,223 @@ export default function BorneoEduTeacherProgress({
       )}
 
       {/* ===================================================================== */}
-      {/* TAB 3: PENGATURAN BOBOT NILAI & KKM */}
+      {/* TAB 3: PENGATURAN MEJA GURU (SOAL, LEVEL, TIMER & BOBOT) */}
       {/* ===================================================================== */}
       {activeTab === 'pengaturan' && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 max-w-2xl space-y-6">
-          <div>
-            <h2 className="text-lg font-black text-slate-800">
-              Pengaturan Bobot Penilaian Game
-            </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Rumus nilai akhir otomatis: (Bobot Akurasi &times; % Akurasi) + (Bobot Level &times; % Level) + (Bobot Boss &times; % Boss).
-            </p>
+        <form onSubmit={handleSaveSettingsConfig} className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 sm:p-8 max-w-4xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black tracking-wide">
+                  PENGATURAN MEJA GURU
+                </span>
+                <span className="text-xs text-slate-400 font-medium">Kontrol Siswa & Game</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Pengaturan Jumlah Soal, Level & Evaluasi
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Konfigurasikan batas level, jumlah butir soal per level, timer batas waktu, dan bobot perhitungan nilai akhir.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm shadow-xl flex items-center gap-2 transition-transform active:scale-95 shrink-0"
+            >
+              <Save size={16} />
+              <span>Simpan Pengaturan Meja Guru</span>
+            </button>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-black text-slate-700 block mb-1">
-                Bobot Akurasi Jawaban ({config.weightAccuracy}%)
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={config.weightAccuracy}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  const updated = { ...config, weightAccuracy: val };
-                  setConfig(updated);
-                  saveTeacherConfigToLocal(updated);
-                }}
-                className="w-full accent-emerald-600"
-              />
+          {settingsMessage && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-in fade-in duration-200">
+              <span>✅</span>
+              <span>{settingsMessage}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* CARD 1: PENGATURAN JUMLAH SOAL & LEVEL */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-800 font-black text-sm">
+                <Layers size={18} className="text-emerald-600" />
+                <span>Jumlah Soal & Rentang Level Siswa</span>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Jumlah Soal per Level yang Dimainkan Siswa: <strong className="text-emerald-700 text-sm font-black">{config.maxQuestionsPerLevel ?? 5} Soal</strong>
+                </label>
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Mengatur berapa banyak butir soal rintangan yang harus dijawab siswa di setiap level petualangan (default: 5 soal).
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={1}
+                    max={20}
+                    value={config.maxQuestionsPerLevel ?? 5}
+                    onChange={(e) => setConfig({ ...config, maxQuestionsPerLevel: Number(e.target.value) })}
+                    className="w-full accent-emerald-600 cursor-pointer"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={config.maxQuestionsPerLevel ?? 5}
+                    onChange={(e) => setConfig({ ...config, maxQuestionsPerLevel: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
+                    className="w-16 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-black text-center text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200">
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Rentang Level Aktif Siswa:
+                </label>
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Siswa hanya diizinkan memainkan level dalam rentang ini (contoh: Level 1 sampai 10).
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 block mb-1">Level Mulai (Min: 1)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={config.activeLevelEnd ?? 25}
+                      value={config.activeLevelStart ?? 1}
+                      onChange={(e) => {
+                        const val = Math.max(1, Math.min(config.activeLevelEnd ?? 25, Number(e.target.value) || 1));
+                        setConfig({ ...config, activeLevelStart: val });
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 block mb-1">Level Selesai (Max: 25)</span>
+                    <input
+                      type="number"
+                      min={config.activeLevelStart ?? 1}
+                      max={25}
+                      value={config.activeLevelEnd ?? 25}
+                      onChange={(e) => {
+                        const val = Math.max(config.activeLevelStart ?? 1, Math.min(25, Number(e.target.value) || 25));
+                        setConfig({ ...config, activeLevelEnd: val });
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-black text-slate-700 block mb-1">
-                Bobot Level Selesai ({config.weightLevel}%)
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={config.weightLevel}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  const updated = { ...config, weightLevel: val };
-                  setConfig(updated);
-                  saveTeacherConfigToLocal(updated);
-                }}
-                className="w-full accent-emerald-600"
-              />
+            {/* CARD 2: PENGATURAN WAKTU TIMER SOAL */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-800 font-black text-sm">
+                <Clock size={18} className="text-teal-600" />
+                <span>Timer Batas Waktu Menjawab</span>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Waktu Soal Mudah (EASY): <strong className="text-teal-700 font-black">{config.timeEasy} Detik</strong>
+                </label>
+                <input
+                  type="range"
+                  min={10}
+                  max={120}
+                  step={5}
+                  value={config.timeEasy}
+                  onChange={(e) => setConfig({ ...config, timeEasy: Number(e.target.value) })}
+                  className="w-full accent-teal-600 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Waktu Soal Sedang (MEDIUM): <strong className="text-teal-700 font-black">{config.timeMedium} Detik</strong>
+                </label>
+                <input
+                  type="range"
+                  min={15}
+                  max={180}
+                  step={5}
+                  value={config.timeMedium}
+                  onChange={(e) => setConfig({ ...config, timeMedium: Number(e.target.value) })}
+                  className="w-full accent-teal-600 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Waktu Soal Sulit & Boss (HARD/BOSS): <strong className="text-teal-700 font-black">{config.timeHard} Detik</strong>
+                </label>
+                <input
+                  type="range"
+                  min={20}
+                  max={300}
+                  step={5}
+                  value={config.timeHard}
+                  onChange={(e) => setConfig({ ...config, timeHard: Number(e.target.value) })}
+                  className="w-full accent-teal-600 cursor-pointer"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-black text-slate-700 block mb-1">
-                Bobot Boss Battle ({config.weightBoss}%)
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={config.weightBoss}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  const updated = { ...config, weightBoss: val };
-                  setConfig(updated);
-                  saveTeacherConfigToLocal(updated);
-                }}
-                className="w-full accent-emerald-600"
-              />
+            {/* CARD 3: BOBOT PENILAIAN OTOMATIS */}
+            <div className="md:col-span-2 p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-800 font-black text-sm">
+                <Sliders size={18} className="text-indigo-600" />
+                <span>Bobot Penilaian Nilai Akhir Siswa (Total: {config.weightAccuracy + config.weightLevel + config.weightBoss}%)</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-black text-slate-700 block mb-1">
+                    Bobot Akurasi Jawaban ({config.weightAccuracy}%)
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={config.weightAccuracy}
+                    onChange={(e) => setConfig({ ...config, weightAccuracy: Number(e.target.value) })}
+                    className="w-full accent-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-slate-700 block mb-1">
+                    Bobot Level Selesai ({config.weightLevel}%)
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={config.weightLevel}
+                    onChange={(e) => setConfig({ ...config, weightLevel: Number(e.target.value) })}
+                    className="w-full accent-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-slate-700 block mb-1">
+                    Bobot Boss Battle ({config.weightBoss}%)
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={config.weightBoss}
+                    onChange={(e) => setConfig({ ...config, weightBoss: Number(e.target.value) })}
+                    className="w-full accent-emerald-600"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </form>
       )}
 
       {/* ===================================================================== */}
@@ -2122,6 +2423,33 @@ export default function BorneoEduTeacherProgress({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* GAME PREVIEW MODAL */}
+      {showGamePreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-5xl bg-slate-950 border-2 border-emerald-500/40 rounded-3xl p-3 sm:p-5 shadow-2xl overflow-hidden flex flex-col max-h-[96vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-black border border-emerald-400/30">
+                  🎮 Mode Preview Uji Coba Guru
+                </span>
+                <span className="text-xs text-slate-400 hidden sm:inline">
+                  Uji coba level, gameplay, dan butir soal yang telah Anda atur di Meja Guru
+                </span>
+              </div>
+              <button
+                onClick={() => setShowGamePreview(false)}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <span>✕</span>
+                <span>Tutup Preview</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <BorneoEduGame />
+            </div>
           </div>
         </div>
       )}
