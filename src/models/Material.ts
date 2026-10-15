@@ -2,6 +2,32 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export type MaterialSourceType = 'AI' | 'MANUAL_UPLOAD';
 export type MaterialFileType = 'video' | 'pdf' | 'docx' | 'ppt' | 'text' | 'other';
+export type MaterialDisplayFormat = 'STANDARD' | 'FLASHCARD' | 'SLIDES' | 'MINDMAP';
+
+export interface IFlashcardItem {
+  id?: string;
+  front: string;
+  back: string;
+  category?: string;
+}
+
+export interface ISlideItem {
+  id?: string;
+  title: string;
+  points: string[];
+  note?: string;
+}
+
+export interface IMindMapItem {
+  topic: string;
+  subtopics: string[];
+}
+
+export interface IInteractiveData {
+  flashcards?: IFlashcardItem[];
+  slides?: ISlideItem[];
+  mindmap?: IMindMapItem[];
+}
 
 export interface IMaterial extends Document {
   title: string;
@@ -17,6 +43,8 @@ export interface IMaterial extends Document {
   fileSize?: number;
   content?: string; // Teks materi pembelajaran (dari AI atau hasil ekstraksi dokumen)
   summary?: string;
+  displayFormat?: MaterialDisplayFormat;
+  interactiveData?: IInteractiveData;
   isPublished: boolean;
   readByStudents: mongoose.Types.ObjectId[]; // List ID StudentProfile yang sudah menyelesaikan membaca
   createdAt: Date;
@@ -46,6 +74,15 @@ const MaterialSchema: Schema = new Schema(
     fileSize: { type: Number },
     content: { type: String },
     summary: { type: String },
+    displayFormat: {
+      type: String,
+      enum: ['STANDARD', 'FLASHCARD', 'SLIDES', 'MINDMAP'],
+      default: 'STANDARD'
+    },
+    interactiveData: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
     isPublished: { type: Boolean, default: true },
     readByStudents: [{ type: Schema.Types.ObjectId, ref: 'StudentProfile' }]
   },

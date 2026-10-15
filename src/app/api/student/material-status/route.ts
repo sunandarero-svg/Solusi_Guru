@@ -72,6 +72,8 @@ export async function GET() {
       fileName: m.fileName,
       content: m.content,
       summary: m.summary,
+      displayFormat: m.displayFormat || "STANDARD",
+      interactiveData: m.interactiveData || null,
       isReadByMe: Boolean(
         m.readByStudents?.some((sId: any) => sId.toString() === studentProfile._id.toString())
       ),

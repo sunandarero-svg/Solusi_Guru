@@ -26,6 +26,9 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import InteractiveMaterialViewer from "@/components/InteractiveMaterialViewer";
+import { MaterialDisplayFormat, IInteractiveData } from "@/models/Material";
+import { extractInteractiveDataFromMaterial } from "@/modules/materials/interactiveDataExtractor";
 
 interface ClassItem {
   id: string;
@@ -46,6 +49,9 @@ interface MaterialItem {
   fileUrl?: string;
   fileName?: string;
   content?: string;
+  summary?: string;
+  displayFormat?: MaterialDisplayFormat;
+  interactiveData?: IInteractiveData;
   readByStudents?: any[];
   createdAt: string;
 }
@@ -80,6 +86,8 @@ export default function TeacherMaterialsPage() {
   });
   const [aiGeneratedContent, setAiGeneratedContent] = useState("");
   const [aiGeneratedSummary, setAiGeneratedSummary] = useState("");
+  const [aiInteractiveData, setAiInteractiveData] = useState<IInteractiveData | null>(null);
+  const [selectedDisplayFormat, setSelectedDisplayFormat] = useState<MaterialDisplayFormat>("FLASHCARD");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
 
@@ -180,6 +188,11 @@ export default function TeacherMaterialsPage() {
       if (res.ok && data.content) {
         setAiGeneratedContent(data.content);
         setAiGeneratedSummary(data.summary || "");
+        const iData =
+          data.interactiveData ||
+          extractInteractiveDataFromMaterial(data.content, aiForm.title || aiForm.topic);
+        setAiInteractiveData(iData);
+        setSelectedDisplayFormat("FLASHCARD");
       } else {
         alert(data.error || "Gagal menghasilkan materi dari AI.");
       }
@@ -188,6 +201,16 @@ export default function TeacherMaterialsPage() {
     } finally {
       setAiGenerating(false);
     }
+  };
+
+  const handleRefreshInteractiveData = () => {
+    if (!aiGeneratedContent) return;
+    const refreshed = extractInteractiveDataFromMaterial(
+      aiGeneratedContent,
+      aiForm.title || aiForm.topic
+    );
+    setAiInteractiveData(refreshed);
+    alert("⚡ Flash Card, Slide, dan Peta Konsep berhasil diperbarui berdasarkan teks terkini!");
   };
 
   const handleSaveAiMaterial = async () => {
@@ -203,6 +226,8 @@ export default function TeacherMaterialsPage() {
           subjectId: aiForm.subjectId || null,
           content: aiGeneratedContent,
           summary: aiGeneratedSummary,
+          displayFormat: selectedDisplayFormat,
+          interactiveData: aiInteractiveData,
         }),
       });
 
@@ -211,6 +236,8 @@ export default function TeacherMaterialsPage() {
         setShowAiMaterialModal(false);
         setAiForm({ title: "", classId: "", subjectId: "", topic: "", instructions: "" });
         setAiGeneratedContent("");
+        setAiInteractiveData(null);
+        setSelectedDisplayFormat("FLASHCARD");
         fetchMaterials(selectedClassFilter);
       } else {
         const data = await res.json();
@@ -603,7 +630,7 @@ export default function TeacherMaterialsPage() {
       {/* ========================================================================= */}
       {showAiMaterialModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6">
+          <div className={`bg-white rounded-3xl w-full ${aiGeneratedContent ? "max-w-4xl" : "max-w-2xl"} max-h-[92vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6 transition-all duration-300`}>
             <div className="flex items-start justify-between border-b pb-4">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[11px] font-black uppercase mb-1">
@@ -730,34 +757,151 @@ export default function TeacherMaterialsPage() {
               </button>
             </form>
 
-            {/* Generated Content Preview & Save */}
+            {/* Generated Content Preview, Flashcard Options & Save */}
             {aiGeneratedContent && (
-              <div className="space-y-4 pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-800 text-sm">Preview Materi yang Disusun AI:</h4>
-                  <span className="text-xs text-purple-600 font-semibold">Dapat diedit manual</span>
+              <div className="space-y-6 pt-6 border-t border-slate-200 animate-in fade-in duration-300">
+                {/* Header Banner */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white shadow-xl space-y-2 border border-purple-500/30">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-sm">
+                      <Sparkles size={13} />
+                      <span>MATERI SELESAI DISUSUN OLEH AI</span>
+                    </span>
+                    <span className="text-xs text-purple-200 font-semibold">
+                      Pratinjau Sebelum Publikasi
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    Pilihan Format Tampilan Materi Siswa
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                    Sebelum materi disimpan dan dipublikasikan ke siswa, pastikan Anda meninjau atau memilih tampilan yang diinginkan. Anda dapat membuat materi tampil sebagai <strong>Flash Card Interaktif</strong>, <strong>Slide Presentasi</strong>, <strong>Peta Konsep</strong>, atau <strong>Teks Lengkap</strong>.
+                  </p>
                 </div>
-                <textarea
-                  rows={8}
-                  className="w-full p-4 rounded-xl border border-slate-200 text-xs font-mono bg-white text-slate-900 leading-relaxed focus:ring-2 focus:ring-purple-500/40 focus:outline-none"
-                  value={aiGeneratedContent}
-                  onChange={(e) => setAiGeneratedContent(e.target.value)}
-                />
+
+                {/* Format Picker Cards */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Pilih Format Tampilan Utama untuk Siswa:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {[
+                      {
+                        id: "FLASHCARD" as const,
+                        icon: "🗂️",
+                        title: "Flash Card",
+                        desc: "Kartu pintar bolak-balik 3D",
+                        tag: "Direkomendasikan ⭐",
+                      },
+                      {
+                        id: "SLIDES" as const,
+                        icon: "📽️",
+                        title: "Slide Presentasi",
+                        desc: "Poin visual per topik",
+                        tag: "Visual",
+                      },
+                      {
+                        id: "MINDMAP" as const,
+                        icon: "🧠",
+                        title: "Peta Konsep",
+                        desc: "Struktur hierarki materi",
+                        tag: "Struktural",
+                      },
+                      {
+                        id: "STANDARD" as const,
+                        icon: "📄",
+                        title: "Teks Dokumen",
+                        desc: "Uraian kurikulum lengkap",
+                        tag: "Lengkap",
+                      },
+                    ].map((fmt) => {
+                      const isSelected = selectedDisplayFormat === fmt.id;
+                      return (
+                        <button
+                          key={fmt.id}
+                          type="button"
+                          onClick={() => setSelectedDisplayFormat(fmt.id)}
+                          className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                            isSelected
+                              ? "border-purple-600 bg-purple-50/70 shadow-md scale-[1.02]"
+                              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xl">{fmt.icon}</span>
+                            <span
+                              className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                                isSelected
+                                  ? "bg-purple-600 text-white"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {fmt.tag}
+                            </span>
+                          </div>
+                          <div className="font-black text-xs text-slate-800">{fmt.title}</div>
+                          <div className="text-[10px] text-slate-500 leading-tight mt-0.5">{fmt.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Interactive Viewer Component */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-4">
+                  <InteractiveMaterialViewer
+                    topicTitle={aiForm.title || aiForm.topic || "Materi Pembelajaran"}
+                    content={aiGeneratedContent}
+                    interactiveData={aiInteractiveData}
+                    defaultFormat={selectedDisplayFormat}
+                    editable={true}
+                    onContentChange={(newTxt) => setAiGeneratedContent(newTxt)}
+                    onInteractiveDataChange={(newData) => setAiInteractiveData(newData)}
+                    onSelectDisplayFormat={(fmt) => setSelectedDisplayFormat(fmt)}
+                  />
+
+                  {/* Sync Button */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                    <span className="text-slate-500 text-[11px]">
+                      💡 Ingin memperbarui Flash Card setelah mengubah teks?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRefreshInteractiveData}
+                      className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
+                    >
+                      <Sparkles size={13} />
+                      <span>⚡ Sinkronkan Ulang dari Teks</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Save and Publish Button */}
                 <button
                   type="button"
                   disabled={aiSaving}
                   onClick={handleSaveAiMaterial}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-500/20"
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 transition shadow-xl shadow-emerald-500/25 active:scale-95"
                 >
                   {aiSaving ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span>Menyimpan ke Kelas...</span>
+                      <Loader2 size={20} className="animate-spin" />
+                      <span>Menyimpan & Mempublikasikan ke Kelas...</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle size={18} />
-                      <span>Simpan & Publikasikan Materi ke Kelas</span>
+                      <CheckCircle size={20} />
+                      <span>
+                        Simpan & Publikasikan Materi ke Kelas (Tampilan Utama: {
+                          selectedDisplayFormat === "FLASHCARD"
+                            ? "Flash Card"
+                            : selectedDisplayFormat === "SLIDES"
+                            ? "Slide Presentasi"
+                            : selectedDisplayFormat === "MINDMAP"
+                            ? "Peta Konsep"
+                            : "Teks Lengkap"
+                        })
+                      </span>
                     </>
                   )}
                 </button>
@@ -1581,12 +1725,25 @@ export default function TeacherMaterialsPage() {
       {/* ========================================================================= */}
       {previewMaterial && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-start justify-between border-b pb-4">
               <div>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
-                  {previewMaterial.className || "Kelas"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                    {previewMaterial.className || "Kelas"}
+                  </span>
+                  {previewMaterial.displayFormat && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase">
+                      {previewMaterial.displayFormat === "FLASHCARD"
+                        ? "🗂️ Flash Card"
+                        : previewMaterial.displayFormat === "SLIDES"
+                        ? "📽️ Slides"
+                        : previewMaterial.displayFormat === "MINDMAP"
+                        ? "🧠 Mind Map"
+                        : "📄 Modul Standar"}
+                    </span>
+                  )}
+                </div>
                 <h2 className="text-2xl font-black text-slate-800 mt-1">{previewMaterial.title}</h2>
               </div>
               <button
@@ -1626,8 +1783,23 @@ export default function TeacherMaterialsPage() {
               )}
 
               {previewMaterial.content && (
-                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-xs leading-relaxed font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
-                  {previewMaterial.content}
+                <div className="pt-2">
+                  <InteractiveMaterialViewer
+                    topicTitle={previewMaterial.title}
+                    content={previewMaterial.content}
+                    interactiveData={
+                      previewMaterial.interactiveData &&
+                      previewMaterial.interactiveData.flashcards &&
+                      previewMaterial.interactiveData.flashcards.length > 0
+                        ? previewMaterial.interactiveData
+                        : extractInteractiveDataFromMaterial(
+                            previewMaterial.content,
+                            previewMaterial.title
+                          )
+                    }
+                    defaultFormat={previewMaterial.displayFormat || "FLASHCARD"}
+                    editable={false}
+                  />
                 </div>
               )}
             </div>

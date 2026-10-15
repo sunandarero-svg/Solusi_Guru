@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import StudentQuickScan from "@/components/StudentQuickScan";
 import MaterialReaderModal from "@/components/MaterialReaderModal";
+import { MaterialDisplayFormat, IInteractiveData } from "@/models/Material";
 
 interface MaterialItem {
   id: string;
@@ -31,6 +32,8 @@ interface MaterialItem {
   fileName?: string;
   content?: string;
   summary?: string;
+  displayFormat?: MaterialDisplayFormat;
+  interactiveData?: IInteractiveData;
   isReadByMe?: boolean;
 }
 

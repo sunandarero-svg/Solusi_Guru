@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     // 1. Pembuatan Materi dari JSON (biasanya dari Generator AI)
     if (contentType.includes("application/json")) {
       const body = await req.json();
-      const { title, description, classId, subjectId, content, summary } = body;
+      const { title, description, classId, subjectId, content, summary, displayFormat, interactiveData } = body;
 
       if (!title || !classId) {
         return NextResponse.json({ error: "Judul dan Tujuan Kelas wajib diisi." }, { status: 400 });
@@ -140,6 +140,8 @@ export async function POST(req: NextRequest) {
         fileType: "text",
         content: content || "",
         summary: summary || "",
+        displayFormat: displayFormat || "STANDARD",
+        interactiveData: interactiveData || {},
         isPublished: true,
         readByStudents: [],
       });

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { X, CheckCircle, FileText, Video, Download, BookOpen, Loader2 } from "lucide-react";
+import InteractiveMaterialViewer from "@/components/InteractiveMaterialViewer";
+import { MaterialDisplayFormat, IInteractiveData } from "@/models/Material";
+import { extractInteractiveDataFromMaterial } from "@/modules/materials/interactiveDataExtractor";
 
 interface MaterialItem {
   id: string;
@@ -15,6 +18,8 @@ interface MaterialItem {
   fileName?: string;
   content?: string;
   summary?: string;
+  displayFormat?: MaterialDisplayFormat;
+  interactiveData?: IInteractiveData;
 }
 
 interface MaterialReaderModalProps {
@@ -48,7 +53,7 @@ export default function MaterialReaderModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
+      <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-100 flex items-start justify-between bg-gradient-to-r from-emerald-50 via-teal-50 to-white">
           <div className="space-y-1">
@@ -163,10 +168,25 @@ export default function MaterialReaderModal({
             </div>
           )}
 
-          {/* AI Generated Text Content */}
+          {/* AI Generated / Interactive Material Content (Flashcard, Slides, Mindmap, Text) */}
           {material.content && material.fileType === "text" && (
-            <div className="prose max-w-none text-slate-800 space-y-4 leading-relaxed whitespace-pre-wrap bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80">
-              {material.content}
+            <div className="pt-2">
+              <InteractiveMaterialViewer
+                topicTitle={material.title}
+                content={material.content}
+                interactiveData={
+                  material.interactiveData &&
+                  material.interactiveData.flashcards &&
+                  material.interactiveData.flashcards.length > 0
+                    ? material.interactiveData
+                    : extractInteractiveDataFromMaterial(
+                        material.content,
+                        material.title
+                      )
+                }
+                defaultFormat={material.displayFormat || "FLASHCARD"}
+                editable={false}
+              />
             </div>
           )}
         </div>
