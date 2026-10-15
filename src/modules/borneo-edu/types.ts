@@ -92,6 +92,7 @@ export interface TeacherConfig {
   soundEnabled: boolean;
   // Pengaturan jumlah soal & level yang dimainkan siswa
   maxQuestionsPerLevel: number; // Maks soal per level (default 4)
+  levelQuestionsMap?: Record<number, number>; // Konfigurasi khusus jumlah soal per level (misal { 1: 3, 2: 4, ... })
   activeLevelStart: number; // Level awal aktif (default 1)
   activeLevelEnd: number; // Level akhir aktif (default 25)
 }

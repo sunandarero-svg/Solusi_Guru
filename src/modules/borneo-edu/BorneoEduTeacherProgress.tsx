@@ -94,6 +94,8 @@ export default function BorneoEduTeacherProgress({
   // Preview & Settings state
   const [showGamePreview, setShowGamePreview] = useState<boolean>(false);
   const [settingsMessage, setSettingsMessage] = useState<string>('');
+  const [showLevelDistManager, setShowLevelDistManager] = useState<boolean>(true);
+  const [showCustomLevelSettings, setShowCustomLevelSettings] = useState<boolean>(false);
 
   // Checkbox Selection for Bank Soal
   const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
@@ -392,6 +394,50 @@ export default function BorneoEduTeacherProgress({
       setSettingsMessage('Pengaturan disimpan di penyimpanan browser lokal.');
       setTimeout(() => setSettingsMessage(''), 4000);
     }
+  };
+
+  const handleUpdateQuestionsPerLevelPreset = async (count: number) => {
+    const newConfig: TeacherConfig = {
+      ...config,
+      maxQuestionsPerLevel: count,
+      levelQuestionsMap: {},
+    };
+    setConfig(newConfig);
+    saveTeacherConfigToLocal(newConfig);
+    try {
+      await fetch('/api/borneo-edu/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
+      });
+      setQAlertMessage({
+        type: 'success',
+        text: `Berhasil mengatur seluruh level menjadi seragam ${count} soal per level!`
+      });
+      setTimeout(() => setQAlertMessage(null), 4000);
+    } catch (_) {}
+  };
+
+  const handleUpdateSingleLevelQuestionsCount = async (level: number, count: number) => {
+    const updatedMap = { ...(config.levelQuestionsMap || {}), [level]: count };
+    const newConfig: TeacherConfig = {
+      ...config,
+      levelQuestionsMap: updatedMap,
+    };
+    setConfig(newConfig);
+    saveTeacherConfigToLocal(newConfig);
+    try {
+      await fetch('/api/borneo-edu/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
+      });
+      setQAlertMessage({
+        type: 'success',
+        text: `Level ${level} diatur menjadi ${count} soal yang dimainkan siswa!`
+      });
+      setTimeout(() => setQAlertMessage(null), 3000);
+    } catch (_) {}
   };
 
   const handleSelectAllFiltered = () => {
@@ -1368,6 +1414,109 @@ export default function BorneoEduTeacherProgress({
             </div>
           </div>
 
+          {/* ========================================================= */}
+          {/* DISTRIBUSI & PENGATURAN ALOKASI SOAL PER LEVEL (LEVEL 1-25) */}
+          {/* ========================================================= */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-950/5 via-slate-50 to-teal-950/5 border border-emerald-200/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs">🎮</span>
+                  <h3 className="text-sm sm:text-base font-black text-slate-900">
+                    Atur Jumlah Soal untuk Setiap Level (Game Borneo EDU)
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Tentukan berapa butir soal yang dimainkan siswa di masing-masing level (Level 1 s.d. Level 25).
+                </p>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 mr-1">Preset Cepat:</span>
+                {[2, 3, 4, 5].map((cnt) => (
+                  <button
+                    key={cnt}
+                    type="button"
+                    onClick={() => handleUpdateQuestionsPerLevelPreset(cnt)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-black transition border shadow-sm ${
+                      (config.maxQuestionsPerLevel ?? 4) === cnt && Object.keys(config.levelQuestionsMap || {}).length === 0
+                        ? "bg-emerald-600 text-white border-emerald-700"
+                        : "bg-white hover:bg-emerald-50 text-slate-700 border-slate-300"
+                    }`}
+                  >
+                    {cnt} Soal / Lvl
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowLevelDistManager(!showLevelDistManager)}
+                  className="px-2.5 py-1 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold transition ml-1"
+                >
+                  {showLevelDistManager ? "Tutup Rincian ▲" : "Buka Rincian ▼"}
+                </button>
+              </div>
+            </div>
+
+            {/* Level Grid */}
+            {showLevelDistManager && (
+              <div className="pt-2 border-t border-slate-200/80 animate-in fade-in duration-200">
+                <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-5 gap-2.5 max-h-72 overflow-y-auto p-1">
+                  {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => {
+                    const isBoss = lvl % 5 === 0;
+                    const worldNum = Math.ceil(lvl / 5);
+                    const lvlQuestions = questions.filter((q) => q.level === lvl);
+                    const activeCount = lvlQuestions.filter((q) => q.isActive !== false).length;
+                    const configuredLimit = config.levelQuestionsMap?.[lvl] ?? config.maxQuestionsPerLevel ?? 4;
+
+                    return (
+                      <div
+                        key={lvl}
+                        className={`p-2.5 rounded-2xl border transition-all text-left flex flex-col justify-between ${
+                          isBoss
+                            ? "bg-purple-50/80 border-purple-200 shadow-sm"
+                            : "bg-white border-slate-200 hover:border-emerald-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-[11px] font-black ${isBoss ? "text-purple-900" : "text-slate-800"}`}>
+                            Lvl {lvl} {isBoss ? "👑 BOSS" : ""}
+                          </span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                            W{worldNum}
+                          </span>
+                        </div>
+
+                        <div className="text-[10px] text-slate-500 space-y-0.5 my-1">
+                          <div>Bank: <strong className="text-slate-700">{lvlQuestions.length}</strong> ({activeCount} aktif)</div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-100">
+                          <span className="text-[10px] font-bold text-emerald-800">Main:</span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={1}
+                              max={10}
+                              value={configuredLimit}
+                              onChange={(e) => {
+                                const val = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                                handleUpdateSingleLevelQuestionsCount(lvl, val);
+                              }}
+                              className="w-11 py-0.5 px-1 rounded-lg border border-slate-300 bg-slate-50 text-xs font-black text-center text-slate-800 focus:bg-white focus:border-emerald-500"
+                              title={`Ubah jumlah soal yang dimainkan siswa di Level ${lvl}`}
+                            />
+                            <span className="text-[10px] text-slate-400 font-semibold">Q</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Filter & Search Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2.5">
             {/* Search Input */}
@@ -1855,7 +2004,7 @@ export default function BorneoEduTeacherProgress({
                     type="range"
                     min={1}
                     max={20}
-                    value={config.maxQuestionsPerLevel ?? 5}
+                    value={config.maxQuestionsPerLevel ?? 4}
                     onChange={(e) => setConfig({ ...config, maxQuestionsPerLevel: Number(e.target.value) })}
                     className="w-full accent-emerald-600 cursor-pointer"
                   />
@@ -1863,11 +2012,72 @@ export default function BorneoEduTeacherProgress({
                     type="number"
                     min={1}
                     max={20}
-                    value={config.maxQuestionsPerLevel ?? 5}
+                    value={config.maxQuestionsPerLevel ?? 4}
                     onChange={(e) => setConfig({ ...config, maxQuestionsPerLevel: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
                     className="w-16 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-black text-center text-slate-800"
                   />
                 </div>
+
+                {/* Preset Cepat Pengaturan */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Preset:</span>
+                  {[2, 3, 4, 5].map((cnt) => (
+                    <button
+                      key={cnt}
+                      type="button"
+                      onClick={() => setConfig({ ...config, maxQuestionsPerLevel: cnt, levelQuestionsMap: {} })}
+                      className={`px-2 py-0.5 rounded-lg text-xs font-black border transition ${
+                        (config.maxQuestionsPerLevel ?? 4) === cnt && Object.keys(config.levelQuestionsMap || {}).length === 0
+                          ? "bg-emerald-600 text-white border-emerald-700"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      {cnt} Soal
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomLevelSettings(!showCustomLevelSettings)}
+                    className="px-2 py-0.5 rounded-lg text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 ml-auto"
+                  >
+                    {showCustomLevelSettings ? "Tutup Kustom Level ▲" : "Kustom Tiap Level ▼"}
+                  </button>
+                </div>
+
+                {/* Grid Kustom Level */}
+                {showCustomLevelSettings && (
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-2 animate-in fade-in max-h-48 overflow-y-auto">
+                    <span className="text-[11px] font-bold text-slate-600 block">Atur jumlah soal spesifik per level:</span>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => {
+                        const isBoss = lvl % 5 === 0;
+                        const current = config.levelQuestionsMap?.[lvl] ?? config.maxQuestionsPerLevel ?? 4;
+                        return (
+                          <div key={lvl} className={`p-1.5 rounded-lg border text-center ${isBoss ? "bg-purple-50 border-purple-200" : "bg-slate-50 border-slate-200"}`}>
+                            <div className="text-[9px] font-bold text-slate-500">L{lvl} {isBoss ? "👑" : ""}</div>
+                            <input
+                              type="number"
+                              min={1}
+                              max={10}
+                              value={current}
+                              onChange={(e) => {
+                                const val = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                                setConfig({
+                                  ...config,
+                                  levelQuestionsMap: {
+                                    ...(config.levelQuestionsMap || {}),
+                                    [lvl]: val,
+                                  },
+                                });
+                              }}
+                              className="w-full mt-0.5 py-0.5 rounded border border-slate-300 text-xs font-black text-center text-slate-800"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-200">

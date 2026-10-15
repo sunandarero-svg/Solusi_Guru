@@ -167,6 +167,7 @@ export interface IBorneoEduConfig extends Document {
   soundEnabled: boolean;
   // Pengaturan jumlah soal & level yang dimainkan siswa
   maxQuestionsPerLevel: number; // Maks soal per level (default 4)
+  levelQuestionsMap?: Record<string, number>; // Konfigurasi kustom per level { "1": 3, "2": 4, ... }
   activeLevelStart: number; // Level awal yang aktif (default 1)
   activeLevelEnd: number; // Level akhir yang aktif (default 25)
   createdAt: Date;
@@ -192,6 +193,7 @@ const BorneoEduConfigSchema: Schema = new Schema({
   soundEnabled: { type: Boolean, default: true },
   // Pengaturan jumlah soal & level yang dimainkan siswa
   maxQuestionsPerLevel: { type: Number, default: 4 },
+  levelQuestionsMap: { type: Schema.Types.Mixed, default: {} },
   activeLevelStart: { type: Number, default: 1 },
   activeLevelEnd: { type: Number, default: 25 }
 }, {

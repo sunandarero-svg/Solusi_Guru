@@ -83,6 +83,8 @@ export default function MejaGuruModal({
   // Settings State Form
   const [settingsForm, setSettingsForm] = useState<TeacherConfig>({ ...teacherConfig });
   const [settingsMessage, setSettingsMessage] = useState<string>('');
+  const [showModalLevelDist, setShowModalLevelDist] = useState<boolean>(true);
+  const [showModalCustomLevel, setShowModalCustomLevel] = useState<boolean>(false);
 
   // Reset PIN confirmation
   const [resetPinInput, setResetPinInput] = useState<string>('');
@@ -472,6 +474,38 @@ export default function MejaGuruModal({
 
     setSettingsMessage('Pengaturan Meja Guru berhasil disimpan!');
     setTimeout(() => setSettingsMessage(''), 4000);
+  };
+
+  const handleUpdateQuestionsPerLevelPresetModal = (count: number) => {
+    const updated: TeacherConfig = {
+      ...settingsForm,
+      maxQuestionsPerLevel: count,
+      levelQuestionsMap: {},
+    };
+    setSettingsForm(updated);
+    onUpdateConfig(updated);
+    saveTeacherConfigToLocal(updated);
+    fetch('/api/borneo-edu/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    }).catch(() => {});
+  };
+
+  const handleUpdateSingleLevelQuestionsCountModal = (level: number, count: number) => {
+    const updatedMap = { ...(settingsForm.levelQuestionsMap || {}), [level]: count };
+    const updated: TeacherConfig = {
+      ...settingsForm,
+      levelQuestionsMap: updatedMap,
+    };
+    setSettingsForm(updated);
+    onUpdateConfig(updated);
+    saveTeacherConfigToLocal(updated);
+    fetch('/api/borneo-edu/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    }).catch(() => {});
   };
 
   // Add question to Bank
@@ -982,6 +1016,107 @@ export default function MejaGuruModal({
                 </div>
               </div>
 
+              {/* Level Distribution & Question Allocation Manager */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="p-1 rounded-lg bg-indigo-600 text-white font-bold text-xs">🎯</span>
+                      <h3 className="text-xs sm:text-sm font-black text-indigo-200">
+                        Atur Jumlah Soal untuk Setiap Level (Game Borneo EDU)
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Tentukan berapa butir soal yang dimainkan siswa di masing-masing level (Level 1 s.d. Level 25).
+                    </p>
+                  </div>
+
+                  {/* Quick Presets */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 mr-1">Preset Cepat:</span>
+                    {[2, 3, 4, 5].map((cnt) => (
+                      <button
+                        key={cnt}
+                        type="button"
+                        onClick={() => handleUpdateQuestionsPerLevelPresetModal(cnt)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-black transition border shadow-sm ${
+                          (settingsForm.maxQuestionsPerLevel ?? 4) === cnt && Object.keys(settingsForm.levelQuestionsMap || {}).length === 0
+                            ? "bg-indigo-600 text-white border-indigo-500"
+                            : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                        }`}
+                      >
+                        {cnt} Soal / Lvl
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setShowModalLevelDist(!showModalLevelDist)}
+                      className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition border border-slate-700 ml-1"
+                    >
+                      {showModalLevelDist ? "Tutup Rincian ▲" : "Buka Rincian ▼"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Level Grid */}
+                {showModalLevelDist && (
+                  <div className="pt-2 border-t border-slate-800 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-5 gap-2 max-h-60 overflow-y-auto p-1">
+                      {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => {
+                        const isBoss = lvl % 5 === 0;
+                        const worldNum = Math.ceil(lvl / 5);
+                        const lvlQuestions = questions.filter((q) => q.level === lvl);
+                        const activeCount = lvlQuestions.filter((q) => q.isActive !== false).length;
+                        const configuredLimit = settingsForm.levelQuestionsMap?.[lvl] ?? settingsForm.maxQuestionsPerLevel ?? 4;
+
+                        return (
+                          <div
+                            key={lvl}
+                            className={`p-2 rounded-xl border transition-all text-left flex flex-col justify-between ${
+                              isBoss
+                                ? "bg-purple-950/40 border-purple-500/40"
+                                : "bg-slate-800/80 border-slate-700/80 hover:border-indigo-500/50"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-[11px] font-black ${isBoss ? "text-purple-300" : "text-slate-200"}`}>
+                                Lvl {lvl} {isBoss ? "👑 BOSS" : ""}
+                              </span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900/60 text-slate-400">
+                                W{worldNum}
+                              </span>
+                            </div>
+
+                            <div className="text-[10px] text-slate-400 space-y-0.5 my-1">
+                              <div>Bank: <strong className="text-white">{lvlQuestions.length}</strong> ({activeCount} aktif)</div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-700/50">
+                              <span className="text-[10px] font-bold text-indigo-300">Main:</span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  value={configuredLimit}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                                    handleUpdateSingleLevelQuestionsCountModal(lvl, val);
+                                  }}
+                                  className="w-10 py-0.5 px-1 rounded-lg border border-slate-600 bg-slate-900 text-xs font-black text-center text-white focus:border-indigo-400"
+                                  title={`Ubah jumlah soal yang dimainkan siswa di Level ${lvl}`}
+                                />
+                                <span className="text-[10px] text-slate-400 font-semibold">Q</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Bulk Actions Bar */}
               {selectedQIds.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-indigo-950/80 border border-indigo-500/50 rounded-2xl animate-in fade-in">
@@ -1197,7 +1332,7 @@ export default function MejaGuruModal({
                     </label>
                     <select
                       value={settingsForm.maxQuestionsPerLevel ?? 4}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, maxQuestionsPerLevel: Number(e.target.value) })}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, maxQuestionsPerLevel: Number(e.target.value), levelQuestionsMap: {} })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold text-white focus:border-indigo-400"
                     >
                       <option value={1} className="bg-slate-900">1 Soal / Level (Kilat)</option>
@@ -1207,6 +1342,66 @@ export default function MejaGuruModal({
                       <option value={5} className="bg-slate-900">5 Soal / Level (Maksimal)</option>
                     </select>
                     <span className="text-[10px] text-slate-400 mt-1 block">Default: 4 soal tiap level</span>
+
+                    {/* Preset buttons & Custom Grid Toggle */}
+                    <div className="flex flex-wrap items-center gap-1 mt-2">
+                      <span className="text-[10px] text-slate-400 font-bold mr-1">Preset:</span>
+                      {[1, 2, 3, 4, 5].map((cnt) => (
+                        <button
+                          key={cnt}
+                          type="button"
+                          onClick={() => setSettingsForm({ ...settingsForm, maxQuestionsPerLevel: cnt, levelQuestionsMap: {} })}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-black border transition ${
+                            (settingsForm.maxQuestionsPerLevel ?? 4) === cnt && Object.keys(settingsForm.levelQuestionsMap || {}).length === 0
+                              ? "bg-indigo-600 text-white border-indigo-400"
+                              : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                          }`}
+                        >
+                          {cnt}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setShowModalCustomLevel(!showModalCustomLevel)}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-indigo-300 hover:text-white bg-indigo-950/60 border border-indigo-500/40 ml-auto"
+                      >
+                        {showModalCustomLevel ? "Tutup Kustom ▲" : "Kustom Tiap Level ▼"}
+                      </button>
+                    </div>
+
+                    {showModalCustomLevel && (
+                      <div className="mt-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 space-y-1.5 animate-in fade-in max-h-48 overflow-y-auto">
+                        <span className="text-[10px] font-bold text-indigo-200 block">Atur jumlah soal spesifik per level (1-25):</span>
+                        <div className="grid grid-cols-5 gap-1">
+                          {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => {
+                            const isBoss = lvl % 5 === 0;
+                            const current = settingsForm.levelQuestionsMap?.[lvl] ?? settingsForm.maxQuestionsPerLevel ?? 4;
+                            return (
+                              <div key={lvl} className={`p-1 rounded-lg border text-center ${isBoss ? "bg-purple-950/40 border-purple-500/50" : "bg-slate-800 border-slate-700"}`}>
+                                <div className="text-[9px] font-bold text-slate-400">L{lvl} {isBoss ? "👑" : ""}</div>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  value={current}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                                    setSettingsForm({
+                                      ...settingsForm,
+                                      levelQuestionsMap: {
+                                        ...(settingsForm.levelQuestionsMap || {}),
+                                        [lvl]: val,
+                                      },
+                                    });
+                                  }}
+                                  className="w-full mt-0.5 py-0.5 rounded border border-slate-600 bg-slate-900 text-xs font-black text-center text-white focus:border-indigo-400"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -1246,7 +1441,10 @@ export default function MejaGuruModal({
                   const end = settingsForm.activeLevelEnd ?? 25;
                   const perLvl = settingsForm.maxQuestionsPerLevel ?? 4;
                   const totalLvls = Math.max(1, end - start + 1);
-                  const estimatedQuestions = totalLvls * perLvl;
+                  let estimatedQuestions = 0;
+                  for (let l = start; l <= end; l++) {
+                    estimatedQuestions += (settingsForm.levelQuestionsMap?.[l] ?? perLvl);
+                  }
 
                   return (
                     <div className="p-3.5 rounded-xl bg-indigo-950/50 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-2 text-xs">

@@ -20,6 +20,11 @@ import {
   Filter,
   Download,
   Copy,
+  Sliders,
+  CheckSquare,
+  Square,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface ClassItem {
@@ -91,10 +96,21 @@ export default function TeacherMaterialsPage() {
   // Form State: Generator Soal AI
   const [questionForm, setQuestionForm] = useState({
     targetType: "BORNEO_EDU" as "BORNEO_EDU" | "NEW_ASSIGNMENT",
-    questionCount: 10,
+    borneoQuestionsPerLevel: 4,
+    borneoMode: "UNIFORM" as "UNIFORM" | "CUSTOM",
+    borneoCustomPerLevel: {} as Record<number, number>,
     assignmentTitle: "",
     deadline: "",
+    writtenTypes: {
+      PILIHAN_GANDA: { enabled: true, count: 5 },
+      BENAR_SALAH: { enabled: true, count: 3 },
+      ISIAN_SINGKAT: { enabled: true, count: 2 },
+      ESSAY: { enabled: true, count: 2 },
+      PILIHAN_GANDA_KOMPLEKS: { enabled: false, count: 2 },
+      SEBAB_AKIBAT: { enabled: false, count: 2 },
+    },
   });
+  const [showCustomLevelGrid, setShowCustomLevelGrid] = useState(false);
   const [questionGenerating, setQuestionGenerating] = useState(false);
 
   // Fetch initial classes and materials
@@ -249,11 +265,22 @@ export default function TeacherMaterialsPage() {
   // 3. Submit Handler: Generator Soal AI (Borneo Edu vs Tugas Baru)
   const handleOpenQuestionModal = (material: MaterialItem) => {
     setSelectedMaterialForQuestions(material);
+    setShowCustomLevelGrid(false);
     setQuestionForm({
       targetType: "BORNEO_EDU",
-      questionCount: 101,
+      borneoQuestionsPerLevel: 4,
+      borneoMode: "UNIFORM",
+      borneoCustomPerLevel: {},
       assignmentTitle: `Tugas Tulisan Tangan: ${material.title}`,
       deadline: "",
+      writtenTypes: {
+        PILIHAN_GANDA: { enabled: true, count: 5 },
+        BENAR_SALAH: { enabled: true, count: 3 },
+        ISIAN_SINGKAT: { enabled: true, count: 2 },
+        ESSAY: { enabled: true, count: 2 },
+        PILIHAN_GANDA_KOMPLEKS: { enabled: false, count: 2 },
+        SEBAB_AKIBAT: { enabled: false, count: 2 },
+      },
     });
     setShowQuestionGenModal(true);
   };
@@ -269,17 +296,39 @@ export default function TeacherMaterialsPage() {
           ? selectedMaterialForQuestions.classId._id
           : selectedMaterialForQuestions.classId;
 
+      const payload: any = {
+        materialId: selectedMaterialForQuestions._id,
+        classId: targetClassId,
+        targetType: questionForm.targetType,
+      };
+
+      if (questionForm.targetType === "BORNEO_EDU") {
+        payload.questionsPerLevel = questionForm.borneoQuestionsPerLevel;
+        if (questionForm.borneoMode === "CUSTOM") {
+          payload.levelQuestionsMap = questionForm.borneoCustomPerLevel;
+        }
+      } else {
+        const typeConfig: Record<string, number> = {};
+        for (const [key, val] of Object.entries(questionForm.writtenTypes)) {
+          if (val.enabled && val.count > 0) {
+            typeConfig[key] = val.count;
+          }
+        }
+        if (Object.keys(typeConfig).length === 0) {
+          alert("Pilih setidaknya satu jenis soal dengan jumlah minimal 1 butir.");
+          setQuestionGenerating(false);
+          return;
+        }
+        payload.assignmentTitle = questionForm.assignmentTitle || `Tugas Tulisan Tangan: ${selectedMaterialForQuestions.title}`;
+        payload.deadline = questionForm.deadline || null;
+        payload.questionTypesConfig = typeConfig;
+        payload.questionCount = Object.values(typeConfig).reduce((a, b) => a + b, 0);
+      }
+
       const res = await fetch("/api/ai/generate-questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          materialId: selectedMaterialForQuestions._id,
-          classId: targetClassId,
-          targetType: questionForm.targetType,
-          questionCount: questionForm.questionCount,
-          assignmentTitle: questionForm.assignmentTitle,
-          deadline: questionForm.deadline || null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -902,7 +951,6 @@ export default function TeacherMaterialsPage() {
                     setQuestionForm({
                       ...questionForm,
                       targetType: val,
-                      questionCount: val === "BORNEO_EDU" ? 101 : 10,
                     });
                   }}
                 >
@@ -915,86 +963,474 @@ export default function TeacherMaterialsPage() {
               {questionForm.targetType === "BORNEO_EDU" ? (
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-2">
                   <div className="font-bold flex items-center gap-1.5">
-                    <span>🎮 Penjelasan Tujuan Borneo Edu:</span>
+                    <span>🎮 Konfigurasi Soal Game Borneo Edu:</span>
                   </div>
                   <p className="leading-relaxed">
-                    AI akan otomatis menyusun <strong>tepat 101 soal pilihan ganda bergradasi</strong> (4 soal per level dari Level 1 s.d. 25 + Final Boss) yang bersumber <strong>100% dari teks materi ini</strong>. Kunci jawaban didistribusikan bervariasi dan merata (A, B, C, D) sehingga tidak monoton.
+                    Atur terlebih dahulu jumlah soal yang ingin dibuat untuk setiap level (Level 1 s.d. Level 25). Soal bersumber <strong>100% dari materi &ldquo;{selectedMaterialForQuestions.title}&rdquo;</strong> dengan kunci jawaban bervariasi (A, B, C, D).
                   </p>
                 </div>
               ) : (
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-2">
                   <div className="font-bold flex items-center gap-1.5">
-                    <span>📝 Penjelasan Tugas Baru (Tulisan Tangan):</span>
+                    <span>📝 Konfigurasi Tugas Tulis Tangan di Buku Tulis:</span>
                   </div>
                   <p className="leading-relaxed">
-                    AI akan membuat soal uraian/pemahaman mendalam yang langsung diterbitkan menjadi penugasan kelas baru. Siswa akan menyalin dan menjawab di buku tulis, lalu mengunggahnya lewat fitur <strong>Kamera Kumpulkan Tugas</strong>.
+                    Atur jenis-jenis soal dan jumlahnya sesuai rancangan tugas Anda. AI akan menyusun soal beserta kunci jawaban terstruktur untuk dinilai otomatis oleh AI Grader saat siswa memotret hasil tulisan tangannya.
                   </p>
                 </div>
               )}
 
-              {/* Jumlah Soal */}
-              {questionForm.targetType === "BORNEO_EDU" ? (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Jumlah Soal Game Borneo EDU:
-                  </label>
-                  <div className="w-full px-4 py-3 rounded-xl border border-amber-300 bg-amber-50/80 text-sm font-bold text-amber-950 flex items-center justify-between shadow-inner">
-                    <span className="flex items-center gap-2">
-                      <span>🎮</span>
-                      <span>Paket Lengkap Game: 101 Soal</span>
-                    </span>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-extrabold border border-amber-300">
-                      World 1 - 5 (Level 1 - 25 & Boss)
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-1.5">
-                    4 soal per level (Level 1 - 24 = 96 soal) + Level 25 (4 Final Boss + 1 Boss Cadangan = 5 soal).
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Jumlah Soal Tugas Tulisan Tangan:
-                  </label>
-                  <select
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none bg-white text-slate-900"
-                    value={questionForm.questionCount}
-                    onChange={(e) => setQuestionForm({ ...questionForm, questionCount: Number(e.target.value) })}
-                  >
-                    <option value={5} className="text-slate-900 bg-white">5 Soal Uraian Mandiri</option>
-                    <option value={10} className="text-slate-900 bg-white">10 Soal Uraian (Direkomendasikan)</option>
-                    <option value={15} className="text-slate-900 bg-white">15 Soal Uraian Komprehensif</option>
-                  </select>
-                </div>
-              )}
+              {/* ========================================================= */}
+              {/* KONTROL 1: PENGATURAN SOAL GAME BORNEO EDU */}
+              {/* ========================================================= */}
+              {questionForm.targetType === "BORNEO_EDU" && (() => {
+                const totalBorneoQuestions = Array.from({ length: 25 }, (_, i) => i + 1).reduce((acc, lvl) => {
+                  const cnt = questionForm.borneoMode === "CUSTOM"
+                    ? (questionForm.borneoCustomPerLevel[lvl] || questionForm.borneoQuestionsPerLevel)
+                    : questionForm.borneoQuestionsPerLevel;
+                  return acc + cnt;
+                }, 0);
 
-              {/* Judul Tugas Khusus Jika Tugas Baru */}
-              {questionForm.targetType === "NEW_ASSIGNMENT" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Judul Tugas Baru:
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
-                      value={questionForm.assignmentTitle}
-                      onChange={(e) => setQuestionForm({ ...questionForm, assignmentTitle: e.target.value })}
-                    />
+                const applyBorneoPreset = (count: number) => {
+                  setQuestionForm({
+                    ...questionForm,
+                    borneoQuestionsPerLevel: count,
+                    borneoMode: "UNIFORM",
+                    borneoCustomPerLevel: {},
+                  });
+                };
+
+                return (
+                  <div className="space-y-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sliders size={14} className="text-amber-600" />
+                        <span>Jumlah Soal per Level Game (Level 1 - 25)</span>
+                      </label>
+                      <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                        Total: {totalBorneoQuestions} Soal
+                      </span>
+                    </div>
+
+                    {/* Presets Cepat */}
+                    <div>
+                      <span className="text-[11px] text-slate-500 font-semibold block mb-1.5">Pilihan Cepat (Preset):</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { label: "⚡ Kilat (2 Soal)", count: 2, desc: "50 Soal" },
+                          { label: "🎯 Standar (3 Soal)", count: 3, desc: "75 Soal" },
+                          { label: "🏆 Lengkap (4 Soal)", count: 4, desc: "100 Soal" },
+                          { label: "🌟 Maksimal (5 Soal)", count: 5, desc: "125 Soal" },
+                        ].map((preset) => {
+                          const isSelected = questionForm.borneoMode === "UNIFORM" && questionForm.borneoQuestionsPerLevel === preset.count;
+                          return (
+                            <button
+                              key={preset.count}
+                              type="button"
+                              onClick={() => applyBorneoPreset(preset.count)}
+                              className={`p-2.5 rounded-xl text-left border transition ${
+                                isSelected
+                                  ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                                  : "bg-white text-slate-700 border-slate-200 hover:border-amber-300"
+                              }`}
+                            >
+                              <div className="text-xs font-black">{preset.label}</div>
+                              <div className={`text-[10px] ${isSelected ? "text-amber-100" : "text-slate-400"}`}>
+                                Total {preset.desc}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Slider & Input Seragam */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-bold text-slate-700">Jumlah Soal per Level:</span>
+                        <span className="font-black text-amber-600 text-sm">
+                          {questionForm.borneoQuestionsPerLevel} Soal / Level
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={1}
+                          max={8}
+                          value={questionForm.borneoQuestionsPerLevel}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setQuestionForm({
+                              ...questionForm,
+                              borneoQuestionsPerLevel: val,
+                            });
+                          }}
+                          className="w-full accent-amber-500 cursor-pointer"
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          max={8}
+                          value={questionForm.borneoQuestionsPerLevel}
+                          onChange={(e) => {
+                            const val = Math.max(1, Math.min(8, Number(e.target.value) || 1));
+                            setQuestionForm({
+                              ...questionForm,
+                              borneoQuestionsPerLevel: val,
+                            });
+                          }}
+                          className="w-16 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-black text-center text-slate-800"
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Rentang: 1 sampai 8 soal untuk masing-masing level petualangan.
+                      </p>
+                    </div>
+
+                    {/* Mode Toggle & Kustomisasi Level */}
+                    <div className="pt-2 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextMode = questionForm.borneoMode === "UNIFORM" ? "CUSTOM" : "UNIFORM";
+                          setShowCustomLevelGrid(nextMode === "CUSTOM");
+                          setQuestionForm({
+                            ...questionForm,
+                            borneoMode: nextMode,
+                          });
+                        }}
+                        className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1.5"
+                      >
+                        <span>{showCustomLevelGrid ? "▼" : "▶"}</span>
+                        <span>
+                          {questionForm.borneoMode === "CUSTOM"
+                            ? "Kustomisasi per Level Aktif (Klik untuk tutup rincian)"
+                            : "Atur Jumlah Soal Spesifik Tiap Level (Opsional Kustom per Level)"}
+                        </span>
+                      </button>
+
+                      {showCustomLevelGrid && (
+                        <div className="mt-3 p-3 rounded-xl bg-white border border-slate-200 space-y-3 animate-in fade-in max-h-56 overflow-y-auto">
+                          <p className="text-[11px] text-slate-500">
+                            Ubah jumlah soal untuk level tertentu (misalnya level tantangan Boss di Level 5, 10, 15, 20, atau 25):
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                            {Array.from({ length: 25 }, (_, i) => i + 1).map((lvl) => {
+                              const isBoss = lvl % 5 === 0;
+                              const currentVal = questionForm.borneoCustomPerLevel[lvl] || questionForm.borneoQuestionsPerLevel;
+                              return (
+                                <div
+                                  key={lvl}
+                                  className={`p-2 rounded-lg border text-center ${
+                                    isBoss ? "bg-amber-50/70 border-amber-300" : "bg-slate-50 border-slate-200"
+                                  }`}
+                                >
+                                  <div className="text-[10px] font-bold text-slate-600">
+                                    Lvl {lvl} {isBoss ? "👑" : ""}
+                                  </div>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={10}
+                                    value={currentVal}
+                                    onChange={(e) => {
+                                      const val = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                                      setQuestionForm({
+                                        ...questionForm,
+                                        borneoMode: "CUSTOM",
+                                        borneoCustomPerLevel: {
+                                          ...questionForm.borneoCustomPerLevel,
+                                          [lvl]: val,
+                                        },
+                                      });
+                                    }}
+                                    className="w-full mt-1 py-0.5 rounded border border-slate-300 text-xs font-black text-center text-slate-800"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Batas Waktu Pengumpulan (Deadline):
-                    </label>
-                    <input
-                      type="datetime-local"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white"
-                      value={questionForm.deadline}
-                      onChange={(e) => setQuestionForm({ ...questionForm, deadline: e.target.value })}
-                    />
+                );
+              })()}
+
+              {/* ========================================================= */}
+              {/* KONTROL 2: PENGATURAN JENIS & JUMLAH SOAL TULIS TANGAN */}
+              {/* ========================================================= */}
+              {questionForm.targetType === "NEW_ASSIGNMENT" && (() => {
+                const totalWrittenQuestions = Object.values(questionForm.writtenTypes).reduce(
+                  (sum, t) => sum + (t.enabled ? t.count : 0),
+                  0
+                );
+
+                const questionTypeMeta: Record<string, { label: string; icon: string; desc: string }> = {
+                  PILIHAN_GANDA: {
+                    label: "Pilihan Ganda",
+                    icon: "🔘",
+                    desc: "Pilihan A, B, C, D (Siswa menuliskan huruf jawaban di buku tulis)",
+                  },
+                  BENAR_SALAH: {
+                    label: "Benar - Salah",
+                    icon: "⚖️",
+                    desc: "Pernyataan faktual materi (Siswa menuliskan 'Benar' atau 'Salah' & alasan)",
+                  },
+                  ISIAN_SINGKAT: {
+                    label: "Isian Singkat",
+                    icon: "✏️",
+                    desc: "Menanyakan istilah, nama bagian, atau kata kunci penting secara ringkas",
+                  },
+                  ESSAY: {
+                    label: "Essay / Uraian",
+                    icon: "📖",
+                    desc: "Menuntut uraian lengkap, alur mekanisme, dan pemahaman analitis mendalam",
+                  },
+                  PILIHAN_GANDA_KOMPLEKS: {
+                    label: "Pilihan Ganda Kompleks",
+                    icon: "☑️",
+                    desc: "Siswa memilih lebih dari satu opsi jawaban yang benar (misal: A dan C)",
+                  },
+                  SEBAB_AKIBAT: {
+                    label: "Sebab - Akibat / Studi Kasus",
+                    icon: "🔗",
+                    desc: "Menganalisis hubungan sebab-akibat atau studi kasus konkret dari materi",
+                  },
+                };
+
+                const applyWrittenPreset = (presetName: "mixed" | "objective" | "essay") => {
+                  if (presetName === "mixed") {
+                    setQuestionForm({
+                      ...questionForm,
+                      writtenTypes: {
+                        PILIHAN_GANDA: { enabled: true, count: 5 },
+                        BENAR_SALAH: { enabled: true, count: 3 },
+                        ISIAN_SINGKAT: { enabled: true, count: 2 },
+                        ESSAY: { enabled: true, count: 2 },
+                        PILIHAN_GANDA_KOMPLEKS: { enabled: false, count: 0 },
+                        SEBAB_AKIBAT: { enabled: false, count: 0 },
+                      },
+                    });
+                  } else if (presetName === "objective") {
+                    setQuestionForm({
+                      ...questionForm,
+                      writtenTypes: {
+                        PILIHAN_GANDA: { enabled: true, count: 10 },
+                        BENAR_SALAH: { enabled: true, count: 5 },
+                        ISIAN_SINGKAT: { enabled: false, count: 0 },
+                        ESSAY: { enabled: false, count: 0 },
+                        PILIHAN_GANDA_KOMPLEKS: { enabled: false, count: 0 },
+                        SEBAB_AKIBAT: { enabled: false, count: 0 },
+                      },
+                    });
+                  } else {
+                    setQuestionForm({
+                      ...questionForm,
+                      writtenTypes: {
+                        PILIHAN_GANDA: { enabled: false, count: 0 },
+                        BENAR_SALAH: { enabled: false, count: 0 },
+                        ISIAN_SINGKAT: { enabled: true, count: 5 },
+                        ESSAY: { enabled: true, count: 5 },
+                        PILIHAN_GANDA_KOMPLEKS: { enabled: false, count: 0 },
+                        SEBAB_AKIBAT: { enabled: false, count: 0 },
+                      },
+                    });
+                  }
+                };
+
+                return (
+                  <div className="space-y-4">
+                    {/* Preset Cepat Tugas Tulis Tangan */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>📋</span>
+                          <span>Pilih Komposisi Jenis Soal Tugas:</span>
+                        </label>
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                          Total: {totalWrittenQuestions} Soal Terpilih
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyWrittenPreset("mixed")}
+                          className="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/60 text-left transition"
+                        >
+                          <div className="text-xs font-bold text-emerald-900">🌟 Campuran Standar</div>
+                          <div className="text-[10px] text-emerald-700">5 PG, 3 B-S, 2 Isian, 2 Essay (12 Soal)</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyWrittenPreset("objective")}
+                          className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-left transition"
+                        >
+                          <div className="text-xs font-bold text-slate-800">📝 Fokus Objektif</div>
+                          <div className="text-[10px] text-slate-500">10 PG, 5 Benar-Salah (15 Soal)</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyWrittenPreset("essay")}
+                          className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-left transition"
+                        >
+                          <div className="text-xs font-bold text-slate-800">🧠 Uraian & Analisis</div>
+                          <div className="text-[10px] text-slate-500">5 Isian Singkat, 5 Essay (10 Soal)</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Daftar Jenis Soal & Jumlahnya */}
+                    <div className="space-y-2.5">
+                      {Object.entries(questionTypeMeta).map(([typeKey, meta]) => {
+                        const current = questionForm.writtenTypes[typeKey as keyof typeof questionForm.writtenTypes];
+                        const isEnabled = current?.enabled ?? false;
+                        const countVal = current?.count ?? 0;
+
+                        return (
+                          <div
+                            key={typeKey}
+                            className={`p-3 rounded-2xl border transition ${
+                              isEnabled
+                                ? "bg-white border-emerald-300 shadow-sm"
+                                : "bg-slate-50/70 border-slate-200 opacity-60"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <label className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isEnabled}
+                                  onChange={(e) => {
+                                    const nextChecked = e.target.checked;
+                                    setQuestionForm({
+                                      ...questionForm,
+                                      writtenTypes: {
+                                        ...questionForm.writtenTypes,
+                                        [typeKey]: {
+                                          enabled: nextChecked,
+                                          count: nextChecked ? (countVal > 0 ? countVal : 3) : countVal,
+                                        },
+                                      },
+                                    });
+                                  }}
+                                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                                />
+                                <div>
+                                  <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                    <span>{meta.icon}</span>
+                                    <span>{meta.label}</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
+                                    {meta.desc}
+                                  </div>
+                                </div>
+                              </label>
+
+                              {/* Counter Jumlah */}
+                              {isEnabled && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Jumlah:</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setQuestionForm({
+                                        ...questionForm,
+                                        writtenTypes: {
+                                          ...questionForm.writtenTypes,
+                                          [typeKey]: {
+                                            enabled: true,
+                                            count: Math.max(1, countVal - 1),
+                                          },
+                                        },
+                                      });
+                                    }}
+                                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center transition"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    value={countVal}
+                                    onChange={(e) => {
+                                      const num = Math.max(1, Math.min(20, Number(e.target.value) || 1));
+                                      setQuestionForm({
+                                        ...questionForm,
+                                        writtenTypes: {
+                                          ...questionForm.writtenTypes,
+                                          [typeKey]: {
+                                            enabled: true,
+                                            count: num,
+                                          },
+                                        },
+                                      });
+                                    }}
+                                    className="w-12 py-1 rounded-lg border border-slate-300 text-xs font-black text-center text-slate-800"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setQuestionForm({
+                                        ...questionForm,
+                                        writtenTypes: {
+                                          ...questionForm.writtenTypes,
+                                          [typeKey]: {
+                                            enabled: true,
+                                            count: Math.min(20, countVal + 1),
+                                          },
+                                        },
+                                      });
+                                    }}
+                                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center transition"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Ringkasan Bobot */}
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-900 font-medium">
+                      <span>🎯 Total Soal: <strong>{totalWrittenQuestions} Butir</strong></span>
+                      <span className="text-[11px] text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-200 font-bold">
+                        Bobot Total: 100 Poin (Otomatis Proporsional)
+                      </span>
+                    </div>
+
+                    {/* Judul Tugas & Batas Waktu */}
+                    <div className="space-y-3 pt-2 border-t border-slate-200">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Judul Tugas Baru:
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white placeholder:text-slate-400"
+                          value={questionForm.assignmentTitle}
+                          onChange={(e) => setQuestionForm({ ...questionForm, assignmentTitle: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Batas Waktu Pengumpulan (Deadline):
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/40 focus:outline-none text-slate-900 bg-white"
+                          value={questionForm.deadline}
+                          onChange={(e) => setQuestionForm({ ...questionForm, deadline: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </>
-              )}
+                );
+              })()}
 
               <button
                 type="submit"
@@ -1010,8 +1446,8 @@ export default function TeacherMaterialsPage() {
                     <Loader2 size={18} className="animate-spin" />
                     <span>
                       {questionForm.targetType === "BORNEO_EDU"
-                        ? "AI sedang menyusun 101 soal Borneo EDU dari materi..."
-                        : "AI sedang merancang soal penugasan dari materi..."}
+                        ? "AI sedang menyusun paket soal Borneo EDU dari materi..."
+                        : "AI sedang merancang soal penugasan tulis tangan dari materi..."}
                     </span>
                   </>
                 ) : (
@@ -1019,7 +1455,7 @@ export default function TeacherMaterialsPage() {
                     <Sparkles size={18} />
                     <span>
                       {questionForm.targetType === "BORNEO_EDU"
-                        ? "🚀 Generate 101 Soal & Masukkan ke Game Borneo EDU"
+                        ? "🚀 Generate Soal & Masukkan ke Game Borneo EDU"
                         : "📝 Buat Penugasan Buku Tulis Baru"}
                     </span>
                   </>

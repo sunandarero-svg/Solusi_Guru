@@ -279,20 +279,22 @@ export default function BorneoEduGame() {
 
   // Current level's questions (acak untuk setiap sesi kelas & batasi jumlah sesuai pengaturan guru)
   const activeLevelQuestions = useMemo(() => {
-    const maxQ = teacherConfig.maxQuestionsPerLevel || 4;
+    const levelLimit = teacherConfig.levelQuestionsMap?.[playerState.currentLevel] ?? teacherConfig.maxQuestionsPerLevel ?? 4;
     const currentLevelQuestions = allQuestions.filter(
       (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && !q.isBossQuestion && q.isActive !== false
     );
     const pool = currentLevelQuestions.length > 0 ? currentLevelQuestions : allQuestions.filter((q) => !q.isBossQuestion && q.isActive !== false);
-    return shuffleQuestions(pool).slice(0, maxQ);
-  }, [allQuestions, playerState.currentWorld, playerState.currentLevel, teacherConfig.maxQuestionsPerLevel]);
+    return shuffleQuestions(pool).slice(0, Math.max(1, levelLimit));
+  }, [allQuestions, playerState.currentWorld, playerState.currentLevel, teacherConfig.maxQuestionsPerLevel, teacherConfig.levelQuestionsMap]);
 
   // Boss questions
   const currentBossQuestions = useMemo(() => {
-    return allQuestions.filter(
+    const levelLimit = teacherConfig.levelQuestionsMap?.[playerState.currentLevel] ?? teacherConfig.maxQuestionsPerLevel ?? 4;
+    const bossQs = allQuestions.filter(
       (q) => q.world === playerState.currentWorld && q.level === playerState.currentLevel && q.isBossQuestion && q.isActive !== false
     );
-  }, [allQuestions, playerState.currentWorld, playerState.currentLevel]);
+    return bossQs.slice(0, Math.max(1, levelLimit));
+  }, [allQuestions, playerState.currentWorld, playerState.currentLevel, teacherConfig.maxQuestionsPerLevel, teacherConfig.levelQuestionsMap]);
 
   const backupBossQuestions = useMemo(() => {
     return allQuestions.filter(

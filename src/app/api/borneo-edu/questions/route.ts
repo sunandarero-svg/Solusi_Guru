@@ -64,22 +64,22 @@ export async function GET(req: NextRequest) {
       if (!teacherConfig || activeOnly !== 'true') return questionsList;
       const start = teacherConfig.activeLevelStart || 1;
       const end = teacherConfig.activeLevelEnd || 25;
-      const maxPerLevel = teacherConfig.maxQuestionsPerLevel || 5;
+      const defaultMaxPerLevel = teacherConfig.maxQuestionsPerLevel || 4;
+      const levelMap = teacherConfig.levelQuestionsMap || {};
 
       // Filter level aktif
       let result = questionsList.filter((q: any) => q.level >= start && q.level <= end);
 
       // Batasi soal per level jika diatur
-      if (maxPerLevel) {
-        const grouped: Record<number, any[]> = {};
-        for (const q of result) {
-          if (!grouped[q.level]) grouped[q.level] = [];
-          grouped[q.level].push(q);
-        }
-        result = [];
-        for (const level of Object.keys(grouped).map(Number).sort((a, b) => a - b)) {
-          result.push(...grouped[level].slice(0, maxPerLevel));
-        }
+      const grouped: Record<number, any[]> = {};
+      for (const q of result) {
+        if (!grouped[q.level]) grouped[q.level] = [];
+        grouped[q.level].push(q);
+      }
+      result = [];
+      for (const level of Object.keys(grouped).map(Number).sort((a, b) => a - b)) {
+        const limit = Number(levelMap[level] || levelMap[String(level)]) || defaultMaxPerLevel;
+        result.push(...grouped[level].slice(0, limit));
       }
       return result;
     };
