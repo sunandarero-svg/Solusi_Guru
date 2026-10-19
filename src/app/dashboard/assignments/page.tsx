@@ -88,7 +88,7 @@ export default function AssignmentsPage() {
   const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedClassId = e.target.value;
     const selectedClass = teacherClasses.find(c => c.id === selectedClassId);
-    
+
     if (selectedClass) {
       setAvailableSubjects(selectedClass.subjects);
       if (selectedClass.subjects.length === 1) {
@@ -104,7 +104,7 @@ export default function AssignmentsPage() {
 
   const submitDuplicate = async () => {
     if (!selectedAssignmentForDuplicate || !duplicateForm.classId || !duplicateForm.subjectId) return;
-    
+
     // Validasi sesi jika kelas sama
     if (selectedAssignmentForDuplicate.class.id === duplicateForm.classId && !duplicateForm.sessionName.trim()) {
       setDuplicateError("Nama Sesi harus diisi karena Anda menduplikasi ke kelas yang sama (misal: Sesi 2).");
@@ -199,14 +199,14 @@ export default function AssignmentsPage() {
                       <Link href={`/dashboard/assignments/${a.id}`} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-2">
                         Detail →
                       </Link>
-                      <button 
+                      <button
                         onClick={() => handleOpenDuplicateModal(a)}
                         className="text-blue-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition"
                         title="Duplikasi Tugas"
                       >
                         <Copy size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteAssignment(a.id)}
                         className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition"
                         title="Hapus Tugas"
@@ -231,7 +231,7 @@ export default function AssignmentsPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-4 space-y-4">
               <p className="text-sm text-gray-600">
                 Duplikasi tugas <strong>"{selectedAssignmentForDuplicate.title}"</strong> ke kelas lain atau sesi berbeda. Tugas baru akan berstatus DRAFT.
@@ -245,7 +245,7 @@ export default function AssignmentsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Kelas Tujuan *</label>
-                <select 
+                <select
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
                   value={duplicateForm.classId}
                   onChange={handleClassChange}
@@ -259,21 +259,21 @@ export default function AssignmentsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sesi Tugas (Opsional, Wajib jika kelas sama)</label>
-                <input 
+                <input
                   type="text"
                   placeholder="Misal: Sesi 2, Pertemuan 3, dll"
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
                   value={duplicateForm.sessionName}
-                  onChange={e => setDuplicateForm(prev => ({...prev, sessionName: e.target.value}))}
+                  onChange={e => setDuplicateForm(prev => ({ ...prev, sessionName: e.target.value }))}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran *</label>
-                <select 
+                <select
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white text-gray-900"
                   value={duplicateForm.subjectId}
-                  onChange={e => setDuplicateForm(prev => ({...prev, subjectId: e.target.value}))}
+                  onChange={e => setDuplicateForm(prev => ({ ...prev, subjectId: e.target.value }))}
                   disabled={!duplicateForm.classId || availableSubjects.length === 0}
                 >
                   <option value="">-- Pilih Mata Pelajaran --</option>
@@ -285,13 +285,13 @@ export default function AssignmentsPage() {
             </div>
 
             <div className="p-4 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50">
-              <button 
+              <button
                 onClick={() => setIsDuplicateModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
               >
                 Batal
               </button>
-              <button 
+              <button
                 onClick={submitDuplicate}
                 disabled={isDuplicating || !duplicateForm.classId || !duplicateForm.subjectId}
                 className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50"

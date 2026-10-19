@@ -92,6 +92,68 @@ export default async function InteractiveLearningHubPage() {
           </div>
         </div>
       </div>
+
+      {/* Excel Adventure Hero Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-900 via-emerald-950 to-slate-900 border-2 border-teal-500/40 p-6 sm:p-10 text-white shadow-2xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-300 text-xs font-black border border-emerald-400/40 mb-4">
+            <Sparkles size={14} />
+            <span>MODUL PRAKTIK DIGITAL & SIMULASI SPREADSHEET</span>
+          </div>
+
+          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Excel Adventure: Misi Ahli Spreadsheet
+          </h2>
+          <p className="text-lg font-bold text-emerald-300 mt-1">
+            "Kuasai Rumus Matematika, Statistik, Logika & Visualisasi Grafik!"
+          </p>
+          <p className="text-sm text-slate-200 mt-3 leading-relaxed">
+            Simulasi spreadsheet komprehensif 10 level untuk siswa SMP dan SMA. Pelajari Flash Card visual, ketik rumus aritmetika, SUM, AVERAGE, MIN, MAX, COUNTIF, SUMIF, IF, pasang diagram batang/garis/lingkaran interaktif, gunakan AutoFill, dan ekspor lembar kerja ke format file Microsoft Excel (.xlsx) nyata!
+          </p>
+
+          <div className="flex flex-wrap items-center gap-4 mt-6">
+            <Link
+              href="/dashboard/interactive-learning/excel-adventure"
+              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-sm shadow-xl transition-transform active:scale-95 flex items-center gap-2"
+            >
+              <span>{isTeacher ? 'BUKA PANEL GURU / SMARTBOARD IFP' : 'MULAI PETUALANGAN EXCEL SEKARANG'}</span>
+              <ArrowRight size={18} />
+            </Link>
+            <Link
+              href="/interactive-learning/excel-adventure"
+              className="px-5 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition"
+            >
+              Mode Layar Penuh (Standalone)
+            </Link>
+          </div>
+        </div>
+
+        {/* Feature Highlights Grid */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8 pt-6 border-t border-white/10">
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">📊</span>
+            <span className="text-xs font-black block">Diagram Interaktif</span>
+            <span className="text-[10px] text-slate-300">Batang, Garis & Lingkaran</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">⚡</span>
+            <span className="text-xs font-black block">AutoFill & Rumus</span>
+            <span className="text-[10px] text-slate-300">SUM, IF, COUNTIF, VLOOKUP</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">📁</span>
+            <span className="text-xs font-black block">Ekspor .XLSX Riil</span>
+            <span className="text-[10px] text-slate-300">Kompatibel MS Excel</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">⚔️</span>
+            <span className="text-xs font-black block">Duel Kelas IFP</span>
+            <span className="text-[10px] text-slate-300">Cerdas Cermat SmartBoard</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
