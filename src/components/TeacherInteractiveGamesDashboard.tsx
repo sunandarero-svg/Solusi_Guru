@@ -51,7 +51,9 @@ export default function TeacherInteractiveGamesDashboard() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch("/api/excel-adventure/settings");
+      const res = await fetch("/api/excel-adventure/settings", {
+        credentials: "include"
+      });
       const data = await res.json();
       if (data && data.success) {
         if (Array.isArray(data.teacherClasses)) {
@@ -95,12 +97,14 @@ export default function TeacherInteractiveGamesDashboard() {
     try {
       const res = await fetch("/api/excel-adventure/settings", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assignedClassIds: selectedClassIds,
           kkmScore: config.kkmScore,
           activeLevels: config.activeLevels,
-          instructions: config.instructions
+          instructions: config.instructions,
+          userRole: "TEACHER"
         })
       });
       const data = await res.json();

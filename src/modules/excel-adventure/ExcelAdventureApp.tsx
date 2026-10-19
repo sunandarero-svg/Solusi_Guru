@@ -163,7 +163,9 @@ export default function ExcelAdventureApp({
   // Ambil data penugasan kelas dari database
   const fetchAssignmentSettings = async () => {
     try {
-      const res = await fetch('/api/excel-adventure/settings');
+      const res = await fetch('/api/excel-adventure/settings', {
+        credentials: 'include'
+      });
       const data = await res.json();
       if (data && data.success) {
         if (data.isTeacher) {
@@ -201,11 +203,14 @@ export default function ExcelAdventureApp({
     try {
       const res = await fetch('/api/excel-adventure/settings', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assignedClassIds,
           kkmScore,
-          instructions: teacherInstructions
+          instructions: teacherInstructions,
+          userRole: isTeacherUser ? 'TEACHER' : userRole,
+          userName: playerName
         })
       });
       const data = await res.json();

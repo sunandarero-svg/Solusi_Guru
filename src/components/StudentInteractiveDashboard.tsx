@@ -65,7 +65,9 @@ export default function StudentInteractiveDashboard() {
       }
 
       // Ambil status penugasan kelas Excel Adventure
-      const excelRes = await fetch("/api/excel-adventure/settings");
+      const excelRes = await fetch("/api/excel-adventure/settings", {
+        credentials: "include",
+      });
       const excelData = await excelRes.json();
       if (excelData) {
         setExcelStatus({

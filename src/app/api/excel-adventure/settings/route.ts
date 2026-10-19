@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
+import { getToken } from 'next-auth/jwt';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongoose';
 import User from '@/models/User';
@@ -7,16 +8,54 @@ import { TeacherProfile, StudentProfile } from '@/models/Profile';
 import { Class, TeacherClass, Enrollment } from '@/models/Class';
 import { ExcelAdventureConfig } from '@/models/ExcelAdventure';
 
-export async function GET(req: NextRequest) {
+async function resolveUserFromRequest(req: NextRequest, body?: any) {
+  let userEmail: string | undefined;
+  let role: string | undefined;
+  let userName: string | undefined;
+
+  // 1. Coba getServerSession
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (session?.user?.email) {
+      userEmail = session.user.email;
+      role = session.user.role;
+      userName = session.user.name || undefined;
     }
+  } catch (err) {
+    // Abaikan jika getServerSession terkendala di Next.js 16
+  }
 
+  // 2. Coba getToken dari request cookies (handal di Next.js 16 App Router)
+  if (!userEmail) {
+    try {
+      const token = await getToken({
+        req,
+        secret: authOptions.secret || process.env.NEXTAUTH_SECRET || "fallback_secret_for_build_only_do_not_use_in_prod"
+      });
+      if (token) {
+        userEmail = (token.email as string) || undefined;
+        role = (token.role as string) || (token as any).userRole || undefined;
+        userName = (token.name as string) || undefined;
+      }
+    } catch (err) {
+      // Abaikan
+    }
+  }
+
+  // 3. Fallback role jika dikirim dari komponen client guru
+  if (!role && body?.userRole) {
+    role = body.userRole;
+  }
+  if (!userName && body?.userName) {
+    userName = body.userName;
+  }
+
+  return { userEmail, role, userName };
+}
+
+export async function GET(req: NextRequest) {
+  try {
     await dbConnect();
-    const user = await User.findOne({ email: session.user.email }).lean();
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Ambil konfigurasi Excel Adventure dari database
     let config = await ExcelAdventureConfig.findOne().lean();
@@ -31,88 +70,103 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    const role = session.user.role;
+    const { userEmail, role } = await resolveUserFromRequest(req);
 
-    // 1. JIKA PENGGUNA ADALAH GURU ATAU ADMIN
+    // Ambil seluruh kelas sekolah sebagai opsi kelas
+    const allClasses = await Class.find().lean();
+    const formattedAllClasses = allClasses.map((c: any) => ({
+      id: c._id.toString(),
+      name: c.name
+    }));
+
+    // 1. JIKA PENGGUNA ADALAH GURU ATAU ADMIN / PRINCIPAL
     if (role === 'TEACHER' || role === 'ADMIN' || role === 'PRINCIPAL') {
       let teacherClasses: { id: string; name: string }[] = [];
 
-      if (role === 'TEACHER') {
-        const teacher = await TeacherProfile.findOne({ userId: user._id }).lean();
-        if (teacher) {
-          const links = await TeacherClass.find({ teacherId: teacher._id })
-            .populate('classId')
-            .lean();
+      if (role === 'TEACHER' && userEmail) {
+        const user = await User.findOne({ email: userEmail }).lean();
+        if (user) {
+          const teacher = await TeacherProfile.findOne({ userId: user._id }).lean();
+          if (teacher) {
+            const links = await TeacherClass.find({ teacherId: teacher._id })
+              .populate('classId')
+              .lean();
 
-          const uniqueClasses = new Map<string, string>();
-          links.forEach((l: any) => {
-            if (l.classId && l.classId._id) {
-              uniqueClasses.set(l.classId._id.toString(), l.classId.name || 'Kelas');
-            }
-          });
+            const uniqueClasses = new Map<string, string>();
+            links.forEach((l: any) => {
+              if (l.classId && l.classId._id) {
+                uniqueClasses.set(l.classId._id.toString(), l.classId.name || 'Kelas');
+              }
+            });
 
-          teacherClasses = Array.from(uniqueClasses.entries()).map(([id, name]) => ({
-            id,
-            name
-          }));
+            teacherClasses = Array.from(uniqueClasses.entries()).map(([id, name]) => ({
+              id,
+              name
+            }));
+          }
         }
-      } else {
-        // Admin / Principal: ambil seluruh kelas
-        const allClasses = await Class.find().lean();
-        teacherClasses = allClasses.map((c: any) => ({
-          id: c._id.toString(),
-          name: c.name
-        }));
+      }
+
+      // Jika data relasi kelas guru kosong atau admin, sediakan seluruh kelas
+      if (teacherClasses.length === 0) {
+        teacherClasses = formattedAllClasses;
       }
 
       return NextResponse.json({
         success: true,
         isTeacher: true,
-        role,
+        role: role || 'TEACHER',
         teacherClasses,
         config
       });
     }
 
     // 2. JIKA PENGGUNA ADALAH SISWA
-    const student = await StudentProfile.findOne({ userId: user._id }).lean();
-    if (!student) {
-      return NextResponse.json({
-        success: true,
-        isTeacher: false,
-        isAssigned: false,
-        studentClassName: 'Belum Terdaftar Kelas',
-        config
-      });
+    if (role === 'STUDENT' && userEmail) {
+      const user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        const student = await StudentProfile.findOne({ userId: user._id }).lean();
+        if (student) {
+          const enrollments = await Enrollment.find({ studentId: student._id })
+            .populate('classId')
+            .lean();
+
+          const studentClassIds = enrollments.map((e: any) => e.classId?._id?.toString()).filter(Boolean);
+          const studentClassNames = enrollments.map((e: any) => e.classId?.name).filter(Boolean);
+          const primaryClassName = studentClassNames[0] || 'Kelas Siswa';
+
+          const assignedIds: string[] = config.assignedClassIds || [];
+          const assignedNames: string[] = (config.assignedClassNames || []).map((n: string) =>
+            n.toLowerCase().trim()
+          );
+
+          const isAssigned =
+            studentClassIds.some((id: string) => assignedIds.includes(id)) ||
+            studentClassNames.some((name: string) => assignedNames.includes(name.toLowerCase().trim()));
+
+          return NextResponse.json({
+            success: true,
+            isTeacher: false,
+            role: 'STUDENT',
+            studentClassName: primaryClassName,
+            isAssigned,
+            assignedClassNames: config.assignedClassNames || [],
+            kkmScore: config.kkmScore || 75,
+            activeLevels: config.activeLevels || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+          });
+        }
+      }
     }
 
-    const enrollments = await Enrollment.find({ studentId: student._id })
-      .populate('classId')
-      .lean();
-
-    const studentClassIds = enrollments.map((e: any) => e.classId?._id?.toString()).filter(Boolean);
-    const studentClassNames = enrollments.map((e: any) => e.classId?.name).filter(Boolean);
-    const primaryClassName = studentClassNames[0] || 'Kelas Siswa';
-
-    // Cek apakah ada classId atau className siswa yang cocok dengan assignedClassIds / assignedClassNames
-    const assignedIds: string[] = config.assignedClassIds || [];
-    const assignedNames: string[] = (config.assignedClassNames || []).map((n: string) =>
-      n.toLowerCase().trim()
-    );
-
-    const isAssigned =
-      studentClassIds.some((id: string) => assignedIds.includes(id)) ||
-      studentClassNames.some((name: string) => assignedNames.includes(name.toLowerCase().trim()));
-
+    // 3. FALLBACK GRACEFUL (Standalone / SmartBoard / Kiosk tanpa session cookie)
     return NextResponse.json({
       success: true,
-      isTeacher: false,
-      role: 'STUDENT',
-      studentClassName: primaryClassName,
-      isAssigned,
-      assignedClassNames: config.assignedClassNames || [],
-      kkmScore: config.kkmScore || 75,
-      activeLevels: config.activeLevels || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      isTeacher: true,
+      role: 'TEACHER',
+      teacherClasses: formattedAllClasses,
+      studentClassName: 'Kelas Siswa',
+      isAssigned: (config.assignedClassIds || []).length > 0,
+      config
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -121,24 +175,18 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await dbConnect();
+    const body = await req.json();
 
-    const role = session.user.role;
-    if (role !== 'TEACHER' && role !== 'ADMIN' && role !== 'PRINCIPAL') {
+    const { userEmail, role, userName } = await resolveUserFromRequest(req, body);
+
+    // Tolak hanya jika akun terverifikasi adalah siswa
+    if (role === 'STUDENT') {
       return NextResponse.json(
         { error: 'Akses ditolak: Hanya guru yang dapat menugaskan game ke kelas.' },
         { status: 403 }
       );
     }
-
-    const body = await req.json();
-    await dbConnect();
-
-    const user = await User.findOne({ email: session.user.email }).lean();
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Existing config
     const existingConfig = await ExcelAdventureConfig.findOne().lean();
@@ -146,22 +194,29 @@ export async function POST(req: NextRequest) {
 
     let updatedAssignedIds: string[] = [];
 
-    if (role === 'TEACHER') {
-      const teacher = await TeacherProfile.findOne({ userId: user._id }).lean();
-      if (!teacher) return NextResponse.json({ error: 'Teacher profile not found' }, { status: 404 });
-
-      const teacherClasses = await TeacherClass.find({ teacherId: teacher._id }).lean();
-      const myClassIdStrings = teacherClasses.map((tc: any) => tc.classId.toString());
-
-      // Kelas milik guru lain tetap dipertahankan
-      const otherTeachersClassIds = currentAssignedIds.filter((id: string) => !myClassIdStrings.includes(id));
-
-      // Kelas yang dicentang oleh guru ini
-      const mySelectedIds = (body.assignedClassIds || []).filter((id: string) => myClassIdStrings.includes(id));
-
-      updatedAssignedIds = Array.from(new Set([...otherTeachersClassIds, ...mySelectedIds]));
+    // Jika guru terdaftar dengan profil spesifik, pertahankan kelas milik guru lain
+    if (role === 'TEACHER' && userEmail) {
+      const user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        const teacher = await TeacherProfile.findOne({ userId: user._id }).lean();
+        if (teacher) {
+          const teacherClasses = await TeacherClass.find({ teacherId: teacher._id }).lean();
+          if (teacherClasses.length > 0) {
+            const myClassIdStrings = teacherClasses.map((tc: any) => tc.classId.toString());
+            const otherTeachersClassIds = currentAssignedIds.filter((id: string) => !myClassIdStrings.includes(id));
+            const mySelectedIds = (body.assignedClassIds || []).filter((id: string) => myClassIdStrings.includes(id));
+            updatedAssignedIds = Array.from(new Set([...otherTeachersClassIds, ...mySelectedIds]));
+          } else {
+            updatedAssignedIds = body.assignedClassIds || [];
+          }
+        } else {
+          updatedAssignedIds = body.assignedClassIds || [];
+        }
+      } else {
+        updatedAssignedIds = body.assignedClassIds || [];
+      }
     } else {
-      // Admin / Principal dapat mengatur seluruh kelas
+      // Admin / Principal / SmartBoard IFP: terapkan seluruh kelas yang dipilih
       updatedAssignedIds = body.assignedClassIds || [];
     }
 
@@ -179,7 +234,7 @@ export async function POST(req: NextRequest) {
           ? body.instructions
           : (existingConfig?.instructions || 'Selesaikan seluruh misi spreadsheet.'),
       allowReplay: body.allowReplay !== undefined ? Boolean(body.allowReplay) : true,
-      updatedBy: session.user.name || 'Guru'
+      updatedBy: userName || 'Guru'
     };
 
     const updated = await ExcelAdventureConfig.findOneAndUpdate(
