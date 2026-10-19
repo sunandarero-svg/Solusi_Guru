@@ -103,8 +103,8 @@ export const ClassroomDuelModal: React.FC<ClassroomDuelModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md animate-in fade-in">
-      <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-5 sm:p-8 max-w-4xl w-full max-h-[95vh] overflow-y-auto shadow-2xl flex flex-col justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md animate-in fade-in overflow-y-auto">
+      <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-5 sm:p-8 max-w-4xl w-full max-h-[95vh] overflow-y-auto shadow-2xl flex flex-col justify-between my-auto">
         {/* Header Duel */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
           <div className="flex items-center gap-3">

@@ -13,6 +13,8 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Volume2,
   VolumeX,
   Sparkles,
@@ -732,6 +734,25 @@ export default function ExcelAdventureApp({
     );
   }, [levelScores]);
 
+  // Fungsi Gulir Cepat untuk Layar Sentuh SmartBoard / IFP & Mobile Landscape
+  const scrollToSpreadsheet = () => {
+    playSound('click', soundEnabled);
+    const el = document.getElementById('spreadsheet-workspace');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const scrollToMission = () => {
+    playSound('click', soundEnabled);
+    const el = document.getElementById('mission-instruction-banner');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   // Render Simulator Spreadsheet
   const renderSpreadsheet = (isTeacherDemo = false) => {
     const activeCellObj = gridData[selectedCell] || { value: '', style: {} };
@@ -739,6 +760,7 @@ export default function ExcelAdventureApp({
 
     return (
       <div
+        id="spreadsheet-workspace"
         className="bg-white text-slate-800 rounded-2xl shadow-xl border-2 border-emerald-600/30 overflow-hidden flex flex-col"
         style={{ fontSize: `${zoomScale * 100}%` }}
       >
@@ -852,25 +874,25 @@ export default function ExcelAdventureApp({
     if (screen === 'SPLASH') return null;
 
     return (
-      <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-2 sm:py-3 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
           <div
             onClick={() => {
               playSound('click', soundEnabled);
               setScreen('HOME');
             }}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer group shrink-0"
           >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-600/20 group-hover:scale-105 transition">
-              <FileSpreadsheet className="w-6 h-6 text-white" />
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-600/20 group-hover:scale-105 transition shrink-0">
+              <FileSpreadsheet className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-base sm:text-lg tracking-tight text-white">
+                <h1 className="font-extrabold text-sm sm:text-base md:text-lg tracking-tight text-white">
                   EXCEL ADVENTURE
                 </h1>
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${
                     appMode === 'TEACHER'
                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                       : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
@@ -879,13 +901,13 @@ export default function ExcelAdventureApp({
                   {appMode === 'TEACHER' ? 'MODE GURU / IFP' : 'MODE SISWA'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
+              <p className="text-[11px] text-slate-400 hidden lg:block">
                 Misi Ahli Spreadsheet • Pembelajaran Interaktif SMP & SMA
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 overflow-x-auto py-0.5">
             {appMode === 'STUDENT' && (
               <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl text-xs sm:text-sm">
                 <span className="text-lg">{playerAvatar}</span>
@@ -988,9 +1010,20 @@ export default function ExcelAdventureApp({
   // 1. SPLASH SCREEN
   if (screen === 'SPLASH') {
     return (
-      <div ref={containerRef} className="min-h-screen relative bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+      <div
+        ref={containerRef}
+        className={`relative bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 text-white flex flex-col items-center justify-center p-4 sm:p-6 text-center ${
+          isFullscreen
+            ? 'fixed inset-0 z-[99999] w-screen h-screen min-h-[100dvh] max-h-[100dvh] overflow-y-auto overscroll-contain touch-pan-y'
+            : 'min-h-screen w-full overflow-y-auto overscroll-contain'
+        }`}
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y'
+        }}
+      >
         {/* Floating Tombol Fullscreen Lanskap */}
-        <div className="absolute top-4 right-4 z-50">
+        <div className="sticky sm:absolute top-4 right-4 z-50 self-end mb-2 sm:mb-0">
           <button
             type="button"
             onClick={toggleFullscreen}
@@ -1006,9 +1039,9 @@ export default function ExcelAdventureApp({
           </button>
         </div>
 
-        <div className="max-w-xl w-full bg-slate-900/80 border border-emerald-500/30 rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-md">
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 mx-auto flex items-center justify-center shadow-xl shadow-emerald-500/30 mb-6 animate-bounce">
-            <FileSpreadsheet className="w-14 h-14 text-white" />
+        <div className="my-auto max-w-xl w-full bg-slate-900/80 border border-emerald-500/30 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-md">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 mx-auto flex items-center justify-center shadow-xl shadow-emerald-500/30 mb-6 animate-bounce">
+            <FileSpreadsheet className="w-12 h-12 sm:w-14 sm:h-14 text-white" />
           </div>
           <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold uppercase tracking-widest">
             Game Edukasi Informatika SMP/SMA
@@ -1064,13 +1097,19 @@ export default function ExcelAdventureApp({
   return (
     <div
       ref={containerRef}
-      className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 ${
-        isFullscreen ? 'w-full h-full' : ''
+      className={`bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 ${
+        isFullscreen
+          ? 'fixed inset-0 z-[99999] w-screen h-screen min-h-[100dvh] max-h-[100dvh] overflow-y-auto overscroll-contain touch-pan-y'
+          : 'min-h-screen w-full overflow-y-auto overscroll-contain'
       }`}
+      style={{
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y'
+      }}
     >
       {renderNavbar()}
 
-      <main className="flex-1 pb-12">
+      <main className="flex-1 pb-24">
         {/* BERANDA */}
         {screen === 'HOME' && (
           <div className="max-w-6xl mx-auto p-4 sm:p-8">
@@ -1574,7 +1613,7 @@ export default function ExcelAdventureApp({
             </div>
 
             {/* Banner Misi Aktif & Tombol Periksa */}
-            <div className="bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-900 border-2 border-emerald-500/50 rounded-2xl p-4 sm:p-5 shadow-lg">
+            <div id="mission-instruction-banner" className="bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-900 border-2 border-emerald-500/50 rounded-2xl p-4 sm:p-5 shadow-lg">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
@@ -1655,6 +1694,41 @@ export default function ExcelAdventureApp({
 
             {/* Komponen Spreadsheet */}
             {renderSpreadsheet(false)}
+
+            {/* Tombol Floating Navigasi Naik/Turun & Fullscreen Lanskap */}
+            <div className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-40 flex items-center gap-1.5 p-1.5 bg-slate-900/90 border border-slate-700/80 rounded-2xl backdrop-blur-md shadow-2xl">
+              <button
+                type="button"
+                onClick={scrollToMission}
+                className="min-h-[40px] px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold flex items-center gap-1 border border-slate-700 shadow-sm transition active:scale-95"
+                title="Gulir Cepat ke Atas (Instruksi Misi)"
+              >
+                <ChevronUp className="w-4 h-4" />
+                <span className="hidden sm:inline">Ke Misi</span>
+              </button>
+              <button
+                type="button"
+                onClick={scrollToSpreadsheet}
+                className="min-h-[40px] px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold flex items-center gap-1 border border-slate-700 shadow-sm transition active:scale-95"
+                title="Gulir Cepat ke Bawah (Lembar Kerja Spreadsheet)"
+              >
+                <ChevronDown className="w-4 h-4" />
+                <span className="hidden sm:inline">Ke Tabel</span>
+              </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className={`min-h-[40px] px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 transition border shadow-sm ${
+                  isFullscreen
+                    ? 'bg-amber-400 text-slate-950 border-amber-300 hover:bg-amber-300'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/40'
+                }`}
+                title={isFullscreen ? 'Keluar Fullscreen (ESC)' : 'Mode Layar Penuh Lanskap'}
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                <span className="hidden sm:inline">{isFullscreen ? 'Keluar' : 'Lanskap'}</span>
+              </button>
+            </div>
           </div>
         )}
 

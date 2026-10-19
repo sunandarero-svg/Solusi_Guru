@@ -24,7 +24,10 @@ export const GridTable: React.FC<GridTableProps> = ({
   onAutoFillDown
 }) => {
   return (
-    <div className="overflow-x-auto w-full select-none">
+    <div
+      className="overflow-x-auto w-full select-none touch-pan-x touch-pan-y"
+      style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}
+    >
       <table className="w-full border-collapse table-fixed min-w-[620px]">
         <thead>
           <tr>
