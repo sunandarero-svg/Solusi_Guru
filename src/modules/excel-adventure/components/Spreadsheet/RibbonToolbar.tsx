@@ -16,7 +16,9 @@ import {
   BarChart2,
   FileSpreadsheet,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { CellStyle } from '../../types';
 
@@ -25,6 +27,8 @@ interface RibbonToolbarProps {
   currentLevelId: number;
   activeFilter: string;
   isTeacherDemo?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
   onToggleStyle: (key: keyof CellStyle, val?: any) => void;
   onSelectRangeHelper: () => void;
   onSortTable: (col: string, dir: 'ASC' | 'DESC') => void;
@@ -41,6 +45,8 @@ export const RibbonToolbar: React.FC<RibbonToolbarProps> = ({
   currentLevelId,
   activeFilter,
   isTeacherDemo,
+  isFullscreen,
+  onToggleFullscreen,
   onToggleStyle,
   onSelectRangeHelper,
   onSortTable,
@@ -173,8 +179,30 @@ export const RibbonToolbar: React.FC<RibbonToolbarProps> = ({
         />
       </div>
 
-      {/* 4. Fitur Baru: Buat Grafik, Ekspor Excel, Tutor AI */}
+      {/* 4. Fitur Baru: Buat Grafik, Ekspor Excel, Tutor AI, Fullscreen Lanskap */}
       <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+        {onToggleFullscreen && (
+          <button
+            type="button"
+            onClick={onToggleFullscreen}
+            className={`min-h-[42px] px-3.5 rounded-lg text-xs font-black flex items-center gap-1.5 shadow-sm transition border ${
+              isFullscreen
+                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-300'
+                : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-emerald-400/40'
+            }`}
+            title={
+              isFullscreen
+                ? 'Keluar dari Layar Penuh (ESC)'
+                : 'Layar Penuh Lanskap (Kunci Layar Sentuh SmartBoard / IFP & Tablet)'
+            }
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            <span className="hidden sm:inline">
+              {isFullscreen ? 'Keluar Fullscreen' : 'Lanskap Fullscreen'}
+            </span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onOpenChartModal}

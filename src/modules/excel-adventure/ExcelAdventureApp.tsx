@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   BookOpen,
   Play,
@@ -30,7 +30,9 @@ import {
   BarChart2,
   Printer,
   Save,
-  Loader2
+  Loader2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 import { LEVELS_DATA } from './data/levelsData';
@@ -85,11 +87,98 @@ export default function ExcelAdventureApp({
 
   const [appMode, setAppMode] = useState<'STUDENT' | 'TEACHER'>(initialMode);
 
-  // Pengaturan & Aksesibilitas IFP
+  // Pengaturan & Aksesibilitas IFP & Fullscreen Lanskap
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [zoomScale, setZoomScale] = useState(1);
   const [kkmScore, setKkmScore] = useState(75);
   const [teacherUnlockAll, setTeacherUnlockAll] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sinkronisasi status fullscreen dari perubahan browser
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(
+        (typeof document !== 'undefined' && document.fullscreenElement) ||
+        (typeof document !== 'undefined' && (document as any).webkitFullscreenElement) ||
+        (typeof document !== 'undefined' && (document as any).mozFullScreenElement) ||
+        (typeof document !== 'undefined' && (document as any).msFullscreenElement)
+      );
+      setIsFullscreen(isFs);
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('fullscreenchange', handleFsChange);
+      document.addEventListener('webkitfullscreenchange', handleFsChange);
+      document.addEventListener('mozfullscreenchange', handleFsChange);
+      document.addEventListener('MSFullscreenChange', handleFsChange);
+    }
+
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('fullscreenchange', handleFsChange);
+        document.removeEventListener('webkitfullscreenchange', handleFsChange);
+        document.removeEventListener('mozfullscreenchange', handleFsChange);
+        document.removeEventListener('MSFullscreenChange', handleFsChange);
+      }
+    };
+  }, []);
+
+  // Handler Tombol Full Screen Lanskap
+  const toggleFullscreen = () => {
+    playSound('click', soundEnabled);
+    const elem = containerRef.current || (typeof document !== 'undefined' ? document.documentElement : null);
+    if (!isFullscreen) {
+      setIsFullscreen(true);
+      if (elem) {
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen().catch(() => {});
+        } else if ((elem as any).webkitRequestFullscreen) {
+          (elem as any).webkitRequestFullscreen();
+        } else if ((elem as any).mozRequestFullScreen) {
+          (elem as any).mozRequestFullScreen();
+        } else if ((elem as any).msRequestFullscreen) {
+          (elem as any).msRequestFullscreen();
+        }
+      }
+      try {
+        if (
+          typeof window !== 'undefined' &&
+          typeof window.screen !== 'undefined' &&
+          window.screen.orientation &&
+          'lock' in window.screen.orientation
+        ) {
+          (window.screen.orientation as any).lock('landscape').catch(() => {});
+        }
+      } catch (_) {}
+    } else {
+      setIsFullscreen(false);
+      if (typeof document !== 'undefined') {
+        const doc = document as any;
+        if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          } else if (doc.webkitExitFullscreen) {
+            doc.webkitExitFullscreen();
+          } else if (doc.mozCancelFullScreen) {
+            doc.mozCancelFullScreen();
+          } else if (doc.msExitFullscreen) {
+            doc.msExitFullscreen();
+          }
+        }
+      }
+      try {
+        if (
+          typeof window !== 'undefined' &&
+          typeof window.screen !== 'undefined' &&
+          window.screen.orientation &&
+          'unlock' in window.screen.orientation
+        ) {
+          (window.screen.orientation as any).unlock();
+        }
+      } catch (_) {}
+    }
+  };
 
   // Profil Pemain
   const [playerName, setPlayerName] = useState(defaultPlayerName);
@@ -674,6 +763,8 @@ export default function ExcelAdventureApp({
           currentLevelId={currentLevelId}
           activeFilter={activeFilter}
           isTeacherDemo={isTeacherDemo}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
           onToggleStyle={handleToggleStyle}
           onSelectRangeHelper={() => {
             playSound('click', soundEnabled);
@@ -845,6 +936,27 @@ export default function ExcelAdventureApp({
               <span className="hidden md:inline">Lencana</span>
             </button>
 
+            {/* Tombol Full Screen Lanskap */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className={`min-h-[44px] px-3 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 transition border shadow-sm ${
+                isFullscreen
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 hover:bg-amber-300'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/40'
+              }`}
+              title={
+                isFullscreen
+                  ? 'Keluar dari Layar Penuh (ESC)'
+                  : 'Mode Layar Penuh Lanskap (SmartBoard/IFP & Layar Sentuh)'
+              }
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              <span className="hidden sm:inline">
+                {isFullscreen ? 'Keluar Fullscreen' : 'Full Screen Lanskap'}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => setSoundEnabled(!soundEnabled)}
@@ -876,7 +988,24 @@ export default function ExcelAdventureApp({
   // 1. SPLASH SCREEN
   if (screen === 'SPLASH') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+      <div ref={containerRef} className="min-h-screen relative bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+        {/* Floating Tombol Fullscreen Lanskap */}
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className={`min-h-[44px] px-3.5 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition border shadow-lg backdrop-blur-md ${
+              isFullscreen
+                ? 'bg-amber-400 text-slate-950 border-amber-300'
+                : 'bg-slate-900/80 text-emerald-300 border-emerald-500/40 hover:bg-slate-800'
+            }`}
+            title="Layar Penuh Lanskap (Kunci Layar Sentuh SmartBoard / IFP & Tablet)"
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            <span>{isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh Lanskap'}</span>
+          </button>
+        </div>
+
         <div className="max-w-xl w-full bg-slate-900/80 border border-emerald-500/30 rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-md">
           <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 mx-auto flex items-center justify-center shadow-xl shadow-emerald-500/30 mb-6 animate-bounce">
             <FileSpreadsheet className="w-14 h-14 text-white" />
@@ -894,16 +1023,31 @@ export default function ExcelAdventureApp({
             Kuasai antarmuka spreadsheet, pemformatan tabel, rumus matematika, fungsi statistik, logika, hingga visualisasi diagram interaktif!
           </p>
 
-          <button
-            type="button"
-            onClick={() => {
-              playSound('success', soundEnabled);
-              setScreen('HOME');
-            }}
-            className="mt-8 w-full min-h-[58px] bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-lg rounded-2xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-3 transition transform active:scale-95"
-          >
-            <Play className="w-6 h-6 fill-slate-950" /> MULAI PETUALANGAN
-          </button>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                playSound('success', soundEnabled);
+                setScreen('HOME');
+              }}
+              className="flex-1 min-h-[58px] bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-base sm:text-lg rounded-2xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2.5 transition transform active:scale-95"
+            >
+              <Play className="w-5 h-5 fill-slate-950" /> MULAI PETUALANGAN
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                toggleFullscreen();
+                playSound('success', soundEnabled);
+                setScreen('HOME');
+              }}
+              className="min-h-[58px] px-5 bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-white font-bold text-xs sm:text-sm rounded-2xl border border-emerald-500/30 flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+              title="Mulai langsung dalam mode Layar Penuh Lanskap untuk SmartBoard / IFP & Layar Sentuh"
+            >
+              <Maximize2 className="w-5 h-5" />
+              <span>Full Screen Lanskap</span>
+            </button>
+          </div>
 
           <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-400">
             <span>✓ Layar Sentuh IFP / SmartBoard</span>
@@ -918,7 +1062,12 @@ export default function ExcelAdventureApp({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <div
+      ref={containerRef}
+      className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 ${
+        isFullscreen ? 'w-full h-full' : ''
+      }`}
+    >
       {renderNavbar()}
 
       <main className="flex-1 pb-12">
