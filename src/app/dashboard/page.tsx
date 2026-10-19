@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FileText, Inbox, Users, BookOpen, CheckCircle, TrendingUp, Gamepad2, Sparkles } from "lucide-react";
 import TeacherProgressDashboard from "@/components/TeacherProgressDashboard";
+import TeacherInteractiveGamesDashboard from "@/components/TeacherInteractiveGamesDashboard";
 import StudentInteractiveDashboard from "@/components/StudentInteractiveDashboard";
 
 export default async function DashboardPage() {
@@ -171,6 +172,9 @@ export default async function DashboardPage() {
         </div>
         
         <TeacherProgressDashboard />
+        
+        {/* Modul Pembelajaran Interaktif & Game Edukasi Guru (Excel Adventure & Borneo Edu) */}
+        <TeacherInteractiveGamesDashboard />
       </>
       ) : (
         <>

@@ -37,6 +37,7 @@ export default function ExcelAdventureClientWrapper({
     <div className="w-full">
       <ExcelAdventureApp
         initialMode={isTeacher ? 'TEACHER' : 'STUDENT'}
+        userRole={userRole}
         defaultPlayerName={userName}
         defaultPlayerClass="8A"
       />

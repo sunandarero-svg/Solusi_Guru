@@ -28,7 +28,9 @@ import {
   Clock,
   Swords,
   BarChart2,
-  Printer
+  Printer,
+  Save,
+  Loader2
 } from 'lucide-react';
 
 import { LEVELS_DATA } from './data/levelsData';
@@ -54,15 +56,19 @@ import { ClassroomDuelModal } from './components/Modals/ClassroomDuelModal';
 
 interface ExcelAdventureAppProps {
   initialMode?: 'STUDENT' | 'TEACHER';
+  userRole?: string;
   defaultPlayerName?: string;
   defaultPlayerClass?: string;
 }
 
 export default function ExcelAdventureApp({
   initialMode = 'STUDENT',
+  userRole = 'STUDENT',
   defaultPlayerName = 'Siswa Hebat',
   defaultPlayerClass = '8A'
 }: ExcelAdventureAppProps) {
+  const isTeacherUser =
+    userRole === 'TEACHER' || userRole === 'ADMIN' || userRole === 'PRINCIPAL';
   // Navigasi Layar Utama
   const [screen, setScreen] = useState<
     | 'SPLASH'
@@ -137,11 +143,102 @@ export default function ExcelAdventureApp({
   const [activeChart, setActiveChart] = useState<ChartConfig | null>(null);
 
   // State Khusus Mode Guru IFP
-  const [teacherTab, setTeacherTab] = useState<'DEMO' | 'FLASHCARD' | 'CHALLENGE' | 'RECAP'>('DEMO');
+  const [teacherTab, setTeacherTab] = useState<'DEMO' | 'FLASHCARD' | 'CHALLENGE' | 'RECAP' | 'ASSIGNMENT'>('DEMO');
   const [classTimerSec, setClassTimerSec] = useState(60);
   const [classTimerRunning, setClassTimerRunning] = useState(false);
   const [revealAnswer, setRevealAnswer] = useState(false);
   const [classVotes, setClassVotes] = useState({ A: 0, B: 0, C: 0, D: 0 });
+
+  // State Penugasan Kelas & Gating Siswa
+  const [assignmentLoading, setAssignmentLoading] = useState(true);
+  const [isStudentAssigned, setIsStudentAssigned] = useState(false);
+  const [studentAssignedClassName, setStudentAssignedClassName] = useState('');
+  const [availableTeacherClasses, setAvailableTeacherClasses] = useState<{ id: string; name: string }[]>([]);
+  const [assignedClassIds, setAssignedClassIds] = useState<string[]>([]);
+  const [assignedClassNames, setAssignedClassNames] = useState<string[]>([]);
+  const [teacherInstructions, setTeacherInstructions] = useState('');
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
+  const [assignmentNotice, setAssignmentNotice] = useState<string | null>(null);
+
+  // Ambil data penugasan kelas dari database
+  const fetchAssignmentSettings = async () => {
+    try {
+      const res = await fetch('/api/excel-adventure/settings');
+      const data = await res.json();
+      if (data && data.success) {
+        if (data.isTeacher) {
+          setAvailableTeacherClasses(data.teacherClasses || []);
+          if (data.config) {
+            setAssignedClassIds(data.config.assignedClassIds || []);
+            setAssignedClassNames(data.config.assignedClassNames || []);
+            if (data.config.kkmScore) setKkmScore(data.config.kkmScore);
+            if (data.config.instructions) setTeacherInstructions(data.config.instructions);
+          }
+        } else {
+          setIsStudentAssigned(Boolean(data.isAssigned));
+          setStudentAssignedClassName(data.studentClassName || defaultPlayerClass);
+          if (data.studentClassName) {
+            setPlayerClass(data.studentClassName);
+          }
+          if (data.kkmScore) setKkmScore(data.kkmScore);
+        }
+      }
+    } catch (err) {
+      console.error('Gagal mengambil konfigurasi Excel Adventure', err);
+    } finally {
+      setAssignmentLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignmentSettings();
+  }, [defaultPlayerClass]);
+
+  // Simpan penugasan kelas oleh guru
+  const handleSaveTeacherAssignment = async () => {
+    setAssignmentSaving(true);
+    setAssignmentNotice(null);
+    try {
+      const res = await fetch('/api/excel-adventure/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedClassIds,
+          kkmScore,
+          instructions: teacherInstructions
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        playSound('success', soundEnabled);
+        setAssignmentNotice('✓ Penugasan kelas berhasil diperbarui!');
+        await fetchAssignmentSettings();
+        setTimeout(() => setAssignmentNotice(null), 3000);
+      } else {
+        alert(data.error || 'Gagal menyimpan penugasan kelas');
+      }
+    } catch (e) {
+      alert('Terjadi kesalahan jaringan saat menyimpan penugasan.');
+    } finally {
+      setAssignmentSaving(false);
+    }
+  };
+
+  const handleToggleClassAssignment = (classId: string) => {
+    setAssignedClassIds((prev) =>
+      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
+    );
+  };
+
+  const handleSelectAllTeacherClasses = () => {
+    const myIds = availableTeacherClasses.map((c) => c.id);
+    const allSelected = myIds.every((id) => assignedClassIds.includes(id));
+    if (allSelected) {
+      setAssignedClassIds((prev) => prev.filter((id) => !myIds.includes(id)));
+    } else {
+      setAssignedClassIds((prev) => Array.from(new Set([...prev, ...myIds])));
+    }
+  };
 
   const currentLevel = useMemo(
     () => LEVELS_DATA.find((l) => l.id === currentLevelId) || LEVELS_DATA[0],
@@ -836,54 +933,153 @@ export default function ExcelAdventureApp({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                 {/* Siswa */}
-                <div className="bg-slate-900/90 border-2 border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-6 flex flex-col justify-between shadow-lg">
+                <div
+                  className={`border-2 rounded-2xl p-6 flex flex-col justify-between shadow-lg transition ${
+                    !isTeacherUser && !assignmentLoading && !isStudentAssigned
+                      ? 'bg-slate-900/60 border-slate-700/80 opacity-90'
+                      : 'bg-slate-900/90 border-emerald-500/40 hover:border-emerald-400'
+                  }`}
+                >
                   <div>
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 mb-4">
-                      <User className="w-8 h-8" />
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300">
+                        <User className="w-8 h-8" />
+                      </div>
+                      {!isTeacherUser && (
+                        isStudentAssigned ? (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/40 flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> Ditugaskan ({studentAssignedClassName})
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/40 flex items-center gap-1">
+                            <Lock className="w-3.5 h-3.5" /> Belum Ditugaskan Guru
+                          </span>
+                        )
+                      )}
                     </div>
                     <h3 className="text-xl font-black text-white">Mode Siswa — Belajar Mandiri</h3>
-                    <p className="text-slate-300 text-sm mt-2">
-                      Pelajari Flash Card visual, selesaikan 10 Level petualangan bertahap, pasang diagram, gunakan AutoFill, raih XP, dan gelar Excel Master!
+                    <p className="text-slate-300 text-sm mt-2 leading-relaxed">
+                      {!isTeacherUser && !isStudentAssigned
+                        ? `Kelas Anda (${studentAssignedClassName || 'Kelas Siswa'}) belum dimasukkan ke daftar penugasan aktif oleh guru. Anda belum dapat memulai level latihan sebelum guru menugaskannya.`
+                        : 'Pelajari Flash Card visual, selesaikan 10 Level petualangan bertahap, pasang diagram, gunakan AutoFill, raih XP, dan gelar Excel Master!'}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playSound('click', soundEnabled);
-                      setAppMode('STUDENT');
-                      setScreen('PROFILE');
-                    }}
-                    className="mt-6 w-full min-h-[54px] bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl flex items-center justify-center gap-2 shadow-md transition"
-                  >
-                    Masuk sebagai Siswa <ChevronRight className="w-5 h-5" />
-                  </button>
+
+                  {!isTeacherUser && !isStudentAssigned ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playSound('error', soundEnabled);
+                        alert(
+                          `🔒 Modul Belum Ditugaskan!\n\nGuru mata pelajaran belum menugaskan game Excel Adventure untuk kelas Anda (${studentAssignedClassName || 'Kelas Siswa'}).\n\nSilakan konfirmasi ke guru Anda.`
+                        );
+                      }}
+                      className="mt-6 w-full min-h-[54px] bg-slate-800 text-slate-400 font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700 shadow cursor-not-allowed"
+                    >
+                      <Lock className="w-4 h-4" /> Belum Ditugaskan untuk Kelas Anda
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playSound('click', soundEnabled);
+                        setAppMode('STUDENT');
+                        setScreen('PROFILE');
+                      }}
+                      className="mt-6 w-full min-h-[54px] bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl flex items-center justify-center gap-2 shadow-md transition"
+                    >
+                      Masuk sebagai Siswa <ChevronRight className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Guru */}
-                <div className="bg-slate-900/90 border-2 border-amber-500/40 hover:border-amber-400 rounded-2xl p-6 flex flex-col justify-between shadow-lg">
+                <div
+                  className={`border-2 rounded-2xl p-6 flex flex-col justify-between shadow-lg transition ${
+                    !isTeacherUser
+                      ? 'bg-slate-900/40 border-slate-800 opacity-60'
+                      : 'bg-slate-900/90 border-amber-500/40 hover:border-amber-400'
+                  }`}
+                >
                   <div>
-                    <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 mb-4">
-                      <Users className="w-8 h-8" />
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
+                        <Users className="w-8 h-8" />
+                      </div>
+                      {!isTeacherUser ? (
+                        <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 text-xs font-bold border border-slate-700 flex items-center gap-1">
+                          <Lock className="w-3.5 h-3.5" /> Khusus Akun Guru
+                        </span>
+                      ) : (
+                        assignedClassNames.length > 0 && (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/40 flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> {assignedClassNames.length} Kelas Aktif
+                          </span>
+                        )
+                      )}
                     </div>
-                    <h3 className="text-xl font-black text-white">Mode Guru — SmartBoard / IFP</h3>
-                    <p className="text-slate-300 text-sm mt-2">
-                      Dirancang khusus untuk demonstrasi di depan kelas dengan tombol sentuh besar, Zoom kontrol, Tantangan Kelas dengan Timer, dan Mode Duel 2 Tim!
+                    <h3 className="text-xl font-black text-white">Mode Guru — SmartBoard & Penugasan</h3>
+                    <p className="text-slate-300 text-sm mt-2 leading-relaxed">
+                      Dirancang khusus untuk guru: atur penugasan ke kelas tertentu, demonstrasi di layar sentuh SmartBoard/IFP, tantangan timer kelas, dan mode turnamen duel 2 tim!
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playSound('click', soundEnabled);
-                      setAppMode('TEACHER');
-                      setTeacherUnlockAll(true);
-                      initLevelGrid(currentLevel);
-                      setScreen('TEACHER_DASHBOARD');
-                    }}
-                    className="mt-6 w-full min-h-[54px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl flex items-center justify-center gap-2 shadow-md transition"
-                  >
-                    Buka Mode Guru (IFP) <ChevronRight className="w-5 h-5" />
-                  </button>
+
+                  {!isTeacherUser ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-6 w-full min-h-[54px] bg-slate-800/80 text-slate-500 font-bold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed border border-slate-800"
+                    >
+                      <Lock className="w-4 h-4" /> Hanya untuk Akun Guru
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playSound('click', soundEnabled);
+                        setAppMode('TEACHER');
+                        setTeacherUnlockAll(true);
+                        initLevelGrid(currentLevel);
+                        setScreen('TEACHER_DASHBOARD');
+                      }}
+                      className="mt-6 w-full min-h-[54px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl flex items-center justify-center gap-2 shadow-md transition"
+                    >
+                      Buka Mode Guru (IFP) <ChevronRight className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* GATEKEEPER: TAMPILKAN LAYAR TERKUNCI JIKA SISWA BELUM DITUGASKAN OLEH GURU */}
+        {!isTeacherUser && !assignmentLoading && !isStudentAssigned && screen !== 'SPLASH' && screen !== 'HOME' && (
+          <div className="max-w-xl mx-auto p-4 sm:p-8 text-center animate-in fade-in duration-300">
+            <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-5">
+              <div className="w-20 h-20 rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 mx-auto flex items-center justify-center shadow-lg">
+                <Lock className="w-10 h-10" />
+              </div>
+              <h2 className="text-2xl font-black text-white">
+                Akses Excel Adventure Terkunci
+              </h2>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Modul ini belum ditugaskan oleh guru untuk kelas Anda (<strong>{studentAssignedClassName || 'Kelas Anda'}</strong>). Silakan hubungi bapak/ibu guru pengajar untuk menambahkan kelas Anda ke dalam penugasan game spreadsheet ini.
+              </p>
+              <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  type="button"
+                  onClick={() => setScreen('HOME')}
+                  className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700"
+                >
+                  Kembali ke Beranda Game
+                </button>
+                <a
+                  href="/dashboard"
+                  className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md"
+                >
+                  Kembali ke Dashboard Solusi Guru
+                </a>
               </div>
             </div>
           </div>
@@ -1459,40 +1655,51 @@ export default function ExcelAdventureApp({
               </div>
 
               {/* Sub-menu Guru */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4 pt-4 border-t border-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mt-4 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setTeacherTab('DEMO')}
-                  className={`min-h-[50px] px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 ${
+                  className={`min-h-[50px] px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 ${
                     teacherTab === 'DEMO' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-200'
                   }`}
                 >
-                  <FileSpreadsheet className="w-4 h-4" /> A. Demonstrasi Grid
+                  <FileSpreadsheet className="w-4 h-4" /> A. Demonstrasi
                 </button>
                 <button
                   type="button"
                   onClick={() => setTeacherTab('FLASHCARD')}
-                  className={`min-h-[50px] px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 ${
+                  className={`min-h-[50px] px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 ${
                     teacherTab === 'FLASHCARD' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-200'
                   }`}
                 >
-                  <BookOpen className="w-4 h-4" /> B. Flash Card Kelas
+                  <BookOpen className="w-4 h-4" /> B. Flash Card
                 </button>
                 <button
                   type="button"
                   onClick={() => setTeacherTab('CHALLENGE')}
-                  className={`min-h-[50px] px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 ${
+                  className={`min-h-[50px] px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 ${
                     teacherTab === 'CHALLENGE' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-200'
                   }`}
                 >
-                  <Clock className="w-4 h-4" /> C. Soal & Timer Kelas
+                  <Clock className="w-4 h-4" /> C. Soal & Timer
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsDuelModalOpen(true)}
-                  className="min-h-[50px] px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow"
+                  className="min-h-[50px] px-3.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow"
                 >
-                  <Swords className="w-4 h-4" /> D. Mulai Duel Cerdas Cermat
+                  <Swords className="w-4 h-4" /> D. Duel Cerdas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeacherTab('ASSIGNMENT')}
+                  className={`min-h-[50px] px-3.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 col-span-2 sm:col-span-1 border ${
+                    teacherTab === 'ASSIGNMENT'
+                      ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md'
+                      : 'bg-slate-800 text-amber-300 border-amber-500/30 hover:bg-slate-700'
+                  }`}
+                >
+                  <Users className="w-4 h-4" /> E. 🎯 Penugasan Kelas
                 </button>
               </div>
             </div>
@@ -1585,6 +1792,148 @@ export default function ExcelAdventureApp({
                   )}
                 </div>
                 {renderSpreadsheet(true)}
+              </div>
+            )}
+
+            {teacherTab === 'ASSIGNMENT' && (
+              <div className="bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                  <div>
+                    <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-black uppercase tracking-wider border border-amber-500/30">
+                      Kendali Hak Akses Siswa
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
+                      Penugasan Game Excel Adventure ke Kelas Tertentu
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                      Game ini hanya akan terbuka untuk siswa pada kelas yang Anda centang di bawah. Kelas yang tidak dicentang akan otomatis terkunci.
+                    </p>
+                  </div>
+
+                  {assignmentNotice && (
+                    <div className="px-4 py-2 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs font-bold animate-in fade-in">
+                      {assignmentNotice}
+                    </div>
+                  )}
+                </div>
+
+                {/* Daftar Kelas */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-300">
+                      Pilih Kelas Ajar Anda yang Ditugaskan:
+                    </label>
+                    {availableTeacherClasses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleSelectAllTeacherClasses}
+                        className="text-xs text-amber-400 hover:text-amber-300 font-bold"
+                      >
+                        Pilih / Batal Semua Kelas Saya
+                      </button>
+                    )}
+                  </div>
+
+                  {availableTeacherClasses.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 text-center text-xs text-slate-400">
+                      Tidak ada kelas yang terhubung dengan akun guru Anda. Hubungi administrator jika kelas Anda belum didaftarkan.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {availableTeacherClasses.map((cls) => {
+                        const isChecked = assignedClassIds.includes(cls.id);
+                        return (
+                          <button
+                            key={cls.id}
+                            type="button"
+                            onClick={() => handleToggleClassAssignment(cls.id)}
+                            className={`p-4 rounded-2xl border text-left text-xs font-bold transition flex items-center justify-between ${
+                              isChecked
+                                ? 'bg-amber-950/70 border-amber-400 text-amber-200 shadow-md scale-[1.02]'
+                                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                            }`}
+                          >
+                            <span>{cls.name}</span>
+                            <span
+                              className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs font-black ${
+                                isChecked ? 'bg-amber-400 text-slate-950' : 'border border-slate-500'
+                              }`}
+                            >
+                              {isChecked ? '✓' : ''}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Target Nilai KKM & Petunjuk */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-800">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Target Nilai KKM Minimal:
+                    </label>
+                    <input
+                      type="number"
+                      min={50}
+                      max={100}
+                      value={kkmScore}
+                      onChange={(e) => setKkmScore(Number(e.target.value) || 75)}
+                      className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-bold focus:border-amber-400 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Siswa dinyatakan tuntas jika mencapai skor minimal KKM ini.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Instruksi Khusus untuk Siswa:
+                    </label>
+                    <input
+                      type="text"
+                      value={teacherInstructions}
+                      onChange={(e) => setTeacherInstructions(e.target.value)}
+                      placeholder="Contoh: Selesaikan latihan Level 1 s.d. Level 5"
+                      className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-medium focus:border-amber-400 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Pesan instruksi akan tampil di bagian atas layar siswa.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Simpan Penugasan */}
+                <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                  <div className="text-xs text-slate-400">
+                    <strong>Kelas Aktif Saat Ini:</strong>{' '}
+                    {assignedClassNames.length > 0 ? (
+                      <span className="text-emerald-400 font-bold">{assignedClassNames.join(', ')}</span>
+                    ) : (
+                      <span className="text-amber-400 font-bold">Belum ada kelas yang ditugaskan</span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={assignmentSaving}
+                    onClick={handleSaveTeacherAssignment}
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg transition transform active:scale-95"
+                  >
+                    {assignmentSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Menyimpan...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Simpan Perubahan Penugasan</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -24,11 +24,13 @@ export default function NavLinks({ role }: NavLinksProps) {
     { href: "/dashboard/journal", label: "📔 Jurnal Guru" },
     { href: "/dashboard/interactive-learning", label: "🎮 Pembelajaran Interaktif" },
     { href: "/dashboard/interactive-learning/borneo-edu", label: "👨‍🏫 Meja Guru (Borneo Edu)" },
+    { href: "/dashboard/interactive-learning/excel-adventure", label: "📊 Excel Adventure (SmartBoard & Kelas)" },
   ];
 
   const studentLinks = [
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/dashboard/my-assignments", label: "📚 Tugas Saya" },
+    { href: "/dashboard/interactive-learning/excel-adventure", label: "📊 Excel Adventure" },
   ];
 
   const principalLinks = [

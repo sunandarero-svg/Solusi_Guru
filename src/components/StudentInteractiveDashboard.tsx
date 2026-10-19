@@ -15,6 +15,7 @@ import {
   RotateCcw,
   RefreshCw,
   AlertCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 import StudentQuickScan from "@/components/StudentQuickScan";
 import MaterialReaderModal from "@/components/MaterialReaderModal";
@@ -46,6 +47,10 @@ export default function StudentInteractiveDashboard() {
   const [readMaterialsCount, setReadMaterialsCount] = useState(0);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [excelStatus, setExcelStatus] = useState<{ isAssigned: boolean; studentClassName: string }>({
+    isAssigned: false,
+    studentClassName: "",
+  });
 
   const fetchStatus = async () => {
     try {
@@ -58,8 +63,18 @@ export default function StudentInteractiveDashboard() {
         setTotalMaterials(Number(data.totalMaterials) || 0);
         setReadMaterialsCount(Number(data.readMaterialsCount) || 0);
       }
+
+      // Ambil status penugasan kelas Excel Adventure
+      const excelRes = await fetch("/api/excel-adventure/settings");
+      const excelData = await excelRes.json();
+      if (excelData) {
+        setExcelStatus({
+          isAssigned: Boolean(excelData.isAssigned),
+          studentClassName: excelData.studentClassName || "",
+        });
+      }
     } catch (err) {
-      console.error("Gagal mengecek status materi", err);
+      console.error("Gagal mengecek status materi atau game", err);
     } finally {
       setLoading(false);
     }
@@ -297,6 +312,96 @@ export default function StudentInteractiveDashboard() {
                 className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-800 hover:text-emerald-900 font-black text-base shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 group"
               >
                 <span>🎮 Mulai Game Sekarang</span>
+                <span className="text-xl group-hover:translate-x-1 transition-transform">▶</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2B. TOMBOL MULAI GAME EXCEL ADVENTURE DENGAN PROTEKSI PENUGASAN KELAS GURU */}
+      <div
+        className={`rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden border transition-all duration-300 ${
+          !excelStatus.isAssigned || hasUnread
+            ? "bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-slate-700/60 shadow-lg"
+            : "bg-gradient-to-r from-teal-900 via-emerald-900 to-slate-900 border-emerald-500/40 shadow-2xl shadow-emerald-500/10 hover:shadow-emerald-500/20 group"
+        }`}
+      >
+        {excelStatus.isAssigned && !hasUnread && (
+          <>
+            <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
+            <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-teal-400/15 rounded-full blur-2xl pointer-events-none"></div>
+          </>
+        )}
+
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-black uppercase tracking-wider backdrop-blur-md border border-white/20">
+              <FileSpreadsheet size={14} className={!excelStatus.isAssigned ? "text-slate-400" : "text-emerald-400"} />
+              <span>Praktik Digital • Simulasi Spreadsheet</span>
+              {excelStatus.isAssigned && !hasUnread && (
+                <span className="text-emerald-300 flex items-center gap-1 text-[11px] font-bold">
+                  <CheckCircle size={12} /> Ditugaskan untuk Kelas {excelStatus.studentClassName}
+                </span>
+              )}
+              {(!excelStatus.isAssigned || hasUnread) && (
+                <span className="text-amber-300 flex items-center gap-1 text-[11px] font-bold">
+                  <Lock size={11} /> {!excelStatus.isAssigned ? "Belum Ditugaskan Guru" : "Terkunci (Baca Materi)"}
+                </span>
+              )}
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
+              Excel Adventure: Misi Ahli Spreadsheet
+            </h2>
+
+            <p className={!excelStatus.isAssigned || hasUnread ? "text-slate-400 text-sm leading-relaxed" : "text-emerald-100 text-sm leading-relaxed"}>
+              {!excelStatus.isAssigned
+                ? `Game Excel Adventure saat ini belum diaktifkan/ditugaskan oleh guru untuk kelas Anda (${excelStatus.studentClassName || "Kelas Siswa"}). Silakan hubungi guru mata pelajaran untuk membuka penugasan latihan spreadsheet ini.`
+                : hasUnread
+                ? "Selesaikan membaca materi di atas terlebih dahulu untuk membuka akses Excel Adventure."
+                : "Kuasai 10 Level materi spreadsheet: rumus matematika, fungsi statistik SUM & AVERAGE, logika IF, COUNTIF/SUMIF, AutoFill, serta visualisasi diagram interaktif!"}
+            </p>
+
+            <div className="p-3.5 rounded-2xl bg-black/20 border border-white/15 backdrop-blur-sm text-xs text-emerald-200 flex items-start gap-2.5">
+              <span className="text-base shrink-0">📊</span>
+              <p className="leading-snug">
+                <strong>Target Keterampilan:</strong> Pembelajaran rumus aritmetika, pemformatan tabel, logika keputusan, dan pembuatan grafik visual yang kompatibel dengan Microsoft Excel asli (.xlsx).
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 w-full lg:w-auto">
+            {!excelStatus.isAssigned ? (
+              <button
+                type="button"
+                onClick={() => {
+                  alert(
+                    `🔒 Game Belum Ditugaskan!\n\nGuru belum menugaskan modul Excel Adventure untuk kelas Anda (${excelStatus.studentClassName || "Kelas Anda"}).\n\nSilakan konfirmasi ke guru mata pelajaran.`
+                  );
+                }}
+                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-slate-800 text-slate-400 border border-slate-700 font-black text-sm sm:text-base flex items-center justify-center gap-3 cursor-not-allowed opacity-90 shadow-md"
+              >
+                <Lock size={18} />
+                <span>Belum Ditugaskan untuk Kelas Anda</span>
+              </button>
+            ) : hasUnread ? (
+              <button
+                type="button"
+                onClick={() => {
+                  alert("🔒 Fitur Game Terkunci!\n\nAnda harus membaca dan mempelajari materi pelajaran terlebih dahulu sebelum memulai game.");
+                }}
+                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-slate-800 text-slate-400 border border-slate-700 font-black text-sm sm:text-base flex items-center justify-center gap-3 cursor-not-allowed opacity-90 shadow-md"
+              >
+                <Lock size={18} />
+                <span>Game Terkunci (Baca Materi Dulu)</span>
+              </button>
+            ) : (
+              <Link
+                href="/dashboard/interactive-learning/excel-adventure"
+                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-base shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 group"
+              >
+                <span>🎮 Mulai Misi Excel Sekarang</span>
                 <span className="text-xl group-hover:translate-x-1 transition-transform">▶</span>
               </Link>
             )}

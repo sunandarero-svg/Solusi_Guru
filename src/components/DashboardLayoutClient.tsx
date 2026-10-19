@@ -15,7 +15,8 @@ import {
   Gamepad2,
   Sparkles,
   Trophy,
-  ChevronDown
+  ChevronDown,
+  FileSpreadsheet
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -59,7 +60,8 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
           label: "Pembelajaran Interaktif",
           icon: Gamepad2,
           subItems: [
-            { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy }
+            { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy },
+            { href: "/dashboard/interactive-learning/excel-adventure", label: "Excel Adventure (Spreadsheet)", icon: FileSpreadsheet }
           ]
         },
       ];
@@ -79,7 +81,8 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
           label: "Pembelajaran Interaktif",
           icon: Gamepad2,
           subItems: [
-            { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy }
+            { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy },
+            { href: "/dashboard/interactive-learning/excel-adventure", label: "Excel Adventure (Spreadsheet)", icon: FileSpreadsheet }
           ]
         },
         { href: "/dashboard/settings", label: "Profil Guru", icon: ShieldCheck },
@@ -94,6 +97,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/subjects", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/dashboard/my-assignments", label: "Tugas Saya", icon: CheckSquare },
+      { href: "/dashboard/interactive-learning/excel-adventure", label: "Excel Adventure", icon: FileSpreadsheet },
       { href: "/dashboard/settings", label: "Pengaturan Akun", icon: ShieldCheck },
     ];
   };
