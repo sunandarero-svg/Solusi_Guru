@@ -52,23 +52,53 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: #0f172a !important;
 }
 
+/* Pastikan input di dalam Formula Bar dan Spreadsheet selalu berkontras tinggi (hitam pekat/terang) */
+#formula-bar-input,
+.formula-bar-input,
+#spreadsheet-workspace input:not([type="checkbox"]):not([type="radio"]),
+.bg-white input:not([type="checkbox"]):not([type="radio"]):not(.text-white),
+.bg-slate-50 input:not([type="checkbox"]):not([type="radio"]):not(.text-white) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  background-color: #ffffff !important;
+  caret-color: #059669 !important;
+}
+
+#formula-bar-input::placeholder,
+.formula-bar-input::placeholder,
+#spreadsheet-workspace input::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  opacity: 1 !important;
+}
+
+#formula-bar-input:-webkit-autofill,
+#formula-bar-input:-webkit-autofill:hover,
+#formula-bar-input:-webkit-autofill:focus,
+#formula-bar-input:-webkit-autofill:active,
+.formula-bar-input:-webkit-autofill,
+#spreadsheet-workspace input:-webkit-autofill {
+  -webkit-text-fill-color: #0f172a !important;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+}
+
 /* Pengecualian untuk input & select khusus di area bernuansa gelap (seperti arcade game) */
-.bg-slate-800 input:not([type="checkbox"]):not([type="radio"]),
-.bg-slate-900 input:not([type="checkbox"]):not([type="radio"]),
-.bg-slate-950 input:not([type="checkbox"]):not([type="radio"]),
-.bg-gray-800 input:not([type="checkbox"]):not([type="radio"]),
-.bg-gray-900 input:not([type="checkbox"]):not([type="radio"]),
+.bg-slate-800 input:not([type="checkbox"]):not([type="radio"]):not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input),
+.bg-slate-900 input:not([type="checkbox"]):not([type="radio"]):not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input),
+.bg-slate-950 input:not([type="checkbox"]):not([type="radio"]):not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input),
+.bg-gray-800 input:not([type="checkbox"]):not([type="radio"]):not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input),
+.bg-gray-900 input:not([type="checkbox"]):not([type="radio"]):not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input),
 input.text-white,
 textarea.text-white,
 select.text-white {
   color: #ffffff !important;
 }
 
-.bg-slate-800 input:-webkit-autofill,
-.bg-slate-900 input:-webkit-autofill,
-.bg-slate-950 input:-webkit-autofill,
-.bg-gray-800 input:-webkit-autofill,
-.bg-gray-900 input:-webkit-autofill,
+.bg-slate-800 input:not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input):-webkit-autofill,
+.bg-slate-900 input:not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input):-webkit-autofill,
+.bg-slate-950 input:not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input):-webkit-autofill,
+.bg-gray-800 input:not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input):-webkit-autofill,
+.bg-gray-900 input:not(.formula-bar-input):not(#formula-bar-input):not(#spreadsheet-workspace input):-webkit-autofill,
 input.text-white:-webkit-autofill {
   -webkit-text-fill-color: #ffffff !important;
 }

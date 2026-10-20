@@ -38,8 +38,10 @@ export const GridTable: React.FC<GridTableProps> = ({
               <th
                 key={col}
                 onClick={() => onHeaderClick(`COL_${col}`)}
-                className={`bg-slate-200 hover:bg-emerald-100 border border-slate-300 p-2.5 text-center font-mono font-bold text-sm cursor-pointer transition ${
-                  selectedCell.startsWith(col) ? 'bg-emerald-200 text-emerald-950 font-black' : 'text-slate-700'
+                className={`border border-slate-300 p-2.5 text-center font-mono font-bold text-sm cursor-pointer transition select-none ${
+                  selectedCell.startsWith(col)
+                    ? 'bg-emerald-600 text-white font-black shadow-sm'
+                    : 'bg-slate-200 hover:bg-emerald-100 text-slate-700'
                 }`}
               >
                 {col}
@@ -62,10 +64,10 @@ export const GridTable: React.FC<GridTableProps> = ({
                 {/* Nomor Baris */}
                 <td
                   onClick={() => onHeaderClick(`ROW_${rowNum}`)}
-                  className={`bg-slate-200 hover:bg-emerald-100 border border-slate-300 p-2 text-center font-mono font-bold text-xs cursor-pointer ${
+                  className={`border border-slate-300 p-2 text-center font-mono font-bold text-xs cursor-pointer transition select-none ${
                     selectedCell.slice(1) === String(rowNum)
-                      ? 'bg-emerald-200 text-emerald-950 font-black'
-                      : 'text-slate-700'
+                      ? 'bg-emerald-600 text-white font-black shadow-sm'
+                      : 'bg-slate-200 hover:bg-emerald-100 text-slate-700'
                   }`}
                 >
                   {rowNum}
@@ -87,24 +89,42 @@ export const GridTable: React.FC<GridTableProps> = ({
                   const isFormula = String(cellObj.value || '').startsWith('=');
                   const isError = String(displayVal).startsWith('#');
 
+                  // Warna latar sel: saat sel dipilih, berikan highlight hijau emerald terang yang tegas berubah warna
+                  let cellBgColor = st.bg || '#ffffff';
+                  if (isSelected) {
+                    cellBgColor = st.bg && st.bg !== '#ffffff' ? st.bg : '#d1fae5';
+                  } else if (isInRange) {
+                    cellBgColor = '#e0e7ff';
+                  }
+
                   return (
                     <td
                       key={cellId}
+                      role="gridcell"
+                      aria-selected={isSelected}
                       onClick={() => onCellClick(cellId)}
                       style={{
-                        backgroundColor: st.bg || '#ffffff',
+                        backgroundColor: cellBgColor,
                         textAlign: st.align || 'left',
-                        fontWeight: st.bold ? '700' : '400',
+                        fontWeight: st.bold || isSelected ? '700' : '400',
                         fontStyle: st.italic ? 'italic' : 'normal',
-                        textDecoration: st.underline ? 'underline' : 'none'
-                      }}
-                      className={`border border-slate-300 px-3 py-2.5 text-sm cursor-pointer transition relative h-11 ${
-                        isSelected
-                          ? 'ring-3 ring-emerald-600 z-10 bg-emerald-50/40 shadow-inner'
+                        textDecoration: st.underline ? 'underline' : 'none',
+                        boxShadow: isSelected
+                          ? 'inset 0 0 0 2.5px #059669'
                           : isInRange
-                          ? 'ring-2 ring-indigo-500 bg-indigo-50/50'
-                          : 'hover:bg-slate-50'
-                      } ${isError ? 'text-rose-600 font-bold' : 'text-slate-800'}`}
+                          ? 'inset 0 0 0 2px #6366f1'
+                          : undefined,
+                        zIndex: isSelected ? 10 : 1,
+                        position: 'relative',
+                        WebkitTapHighlightColor: 'transparent'
+                      }}
+                      className={`border border-slate-300 px-3 py-2.5 text-sm cursor-pointer transition-colors relative h-11 select-none active:scale-[0.99] ${
+                        isSelected
+                          ? 'text-emerald-950 font-bold'
+                          : isInRange
+                          ? 'text-indigo-950 font-medium'
+                          : 'text-slate-800 hover:bg-slate-50'
+                      } ${isError ? 'text-rose-600 font-bold' : ''}`}
                     >
                       <div className="truncate">{displayVal}</div>
 
@@ -127,7 +147,7 @@ export const GridTable: React.FC<GridTableProps> = ({
                             onAutoFillDown(cellId);
                           }}
                           title="Tarik ke bawah untuk AutoFill / Duplikasi rumus relatif"
-                          className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-emerald-600 border border-white hover:scale-130 transition rounded-sm z-20 cursor-crosshair shadow"
+                          className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-emerald-600 border-2 border-white hover:scale-125 transition rounded-sm z-20 cursor-crosshair shadow-md active:scale-95"
                         />
                       )}
                     </td>

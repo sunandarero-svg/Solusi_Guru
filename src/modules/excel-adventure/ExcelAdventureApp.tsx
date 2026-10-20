@@ -861,8 +861,8 @@ export default function ExcelAdventureApp({
               + Lembar Baru
             </div>
           </div>
-          <div className="text-slate-600 font-mono hidden sm:block">
-            Status: Siap | Sel Aktif: <strong className="text-emerald-800">{selectedCell}</strong>
+          <div className="text-slate-600 font-mono text-[11px] sm:text-xs">
+            <span className="hidden sm:inline">Status: Siap | </span>Sel Aktif: <strong className="text-emerald-800 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">{selectedCell}</strong>
           </div>
         </div>
       </div>
@@ -1247,7 +1247,7 @@ export default function ExcelAdventureApp({
         )}
 
         {/* GATEKEEPER: TAMPILKAN LAYAR TERKUNCI JIKA SISWA BELUM DITUGASKAN OLEH GURU */}
-        {!isTeacherUser && !assignmentLoading && !isStudentAssigned && screen !== 'SPLASH' && screen !== 'HOME' && (
+        {!isTeacherUser && !assignmentLoading && !isStudentAssigned && screen !== 'HOME' && (
           <div className="max-w-xl mx-auto p-4 sm:p-8 text-center animate-in fade-in duration-300">
             <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-5">
               <div className="w-20 h-20 rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 mx-auto flex items-center justify-center shadow-lg">
