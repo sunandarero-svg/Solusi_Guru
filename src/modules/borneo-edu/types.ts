@@ -95,6 +95,10 @@ export interface TeacherConfig {
   levelQuestionsMap?: Record<number, number>; // Konfigurasi khusus jumlah soal per level (misal { 1: 3, 2: 4, ... })
   activeLevelStart: number; // Level awal aktif (default 1)
   activeLevelEnd: number; // Level akhir aktif (default 25)
+  // Pengaturan Kunci Game oleh Guru
+  isLocked?: boolean;
+  lockedClassNames?: string[];
+  lockMessage?: string;
 }
 
 export interface WorldDefinition {

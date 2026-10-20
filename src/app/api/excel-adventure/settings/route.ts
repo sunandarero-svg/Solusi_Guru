@@ -140,9 +140,12 @@ export async function GET(req: NextRequest) {
             n.toLowerCase().trim()
           );
 
-          const isAssigned =
+          const isClassAssigned =
             studentClassIds.some((id: string) => assignedIds.includes(id)) ||
             studentClassNames.some((name: string) => assignedNames.includes(name.toLowerCase().trim()));
+
+          const isLocked = Boolean(config.isLocked);
+          const isAssigned = isClassAssigned && !isLocked;
 
           return NextResponse.json({
             success: true,
@@ -150,6 +153,8 @@ export async function GET(req: NextRequest) {
             role: 'STUDENT',
             studentClassName: primaryClassName,
             isAssigned,
+            isLocked,
+            lockReason: config.lockMessage || 'Game Simulasi Excel sedang dikunci oleh guru.',
             assignedClassNames: config.assignedClassNames || [],
             kkmScore: config.kkmScore || 75,
             activeLevels: config.activeLevels || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -225,6 +230,8 @@ export async function POST(req: NextRequest) {
     const assignedClassNames = assignedClasses.map((c: any) => c.name);
 
     const updatePayload = {
+      isLocked: body.isLocked !== undefined ? Boolean(body.isLocked) : (existingConfig?.isLocked ?? false),
+      lockMessage: body.lockMessage || existingConfig?.lockMessage || 'Game Simulasi Excel sedang dikunci oleh guru.',
       assignedClassIds: updatedAssignedIds,
       assignedClassNames: assignedClassNames,
       kkmScore: Number(body.kkmScore) || existingConfig?.kkmScore || 75,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongoose';
 import { BorneoEduConfig } from '@/models/BorneoEdu';
+import { Class } from '@/models/Class';
 import { DEFAULT_TEACHER_CONFIG } from '@/modules/borneo-edu/storage';
 
 export async function GET() {
@@ -10,22 +11,30 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         mode: 'default',
-        data: DEFAULT_TEACHER_CONFIG
+        data: DEFAULT_TEACHER_CONFIG,
+        classes: []
       });
     }
 
     await dbConnect();
     const config = await BorneoEduConfig.findOne().lean();
+    const classes = await Class.find().lean();
+    const formattedClasses = classes.map((c: any) => ({
+      id: c._id.toString(),
+      name: c.name
+    }));
 
     return NextResponse.json({
       success: true,
-      data: config || DEFAULT_TEACHER_CONFIG
+      data: config || DEFAULT_TEACHER_CONFIG,
+      classes: formattedClasses
     });
   } catch (error: any) {
     return NextResponse.json({
       success: true,
       mode: 'fallback',
-      data: DEFAULT_TEACHER_CONFIG
+      data: DEFAULT_TEACHER_CONFIG,
+      classes: []
     });
   }
 }

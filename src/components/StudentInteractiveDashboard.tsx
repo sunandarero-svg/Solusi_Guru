@@ -47,32 +47,46 @@ export default function StudentInteractiveDashboard() {
   const [readMaterialsCount, setReadMaterialsCount] = useState(0);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
   const [resetting, setResetting] = useState(false);
-  const [excelStatus, setExcelStatus] = useState<{ isAssigned: boolean; studentClassName: string }>({
+  const [borneoLockStatus, setBorneoLockStatus] = useState<{ isLocked: boolean; lockReason: string }>({
+    isLocked: false,
+    lockReason: "Game Petualangan Borneo Edu sedang dikunci oleh guru."
+  });
+  const [excelStatus, setExcelStatus] = useState<{ isAssigned: boolean; isLocked: boolean; lockReason: string; studentClassName: string }>({
     isAssigned: false,
+    isLocked: false,
+    lockReason: "Game Simulasi Excel sedang dikunci oleh guru.",
     studentClassName: "",
   });
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch("/api/student/material-status");
-      const data = await res.json();
-      if (data) {
-        setHasUnread(Boolean(data.hasUnreadMaterials));
-        setUnreadMaterials(data.unreadMaterials || []);
-        setAllMaterials(data.allMaterials || []);
-        setTotalMaterials(Number(data.totalMaterials) || 0);
-        setReadMaterialsCount(Number(data.readMaterialsCount) || 0);
+      const [matRes, borneoRes, excelRes] = await Promise.all([
+        fetch("/api/student/material-status").then((r) => r.json()).catch(() => null),
+        fetch("/api/borneo-edu/student-info").then((r) => r.json()).catch(() => null),
+        fetch("/api/excel-adventure/settings", { credentials: "include" }).then((r) => r.json()).catch(() => null)
+      ]);
+
+      if (matRes) {
+        setHasUnread(Boolean(matRes.hasUnreadMaterials));
+        setUnreadMaterials(matRes.unreadMaterials || []);
+        setAllMaterials(matRes.allMaterials || []);
+        setTotalMaterials(Number(matRes.totalMaterials) || 0);
+        setReadMaterialsCount(Number(matRes.readMaterialsCount) || 0);
       }
 
-      // Ambil status penugasan kelas Excel Adventure
-      const excelRes = await fetch("/api/excel-adventure/settings", {
-        credentials: "include",
-      });
-      const excelData = await excelRes.json();
-      if (excelData) {
+      if (borneoRes) {
+        setBorneoLockStatus({
+          isLocked: Boolean(borneoRes.isGameLocked),
+          lockReason: borneoRes.lockReason || "Game Petualangan Borneo Edu sedang dikunci oleh guru."
+        });
+      }
+
+      if (excelRes) {
         setExcelStatus({
-          isAssigned: Boolean(excelData.isAssigned),
-          studentClassName: excelData.studentClassName || "",
+          isAssigned: Boolean(excelRes.isAssigned),
+          isLocked: Boolean(excelRes.isLocked),
+          lockReason: excelRes.lockReason || "Game Simulasi Excel sedang dikunci oleh guru.",
+          studentClassName: excelRes.studentClassName || "",
         });
       }
     } catch (err) {
@@ -258,12 +272,12 @@ export default function StudentInteractiveDashboard() {
       {/* 2. TOMBOL MULAI GAME BORNEO EDU */}
       <div
         className={`rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden border transition-all duration-300 ${
-          hasUnread
+          hasUnread || borneoLockStatus.isLocked
             ? "bg-gradient-to-r from-slate-800 via-slate-850 to-slate-900 border-slate-700/60 shadow-lg"
             : "bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-700 border-emerald-400/40 shadow-2xl shadow-emerald-500/20 hover:shadow-emerald-500/30 group"
         }`}
       >
-        {!hasUnread && (
+        {!hasUnread && !borneoLockStatus.isLocked && (
           <>
             <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
             <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-amber-400/20 rounded-full blur-2xl pointer-events-none"></div>
@@ -273,20 +287,26 @@ export default function StudentInteractiveDashboard() {
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-black uppercase tracking-wider backdrop-blur-md border border-white/20">
-              <Gamepad2 size={14} className={hasUnread ? "text-slate-400" : "text-amber-300"} />
+              <Gamepad2 size={14} className={hasUnread || borneoLockStatus.isLocked ? "text-slate-400" : "text-amber-300"} />
               <span>Pembelajaran Interaktif • Edisi Game Petualangan</span>
-              {!hasUnread && <Sparkles size={13} className="text-yellow-300 animate-pulse" />}
-              {hasUnread && (
-                <span className="text-amber-300 flex items-center gap-1 text-[11px] font-bold">
-                  <Lock size={11} /> Terkunci
+              {!hasUnread && !borneoLockStatus.isLocked && <Sparkles size={13} className="text-yellow-300 animate-pulse" />}
+              {borneoLockStatus.isLocked ? (
+                <span className="text-rose-300 flex items-center gap-1 text-[11px] font-bold">
+                  <Lock size={11} /> Dikunci Guru
                 </span>
-              )}
+              ) : hasUnread ? (
+                <span className="text-amber-300 flex items-center gap-1 text-[11px] font-bold">
+                  <Lock size={11} /> Terkunci (Baca Materi)
+                </span>
+              ) : null}
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
               Game Petualangan Belajar Borneo Edu
             </h2>
-            <p className={hasUnread ? "text-slate-400 text-sm leading-relaxed" : "text-emerald-50 text-sm leading-relaxed"}>
-              {hasUnread
+            <p className={hasUnread || borneoLockStatus.isLocked ? "text-slate-400 text-sm leading-relaxed" : "text-emerald-50 text-sm leading-relaxed"}>
+              {borneoLockStatus.isLocked
+                ? borneoLockStatus.lockReason
+                : hasUnread
                 ? "Fitur Game Borneo Edu terkunci sementara. Selesaikan membaca materi di atas untuk membuka akses petualangan."
                 : "Jelajahi 5 World, taklukkan rintangan, dan selesaikan soal kurikulum kelas Anda dengan seru!"}
             </p>
@@ -299,8 +319,20 @@ export default function StudentInteractiveDashboard() {
           </div>
 
           <div className="shrink-0 w-full lg:w-auto">
-            {hasUnread ? (
+            {borneoLockStatus.isLocked ? (
               <button
+                type="button"
+                onClick={() => {
+                  alert(`🔒 Akses Game Borneo Edu Dikunci!\n\n${borneoLockStatus.lockReason}`);
+                }}
+                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-slate-800 text-rose-300 border border-rose-500/40 font-black text-base flex items-center justify-center gap-3 cursor-not-allowed opacity-90 shadow-md"
+              >
+                <Lock size={18} />
+                <span>Game Sedang Dikunci oleh Guru</span>
+              </button>
+            ) : hasUnread ? (
+              <button
+                type="button"
                 onClick={() => {
                   alert("🔒 Fitur Game Terkunci!\n\nAnda harus membaca dan mempelajari materi pelajaran terlebih dahulu sebelum memulai game.");
                 }}
@@ -321,15 +353,15 @@ export default function StudentInteractiveDashboard() {
         </div>
       </div>
 
-      {/* 2B. TOMBOL MULAI GAME EXCEL ADVENTURE DENGAN PROTEKSI PENUGASAN KELAS GURU */}
+      {/* 2B. TOMBOL MULAI GAME EXCEL ADVENTURE DENGAN PROTEKSI PENUGASAN KELAS & KUNCI GURU */}
       <div
         className={`rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden border transition-all duration-300 ${
-          !excelStatus.isAssigned || hasUnread
+          !excelStatus.isAssigned || hasUnread || excelStatus.isLocked
             ? "bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-slate-700/60 shadow-lg"
             : "bg-gradient-to-r from-teal-900 via-emerald-900 to-slate-900 border-emerald-500/40 shadow-2xl shadow-emerald-500/10 hover:shadow-emerald-500/20 group"
         }`}
       >
-        {excelStatus.isAssigned && !hasUnread && (
+        {excelStatus.isAssigned && !hasUnread && !excelStatus.isLocked && (
           <>
             <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
             <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-teal-400/15 rounded-full blur-2xl pointer-events-none"></div>
@@ -339,14 +371,17 @@ export default function StudentInteractiveDashboard() {
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-black uppercase tracking-wider backdrop-blur-md border border-white/20">
-              <FileSpreadsheet size={14} className={!excelStatus.isAssigned ? "text-slate-400" : "text-emerald-400"} />
+              <FileSpreadsheet size={14} className={!excelStatus.isAssigned || excelStatus.isLocked ? "text-slate-400" : "text-emerald-400"} />
               <span>Praktik Digital • Simulasi Spreadsheet</span>
-              {excelStatus.isAssigned && !hasUnread && (
+              {excelStatus.isLocked ? (
+                <span className="text-rose-300 flex items-center gap-1 text-[11px] font-bold">
+                  <Lock size={11} /> Dikunci Guru
+                </span>
+              ) : excelStatus.isAssigned && !hasUnread ? (
                 <span className="text-emerald-300 flex items-center gap-1 text-[11px] font-bold">
                   <CheckCircle size={12} /> Ditugaskan untuk Kelas {excelStatus.studentClassName}
                 </span>
-              )}
-              {(!excelStatus.isAssigned || hasUnread) && (
+              ) : (
                 <span className="text-amber-300 flex items-center gap-1 text-[11px] font-bold">
                   <Lock size={11} /> {!excelStatus.isAssigned ? "Belum Ditugaskan Guru" : "Terkunci (Baca Materi)"}
                 </span>
@@ -357,8 +392,10 @@ export default function StudentInteractiveDashboard() {
               Excel Adventure: Misi Ahli Spreadsheet
             </h2>
 
-            <p className={!excelStatus.isAssigned || hasUnread ? "text-slate-400 text-sm leading-relaxed" : "text-emerald-100 text-sm leading-relaxed"}>
-              {!excelStatus.isAssigned
+            <p className={!excelStatus.isAssigned || hasUnread || excelStatus.isLocked ? "text-slate-400 text-sm leading-relaxed" : "text-emerald-100 text-sm leading-relaxed"}>
+              {excelStatus.isLocked
+                ? excelStatus.lockReason
+                : !excelStatus.isAssigned
                 ? `Game Excel Adventure saat ini belum diaktifkan/ditugaskan oleh guru untuk kelas Anda (${excelStatus.studentClassName || "Kelas Siswa"}). Silakan hubungi guru mata pelajaran untuk membuka penugasan latihan spreadsheet ini.`
                 : hasUnread
                 ? "Selesaikan membaca materi di atas terlebih dahulu untuk membuka akses Excel Adventure."
@@ -374,7 +411,18 @@ export default function StudentInteractiveDashboard() {
           </div>
 
           <div className="shrink-0 w-full lg:w-auto">
-            {!excelStatus.isAssigned ? (
+            {excelStatus.isLocked ? (
+              <button
+                type="button"
+                onClick={() => {
+                  alert(`🔒 Game Simulasi Excel Dikunci!\n\n${excelStatus.lockReason}`);
+                }}
+                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-slate-800 text-rose-300 border border-rose-500/40 font-black text-sm sm:text-base flex items-center justify-center gap-3 cursor-not-allowed opacity-90 shadow-md"
+              >
+                <Lock size={18} />
+                <span>Game Sedang Dikunci oleh Guru</span>
+              </button>
+            ) : !excelStatus.isAssigned ? (
               <button
                 type="button"
                 onClick={() => {

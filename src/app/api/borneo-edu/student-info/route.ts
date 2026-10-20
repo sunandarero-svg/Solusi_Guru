@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongoose';
 import User from '@/models/User';
 import { StudentProfile } from '@/models/Profile';
 import { Enrollment, Class } from '@/models/Class';
+import { BorneoEduConfig, BorneoEduStudentResult } from '@/models/BorneoEdu';
 
 export async function GET() {
   try {
@@ -19,13 +20,23 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Ambil konfigurasi kunci game guru
+    const config = await BorneoEduConfig.findOne().lean();
+    const isGlobalLocked = Boolean(config?.isLocked);
+    const lockedClasses: string[] = config?.lockedClassNames || [];
+    const lockMessage = config?.lockMessage || 'Game Petualangan Borneo Edu sedang dikunci oleh guru.';
+
     const studentProfile = await StudentProfile.findOne({ userId: user._id }).lean();
     if (!studentProfile) {
       // Fallback for demo or non-student user
+      const defaultClass = 'Kelas 7A';
+      const isClassLocked = isGlobalLocked || lockedClasses.includes(defaultClass);
       return NextResponse.json({
         studentName: session.user.name || session.user.email.split('@')[0],
         studentNumber: '01',
-        className: 'Kelas 7A'
+        className: defaultClass,
+        isGameLocked: isClassLocked,
+        lockReason: isClassLocked ? lockMessage : null
       });
     }
 
@@ -38,11 +49,27 @@ export async function GET() {
       }
     }
 
+    // Periksa apakah game dikunci secara global atau per kelas siswa
+    const isClassLocked = isGlobalLocked || lockedClasses.some((c) => c.toLowerCase().trim() === className.toLowerCase().trim());
+
+    // Cek hasil siswa di database untuk deteksi reset
+    const studentResult = await BorneoEduStudentResult.findOne({
+      $or: [
+        { studentId: user._id },
+        { studentName: studentProfile.fullName.trim() }
+      ]
+    }).lean();
+
     return NextResponse.json({
       studentName: studentProfile.fullName,
       studentNumber: studentProfile.studentNumber || '01',
       className: className,
-      classId: enrollment?.classId ? enrollment.classId.toString() : null
+      classId: enrollment?.classId ? enrollment.classId.toString() : null,
+      isGameLocked: isClassLocked,
+      lockReason: isClassLocked ? lockMessage : null,
+      lastResetAt: studentResult?.lastResetAt || null,
+      highestLevel: studentResult?.highestLevel || 1,
+      totalScore: studentResult?.totalScore || 0
     });
   } catch (error: any) {
     console.error('Error fetching student info for Borneo Edu:', error);

@@ -51,20 +51,30 @@ export default function BorneoEduClientWrapper({
 
   const [checkingMaterials, setCheckingMaterials] = useState(!isTeacherOrAdmin);
   const [hasUnreadMaterials, setHasUnreadMaterials] = useState(false);
+  const [isGameLocked, setIsGameLocked] = useState(false);
+  const [lockReason, setLockReason] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (!isTeacherOrAdmin) {
-      fetch('/api/student/material-status')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.hasUnreadMaterials) {
+      Promise.all([
+        fetch('/api/student/material-status').then((res) => res.json()).catch(() => null),
+        fetch('/api/borneo-edu/student-info').then((res) => res.json()).catch(() => null)
+      ])
+        .then(([matData, studentData]) => {
+          if (matData && matData.hasUnreadMaterials) {
             setHasUnreadMaterials(true);
           } else {
             setHasUnreadMaterials(false);
           }
+
+          if (studentData && studentData.isGameLocked) {
+            setIsGameLocked(true);
+            setLockReason(studentData.lockReason || 'Game Petualangan Borneo Edu sedang dikunci oleh guru.');
+          } else {
+            setIsGameLocked(false);
+          }
         })
-        .catch(() => {})
         .finally(() => setCheckingMaterials(false));
     }
   }, [isTeacherOrAdmin]);
@@ -95,12 +105,43 @@ export default function BorneoEduClientWrapper({
     return <BorneoEduTeacherProgress userRole={userRole} teacherName={teacherName} />;
   }
 
-  // Jika sedang memeriksa status materi siswa
+  // Jika sedang memeriksa status materi & kunci siswa
   if (checkingMaterials) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] p-8 bg-slate-950 rounded-3xl text-white space-y-3">
         <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
-        <p className="text-sm font-bold text-slate-300">Memverifikasi izin materi belajar...</p>
+        <p className="text-sm font-bold text-slate-300">Memverifikasi izin akses game...</p>
+      </div>
+    );
+  }
+
+  // Proteksi jika game dikunci oleh guru
+  if (isGameLocked) {
+    return (
+      <div className="rounded-3xl p-8 sm:p-12 bg-slate-950 border-2 border-rose-500/50 text-white shadow-2xl max-w-2xl mx-auto my-8 text-center space-y-6 animate-in fade-in duration-300">
+        <div className="w-20 h-20 rounded-3xl bg-rose-500/20 border border-rose-500/40 text-rose-400 mx-auto flex items-center justify-center text-4xl shadow-inner">
+          🔒
+        </div>
+        <div className="space-y-2">
+          <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-black uppercase tracking-wider border border-rose-500/30">
+            Akses Game Dikunci Guru
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-white">
+            Game Borneo Edu Ditutup Sementara
+          </h2>
+          <p className="text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+            {lockReason || 'Game Borneo Edu saat ini sedang dikunci oleh guru pengampu. Silakan tunggu hingga guru membuka akses kembali.'}
+          </p>
+        </div>
+
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all"
+          >
+            <span>🏠 Kembali ke Dashboard Utama</span>
+          </Link>
+        </div>
       </div>
     );
   }

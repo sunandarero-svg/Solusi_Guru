@@ -21,7 +21,11 @@ export const DEFAULT_TEACHER_CONFIG: TeacherConfig = {
   // Pengaturan jumlah soal & level yang dimainkan siswa
   maxQuestionsPerLevel: 4,
   activeLevelStart: 1,
-  activeLevelEnd: 25
+  activeLevelEnd: 25,
+  // Pengaturan Kunci Game oleh Guru
+  isLocked: false,
+  lockedClassNames: [],
+  lockMessage: 'Game Petualangan Borneo Edu sedang dikunci oleh guru.'
 };
 
 const STORAGE_KEY_PLAYER = 'borneo_edu_player_state_v1';

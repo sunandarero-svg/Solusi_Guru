@@ -109,12 +109,36 @@ export default function BorneoEduGame() {
       .catch(() => {});
   }, []);
 
-  // Auto-fill student profile from registered account database
+  // Auto-fill student profile from registered account database & sync resets
   useEffect(() => {
     fetch('/api/borneo-edu/student-info')
       .then((res) => res.json())
       .then((data) => {
-        if (data && data.studentName) {
+        if (!data) return;
+
+        // Cek apakah ada instruksi reset level dari guru
+        if (data.lastResetAt) {
+          const localResetAt = typeof window !== 'undefined' ? localStorage.getItem('borneo_edu_last_reset_at') : null;
+          const serverResetTime = new Date(data.lastResetAt).getTime();
+          const localResetTime = localResetAt ? new Date(localResetAt).getTime() : 0;
+
+          if (!localResetAt || serverResetTime > localResetTime) {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('borneo_edu_last_reset_at', data.lastResetAt);
+            }
+            const freshState = createInitialPlayerState(
+              data.studentName || 'Siswa Petualang',
+              data.className || 'Kelas 7A',
+              data.studentNumber || '01'
+            );
+            setPlayerState(freshState);
+            savePlayerStateToLocal(freshState);
+            loadQuestions(data.classId, data.className);
+            return;
+          }
+        }
+
+        if (data.studentName) {
           updatePlayer((prev) => ({
             ...prev,
             studentName: data.studentName,

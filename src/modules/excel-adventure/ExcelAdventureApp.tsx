@@ -240,9 +240,12 @@ export default function ExcelAdventureApp({
   const [revealAnswer, setRevealAnswer] = useState(false);
   const [classVotes, setClassVotes] = useState({ A: 0, B: 0, C: 0, D: 0 });
 
-  // State Penugasan Kelas & Gating Siswa
+  // State Penugasan Kelas & Gating Siswa & Kunci Game Guru
   const [assignmentLoading, setAssignmentLoading] = useState(true);
   const [isStudentAssigned, setIsStudentAssigned] = useState(false);
+  const [isGameLocked, setIsGameLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState('Game Simulasi Excel sedang dikunci oleh guru.');
+  const [teacherIsLocked, setTeacherIsLocked] = useState(false);
   const [studentAssignedClassName, setStudentAssignedClassName] = useState('');
   const [availableTeacherClasses, setAvailableTeacherClasses] = useState<{ id: string; name: string }[]>([]);
   const [assignedClassIds, setAssignedClassIds] = useState<string[]>([]);
@@ -251,7 +254,29 @@ export default function ExcelAdventureApp({
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [assignmentNotice, setAssignmentNotice] = useState<string | null>(null);
 
-  // Ambil data penugasan kelas dari database
+  // Rekap & Reset Siswa di Mode Guru
+  const [excelStudentResults, setExcelStudentResults] = useState<any[]>([]);
+  const [selectedResetClass, setSelectedResetClass] = useState<string>('ALL');
+  const [resettingClassLoading, setResettingClassLoading] = useState(false);
+  const [resettingStudentId, setResettingStudentId] = useState<string | null>(null);
+
+  // Ambil rekap siswa untuk guru
+  const fetchTeacherStudentResults = async (cls?: string) => {
+    try {
+      const url = cls && cls !== 'ALL'
+        ? `/api/excel-adventure/results?className=${encodeURIComponent(cls)}`
+        : '/api/excel-adventure/results';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.data)) {
+        setExcelStudentResults(data.data);
+      }
+    } catch (e) {
+      console.error('Error fetching student results', e);
+    }
+  };
+
+  // Ambil data penugasan kelas dan status kunci dari database
   const fetchAssignmentSettings = async () => {
     try {
       const res = await fetch('/api/excel-adventure/settings', {
@@ -266,14 +291,54 @@ export default function ExcelAdventureApp({
             setAssignedClassNames(data.config.assignedClassNames || []);
             if (data.config.kkmScore) setKkmScore(data.config.kkmScore);
             if (data.config.instructions) setTeacherInstructions(data.config.instructions);
+            setTeacherIsLocked(Boolean(data.config.isLocked));
+            if (data.config.lockMessage) setLockMessage(data.config.lockMessage);
           }
+          fetchTeacherStudentResults();
         } else {
           setIsStudentAssigned(Boolean(data.isAssigned));
+          setIsGameLocked(Boolean(data.isLocked));
+          if (data.lockReason) setLockMessage(data.lockReason);
           setStudentAssignedClassName(data.studentClassName || defaultPlayerClass);
           if (data.studentClassName) {
             setPlayerClass(data.studentClassName);
           }
           if (data.kkmScore) setKkmScore(data.kkmScore);
+
+          // Cek progres siswa di database dan deteksi apakah ada reset dari guru
+          fetch('/api/excel-adventure/results')
+            .then((r) => r.json())
+            .then((resData) => {
+              if (resData && resData.data) {
+                const sData = resData.data;
+                if (sData.lastResetAt) {
+                  const localReset = typeof window !== 'undefined' ? localStorage.getItem('excel_adventure_last_reset_at') : null;
+                  const serverResetTime = new Date(sData.lastResetAt).getTime();
+                  const localResetTime = localReset ? new Date(localReset).getTime() : 0;
+                  if (!localReset || serverResetTime > localResetTime) {
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('excel_adventure_last_reset_at', sData.lastResetAt);
+                      localStorage.removeItem('excel_adventure_progress');
+                    }
+                    setUnlockedLevels([1]);
+                    setLevelScores({});
+                    setBadges([]);
+                    setCurrentLevelId(1);
+                    return;
+                  }
+                }
+                if (Array.isArray(sData.unlockedLevels) && sData.unlockedLevels.length > 0) {
+                  setUnlockedLevels(sData.unlockedLevels);
+                }
+                if (sData.levelScores) {
+                  setLevelScores(sData.levelScores);
+                }
+                if (Array.isArray(sData.badges)) {
+                  setBadges(sData.badges);
+                }
+              }
+            })
+            .catch(() => {});
         }
       }
     } catch (err) {
@@ -287,7 +352,7 @@ export default function ExcelAdventureApp({
     fetchAssignmentSettings();
   }, [defaultPlayerClass]);
 
-  // Simpan penugasan kelas oleh guru
+  // Simpan penugasan kelas dan status kunci oleh guru
   const handleSaveTeacherAssignment = async () => {
     setAssignmentSaving(true);
     setAssignmentNotice(null);
@@ -298,6 +363,8 @@ export default function ExcelAdventureApp({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assignedClassIds,
+          isLocked: teacherIsLocked,
+          lockMessage,
           kkmScore,
           instructions: teacherInstructions,
           userRole: isTeacherUser ? 'TEACHER' : userRole,
@@ -307,7 +374,7 @@ export default function ExcelAdventureApp({
       const data = await res.json();
       if (res.ok) {
         playSound('success', soundEnabled);
-        setAssignmentNotice('✓ Penugasan kelas berhasil diperbarui!');
+        setAssignmentNotice('✓ Pengaturan penugasan & kunci game berhasil diperbarui!');
         await fetchAssignmentSettings();
         setTimeout(() => setAssignmentNotice(null), 3000);
       } else {
@@ -317,6 +384,73 @@ export default function ExcelAdventureApp({
       alert('Terjadi kesalahan jaringan saat menyimpan penugasan.');
     } finally {
       setAssignmentSaving(false);
+    }
+  };
+
+  // Handler Reset Per Kelas untuk Guru
+  const handleTeacherResetClass = async (classNameToReset: string) => {
+    if (!classNameToReset || classNameToReset === 'ALL') {
+      alert('Pilih kelas tertentu terlebih dahulu untuk mereset seluruh siswa di kelas tersebut.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `⚠️ PERINGATAN RESET KELAS!\n\nApakah Anda yakin ingin mereset SELURUH progres Game Simulasi Excel siswa di "${classNameToReset}" kembali ke Level 1?\n\nTindakan ini akan mengembalikan level, skor, dan riwayat spreadsheet siswa ke awal.`
+    );
+    if (!confirmed) return;
+
+    setResettingClassLoading(true);
+    try {
+      const res = await fetch('/api/excel-adventure/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: 'class',
+          className: classNameToReset
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✓ ${data.message || 'Progres kelas berhasil direset ke Level 1.'}`);
+        await fetchTeacherStudentResults(classNameToReset);
+      } else {
+        alert(data.error || 'Gagal mereset kelas.');
+      }
+    } catch {
+      alert('Terjadi kesalahan jaringan.');
+    } finally {
+      setResettingClassLoading(false);
+    }
+  };
+
+  // Handler Reset Per Siswa untuk Guru
+  const handleTeacherResetStudent = async (studentResultId: string, studentName: string) => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin mereset progres Game Simulasi Excel siswa "${studentName}" kembali ke Level 1?`
+    );
+    if (!confirmed) return;
+
+    setResettingStudentId(studentResultId);
+    try {
+      const res = await fetch('/api/excel-adventure/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: 'student',
+          resultId: studentResultId,
+          studentName
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✓ ${data.message || 'Progres siswa berhasil direset ke Level 1.'}`);
+        await fetchTeacherStudentResults(selectedResetClass);
+      } else {
+        alert(data.error || 'Gagal mereset siswa.');
+      }
+    } catch {
+      alert('Terjadi kesalahan jaringan.');
+    } finally {
+      setResettingStudentId(null);
     }
   };
 
@@ -361,7 +495,7 @@ export default function ExcelAdventureApp({
     }
   }, []);
 
-  const saveProgress = (extra = {}) => {
+  const saveProgress = (extra: Record<string, any> = {}) => {
     try {
       const payload = {
         playerName,
@@ -375,6 +509,29 @@ export default function ExcelAdventureApp({
         ...extra
       };
       localStorage.setItem('excel_adventure_progress', JSON.stringify(payload));
+
+      // Sinkronkan ke database server
+      const currentUnlocked = extra.unlockedLevels || unlockedLevels;
+      const currentScores = extra.levelScores || levelScores;
+      const highestLevel = Math.max(1, ...(Array.isArray(currentUnlocked) ? currentUnlocked : [1]));
+      const totalScore = Object.values(currentScores as Record<string, any>).reduce(
+        (acc: number, item: any) => acc + (Number(item?.score) || 0),
+        0
+      );
+
+      fetch('/api/excel-adventure/results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName: playerName,
+          className: playerClass,
+          highestLevel,
+          unlockedLevels: currentUnlocked,
+          levelScores: currentScores,
+          totalScore,
+          badges: extra.badges || badges
+        })
+      }).catch(() => {});
     } catch (e) {
       // Abaikan
     }
@@ -1128,7 +1285,7 @@ export default function ExcelAdventureApp({
                 {/* Siswa */}
                 <div
                   className={`border-2 rounded-2xl p-6 flex flex-col justify-between shadow-lg transition ${
-                    !isTeacherUser && !assignmentLoading && !isStudentAssigned
+                    !isTeacherUser && !assignmentLoading && (!isStudentAssigned || isGameLocked)
                       ? 'bg-slate-900/60 border-slate-700/80 opacity-90'
                       : 'bg-slate-900/90 border-emerald-500/40 hover:border-emerald-400'
                   }`}
@@ -1139,7 +1296,11 @@ export default function ExcelAdventureApp({
                         <User className="w-8 h-8" />
                       </div>
                       {!isTeacherUser && (
-                        isStudentAssigned ? (
+                        isGameLocked ? (
+                          <span className="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/40 flex items-center gap-1">
+                            <Lock className="w-3.5 h-3.5" /> Dikunci Guru
+                          </span>
+                        ) : isStudentAssigned ? (
                           <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/40 flex items-center gap-1">
                             <CheckCircle className="w-3.5 h-3.5" /> Ditugaskan ({studentAssignedClassName})
                           </span>
@@ -1152,24 +1313,28 @@ export default function ExcelAdventureApp({
                     </div>
                     <h3 className="text-xl font-black text-white">Mode Siswa — Belajar Mandiri</h3>
                     <p className="text-slate-300 text-sm mt-2 leading-relaxed">
-                      {!isTeacherUser && !isStudentAssigned
+                      {!isTeacherUser && isGameLocked
+                        ? (lockMessage || 'Game Simulasi Excel sedang dikunci oleh guru.')
+                        : !isTeacherUser && !isStudentAssigned
                         ? `Kelas Anda (${studentAssignedClassName || 'Kelas Siswa'}) belum dimasukkan ke daftar penugasan aktif oleh guru. Anda belum dapat memulai level latihan sebelum guru menugaskannya.`
                         : 'Pelajari Flash Card visual, selesaikan 10 Level petualangan bertahap, pasang diagram, gunakan AutoFill, raih XP, dan gelar Excel Master!'}
                     </p>
                   </div>
 
-                  {!isTeacherUser && !isStudentAssigned ? (
+                  {!isTeacherUser && (!isStudentAssigned || isGameLocked) ? (
                     <button
                       type="button"
                       onClick={() => {
                         playSound('error', soundEnabled);
                         alert(
-                          `🔒 Modul Belum Ditugaskan!\n\nGuru mata pelajaran belum menugaskan game Excel Adventure untuk kelas Anda (${studentAssignedClassName || 'Kelas Siswa'}).\n\nSilakan konfirmasi ke guru Anda.`
+                          isGameLocked
+                            ? `🔒 Game Excel Dikunci!\n\n${lockMessage || 'Game Simulasi Excel saat ini sedang dikunci oleh guru pengampu.'}`
+                            : `🔒 Modul Belum Ditugaskan!\n\nGuru mata pelajaran belum menugaskan game Excel Adventure untuk kelas Anda (${studentAssignedClassName || 'Kelas Siswa'}).\n\nSilakan konfirmasi ke guru Anda.`
                         );
                       }}
                       className="mt-6 w-full min-h-[54px] bg-slate-800 text-slate-400 font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700 shadow cursor-not-allowed"
                     >
-                      <Lock className="w-4 h-4" /> Belum Ditugaskan untuk Kelas Anda
+                      <Lock className="w-4 h-4" /> {isGameLocked ? 'Game Sedang Dikunci oleh Guru' : 'Belum Ditugaskan untuk Kelas Anda'}
                     </button>
                   ) : (
                     <button
@@ -1246,18 +1411,25 @@ export default function ExcelAdventureApp({
           </div>
         )}
 
-        {/* GATEKEEPER: TAMPILKAN LAYAR TERKUNCI JIKA SISWA BELUM DITUGASKAN OLEH GURU */}
-        {!isTeacherUser && !assignmentLoading && !isStudentAssigned && screen !== 'HOME' && (
+        {/* GATEKEEPER: TAMPILKAN LAYAR TERKUNCI JIKA SISWA BELUM DITUGASKAN OLEH GURU ATAU GAME DIKUNCI GURU */}
+        {!isTeacherUser && !assignmentLoading && (!isStudentAssigned || isGameLocked) && screen !== 'HOME' && (
           <div className="max-w-xl mx-auto p-4 sm:p-8 text-center animate-in fade-in duration-300">
-            <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-5">
-              <div className="w-20 h-20 rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 mx-auto flex items-center justify-center shadow-lg">
+            <div className={`bg-slate-900 border-2 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-5 ${
+              isGameLocked ? 'border-rose-500/50' : 'border-amber-500/50'
+            }`}>
+              <div className={`w-20 h-20 rounded-3xl border mx-auto flex items-center justify-center shadow-lg ${
+                isGameLocked ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+              }`}>
                 <Lock className="w-10 h-10" />
               </div>
               <h2 className="text-2xl font-black text-white">
-                Akses Excel Adventure Terkunci
+                {isGameLocked ? 'Game Simulasi Excel Sedang Dikunci Guru' : 'Akses Excel Adventure Terkunci'}
               </h2>
               <p className="text-slate-300 text-sm leading-relaxed">
-                Modul ini belum ditugaskan oleh guru untuk kelas Anda (<strong>{studentAssignedClassName || 'Kelas Anda'}</strong>). Silakan hubungi bapak/ibu guru pengajar untuk menambahkan kelas Anda ke dalam penugasan game spreadsheet ini.
+                {isGameLocked
+                  ? (lockMessage || 'Game Simulasi Excel saat ini sedang dikunci oleh guru pengampu. Silakan tunggu hingga guru membuka akses permainan kembali.')
+                  : `Modul ini belum ditugaskan oleh guru untuk kelas Anda (${studentAssignedClassName || 'Kelas Anda'}). Silakan hubungi bapak/ibu guru pengajar untuk menambahkan kelas Anda ke dalam penugasan game spreadsheet ini.`
+                }
               </p>
               <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
                 <button
@@ -2096,6 +2268,56 @@ export default function ExcelAdventureApp({
                   )}
                 </div>
 
+                {/* Master Switch Kunci Akses Game Excel */}
+                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl border ${teacherIsLocked ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'}`}>
+                        {teacherIsLocked ? <Lock className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-black text-white">Status Kunci Master Game Excel</h4>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${
+                            teacherIsLocked ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          }`}>
+                            {teacherIsLocked ? '🔒 Game Terkunci' : '🔓 Akses Dibuka'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Kunci permainan secara instan jika guru ingin menghentikan sesi latihan seluruh siswa.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setTeacherIsLocked(!teacherIsLocked)}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 shadow ${
+                        teacherIsLocked
+                          ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                          : 'bg-rose-600 hover:bg-rose-500 text-white'
+                      }`}
+                    >
+                      {teacherIsLocked ? <CheckCircle className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                      <span>{teacherIsLocked ? 'Buka Kunci Akses Siswa' : 'Kunci Game untuk Semua'}</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Pesan Notifikasi Kunci untuk Siswa:
+                    </label>
+                    <input
+                      type="text"
+                      value={lockMessage}
+                      onChange={(e) => setLockMessage(e.target.value)}
+                      placeholder="Game Simulasi Excel sedang dikunci oleh guru."
+                      className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-medium focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
                 {/* Target Nilai KKM & Petunjuk */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-800">
                   <div>
@@ -2157,10 +2379,108 @@ export default function ExcelAdventureApp({
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        <span>Simpan Perubahan Penugasan</span>
+                        <span>Simpan Perubahan Penugasan & Kunci</span>
                       </>
                     )}
                   </button>
+                </div>
+
+                {/* MODUL RESET LEVEL SISWA PER-KELAS & PER-SISWA */}
+                <div className="pt-6 border-t-2 border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-black uppercase tracking-wider border border-rose-500/30 mb-1">
+                        <RotateCcw className="w-3 h-3" /> Kendali Reset Level Siswa
+                      </div>
+                      <h4 className="text-lg font-black text-white">
+                        Reset Progres Game Excel Siswa ke Level 1
+                      </h4>
+                      <p className="text-xs text-slate-400">
+                        Kembalikan progres latihan spreadsheet ke awal per-kelas maupun secara individu per-siswa.
+                      </p>
+                    </div>
+
+                    {/* Reset Per-Kelas */}
+                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-2xl border border-slate-800">
+                      <select
+                        value={selectedResetClass}
+                        onChange={(e) => {
+                          setSelectedResetClass(e.target.value);
+                          fetchTeacherStudentResults(e.target.value);
+                        }}
+                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none"
+                      >
+                        <option value="ALL">Semua Kelas</option>
+                        {availableTeacherClasses.map((cls) => (
+                          <option key={cls.id} value={cls.name}>{cls.name}</option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        disabled={resettingClassLoading || selectedResetClass === 'ALL'}
+                        onClick={() => handleTeacherResetClass(selectedResetClass)}
+                        className="px-3 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white font-black rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 shadow"
+                        title={selectedResetClass === 'ALL' ? 'Pilih kelas tertentu untuk mereset seluruh kelas' : `Reset seluruh siswa di ${selectedResetClass}`}
+                      >
+                        <RotateCcw className={`w-3.5 h-3.5 ${resettingClassLoading ? 'animate-spin' : ''}`} />
+                        <span>{resettingClassLoading ? 'Mereset...' : `Reset Kelas ${selectedResetClass !== 'ALL' ? selectedResetClass : ''}`}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Rekap Tabel Siswa & Reset Per Siswa */}
+                  <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden">
+                    {excelStudentResults.length === 0 ? (
+                      <div className="p-8 text-center text-slate-500 text-xs">
+                        Belum ada riwayat siswa yang tercatat di database untuk kelas ini. Siswa yang mulai bermain akan otomatis muncul di sini.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-slate-900/90 text-slate-400 border-b border-slate-800 uppercase tracking-wider text-[10px] font-black">
+                              <th className="py-3 px-4">Nama Siswa</th>
+                              <th className="py-3 px-3">Kelas</th>
+                              <th className="py-3 px-3">Level Tertinggi</th>
+                              <th className="py-3 px-3">Level Terbuka</th>
+                              <th className="py-3 px-3">Total Skor</th>
+                              <th className="py-3 px-3 text-center">Aksi Reset</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                            {excelStudentResults.map((s) => (
+                              <tr key={s._id} className="hover:bg-slate-900/50 transition">
+                                <td className="py-3 px-4 font-bold text-white">{s.studentName}</td>
+                                <td className="py-3 px-3">
+                                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]">
+                                    {s.className}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 font-black text-amber-400">Level {s.highestLevel || 1}</td>
+                                <td className="py-3 px-3 text-slate-400">
+                                  {(s.unlockedLevels || [1]).join(', ')}
+                                </td>
+                                <td className="py-3 px-3 font-bold text-emerald-400">{s.totalScore || 0} XP</td>
+                                <td className="py-3 px-3 text-center">
+                                  <button
+                                    type="button"
+                                    disabled={resettingStudentId === s._id}
+                                    onClick={() => handleTeacherResetStudent(s._id, s.studentName)}
+                                    className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-white border border-rose-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1 mx-auto"
+                                    title="Reset progres siswa ini ke Level 1"
+                                  >
+                                    <RotateCcw className={`w-3 h-3 ${resettingStudentId === s._id ? 'animate-spin' : ''}`} />
+                                    <span>{resettingStudentId === s._id ? 'Mereset...' : 'Reset ke L1'}</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

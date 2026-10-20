@@ -13,12 +13,16 @@ import {
   Sparkles,
   Users,
   Lock,
+  Unlock,
+  RotateCcw,
+  RefreshCw,
   Layers,
   Save,
   Loader2,
   ExternalLink,
   HelpCircle,
-  Eye
+  Eye,
+  Search
 } from "lucide-react";
 
 interface TeacherClassItem {
@@ -32,6 +36,14 @@ interface ExcelAdventureConfigData {
   kkmScore: number;
   activeLevels: number[];
   instructions: string;
+  isLocked?: boolean;
+  lockMessage?: string;
+}
+
+interface BorneoEduConfigData {
+  isLocked: boolean;
+  lockedClassNames: string[];
+  lockMessage?: string;
 }
 
 export default function TeacherInteractiveGamesDashboard() {
@@ -43,31 +55,75 @@ export default function TeacherInteractiveGamesDashboard() {
     assignedClassNames: [],
     kkmScore: 75,
     activeLevels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    instructions: "Selesaikan seluruh misi dan latihan spreadsheet sesuai petunjuk guru."
+    instructions: "Selesaikan seluruh misi dan latihan spreadsheet sesuai petunjuk guru.",
+    isLocked: false,
+    lockMessage: "Game Simulasi Excel sedang dikunci oleh guru."
   });
+  const [borneoConfig, setBorneoConfig] = useState<BorneoEduConfigData>({
+    isLocked: false,
+    lockedClassNames: [],
+    lockMessage: "Game Petualangan Borneo Edu sedang dikunci oleh guru."
+  });
+
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
 
+  // Modal Reset Game State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [activeResetGame, setActiveResetGame] = useState<'EXCEL' | 'BORNEO'>('EXCEL');
+  const [resetSelectedClass, setResetSelectedClass] = useState<string>('ALL');
+  const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
+  const [excelStudents, setExcelStudents] = useState<any[]>([]);
+  const [borneoStudents, setBorneoStudents] = useState<any[]>([]);
+  const [resetActionLoading, setResetActionLoading] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
+
   const fetchSettings = async () => {
     try {
-      const res = await fetch("/api/excel-adventure/settings", {
-        credentials: "include"
-      });
-      const data = await res.json();
-      if (data && data.success) {
-        if (Array.isArray(data.teacherClasses)) {
-          setTeacherClasses(data.teacherClasses);
+      const [excelRes, borneoRes] = await Promise.all([
+        fetch("/api/excel-adventure/settings", { credentials: "include" }),
+        fetch("/api/borneo-edu/settings")
+      ]);
+
+      const excelData = await excelRes.json();
+      if (excelData && excelData.success) {
+        if (Array.isArray(excelData.teacherClasses)) {
+          setTeacherClasses(excelData.teacherClasses);
         }
-        if (data.config) {
-          setConfig(data.config);
-          setSelectedClassIds(data.config.assignedClassIds || []);
+        if (excelData.config) {
+          setConfig(excelData.config);
+          setSelectedClassIds(excelData.config.assignedClassIds || []);
         }
+      }
+
+      const borneoData = await borneoRes.json();
+      if (borneoData && borneoData.success && borneoData.data) {
+        setBorneoConfig(borneoData.data);
       }
     } catch (err) {
       console.error("Gagal memuat pengaturan game:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStudentLists = async () => {
+    try {
+      const [exRes, boRes] = await Promise.all([
+        fetch("/api/excel-adventure/results"),
+        fetch("/api/borneo-edu/results")
+      ]);
+      const exData = await exRes.json();
+      if (exData && exData.success && Array.isArray(exData.data)) {
+        setExcelStudents(exData.data);
+      }
+      const boData = await boRes.json();
+      if (boData && boData.success && Array.isArray(boData.data)) {
+        setBorneoStudents(boData.data);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data siswa game:", err);
     }
   };
 
@@ -101,6 +157,8 @@ export default function TeacherInteractiveGamesDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assignedClassIds: selectedClassIds,
+          isLocked: config.isLocked,
+          lockMessage: config.lockMessage,
           kkmScore: config.kkmScore,
           activeLevels: config.activeLevels,
           instructions: config.instructions,
@@ -125,6 +183,134 @@ export default function TeacherInteractiveGamesDashboard() {
     }
   };
 
+  // Toggle Lock Game Simulasi Excel
+  const handleToggleExcelLock = async () => {
+    const nextLocked = !Boolean(config.isLocked);
+    try {
+      const res = await fetch("/api/excel-adventure/settings", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignedClassIds: selectedClassIds,
+          isLocked: nextLocked,
+          lockMessage: config.lockMessage || "Game Simulasi Excel sedang dikunci oleh guru.",
+          kkmScore: config.kkmScore,
+          instructions: config.instructions,
+          userRole: "TEACHER"
+        })
+      });
+      if (res.ok) {
+        setConfig((prev) => ({ ...prev, isLocked: nextLocked }));
+      } else {
+        alert("Gagal mengubah status kunci game Excel.");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan.");
+    }
+  };
+
+  // Toggle Lock Game Borneo Edu
+  const handleToggleBorneoLock = async () => {
+    const nextLocked = !Boolean(borneoConfig.isLocked);
+    try {
+      const res = await fetch("/api/borneo-edu/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...borneoConfig,
+          isLocked: nextLocked
+        })
+      });
+      if (res.ok) {
+        setBorneoConfig((prev) => ({ ...prev, isLocked: nextLocked }));
+      } else {
+        alert("Gagal mengubah status kunci game Borneo Edu.");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan.");
+    }
+  };
+
+  // Handler Reset Per-Kelas
+  const handleResetClass = async (game: 'EXCEL' | 'BORNEO', className: string) => {
+    if (!className || className === 'ALL') {
+      alert("Pilih kelas tertentu terlebih dahulu untuk mereset seluruh siswa.");
+      return;
+    }
+
+    const gameTitle = game === 'EXCEL' ? "Game Simulasi Excel" : "Game Borneo Edu";
+    const confirmed = window.confirm(
+      `⚠️ PERINGATAN RESET KELAS!\n\nApakah Anda yakin ingin mereset seluruh siswa di "${className}" pada ${gameTitle} kembali ke Level 1?\n\nSemua riwayat level, skor, dan capaian siswa di kelas ini akan kembali ke awal.`
+    );
+    if (!confirmed) return;
+
+    setResetActionLoading(true);
+    setResetNotice(null);
+    try {
+      const endpoint = game === 'EXCEL' ? "/api/excel-adventure/reset" : "/api/borneo-edu/reset";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target: "class", className })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResetNotice(`✓ Seluruh siswa di ${className} berhasil direset ke Level 1.`);
+        await fetchStudentLists();
+        setTimeout(() => setResetNotice(null), 3500);
+      } else {
+        alert(data.error || "Gagal mereset kelas.");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setResetActionLoading(false);
+    }
+  };
+
+  // Handler Reset Per-Siswa
+  const handleResetStudent = async (game: 'EXCEL' | 'BORNEO', studentIdOrName: string, studentName: string, className?: string) => {
+    const gameTitle = game === 'EXCEL' ? "Game Simulasi Excel" : "Game Borneo Edu";
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin mereset progres siswa "${studentName}" pada ${gameTitle} ke Level 1?`
+    );
+    if (!confirmed) return;
+
+    setResetActionLoading(true);
+    setResetNotice(null);
+    try {
+      const endpoint = game === 'EXCEL' ? "/api/excel-adventure/reset" : "/api/borneo-edu/reset";
+      const payload: any = { target: "student", studentName, className };
+      if (studentIdOrName) payload.resultId = studentIdOrName;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResetNotice(`✓ Progres ${studentName} berhasil direset ke Level 1.`);
+        await fetchStudentLists();
+        setTimeout(() => setResetNotice(null), 3500);
+      } else {
+        alert(data.error || "Gagal mereset siswa.");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setResetActionLoading(false);
+    }
+  };
+
+  // Buka modal reset level
+  const openResetModal = (game: 'EXCEL' | 'BORNEO') => {
+    setActiveResetGame(game);
+    setShowResetModal(true);
+    fetchStudentLists();
+  };
+
   // Hitung kelas guru yang saat ini ditugaskan
   const assignedTeacherClasses = teacherClasses.filter((tc) =>
     config.assignedClassIds?.includes(tc.id)
@@ -143,7 +329,7 @@ export default function TeacherInteractiveGamesDashboard() {
             Game Edukasi & Pembelajaran Interaktif
           </h2>
           <p className="text-sm text-slate-500 font-medium mt-0.5">
-            Kelola penugasan modul game ke kelas tertentu dan demonstrasikan di layar sentuh SmartBoard / IFP.
+            Kontrol kunci akses game, kelola penugasan kelas, dan reset level siswa per-individu maupun per-kelas.
           </p>
         </div>
 
@@ -160,7 +346,7 @@ export default function TeacherInteractiveGamesDashboard() {
 
       {/* Grid Kartu Game */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* KARTU 1: EXCEL ADVENTURE DENGAN KENDALI PENUGASAN KELAS */}
+        {/* KARTU 1: EXCEL ADVENTURE DENGAN KENDALI PENUGASAN KELAS & KUNCI */}
         <div className="rounded-3xl bg-gradient-to-br from-teal-950 via-slate-900 to-slate-950 border-2 border-emerald-500/40 p-6 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -171,9 +357,18 @@ export default function TeacherInteractiveGamesDashboard() {
                   <FileSpreadsheet size={26} />
                 </div>
                 <div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
-                    Simulasi Spreadsheet & Rumus
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
+                      Simulasi Spreadsheet & Rumus
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${
+                      config.isLocked
+                        ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                        : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                    }`}>
+                      {config.isLocked ? "🔒 Terkunci" : "🔓 Terbuka"}
+                    </span>
+                  </div>
                   <h3 className="text-xl font-black text-white mt-1">
                     Excel Adventure: Misi Ahli Spreadsheet
                   </h3>
@@ -185,7 +380,7 @@ export default function TeacherInteractiveGamesDashboard() {
               Modul 10 level simulasi spreadsheet: rumus matematika, statistik, logika IF, AutoFill, diagram grafik visual, duel cerdas cermat, serta ekspor file .XLSX asli.
             </p>
 
-            {/* Status Penugasan Kelas */}
+            {/* Status Penugasan Kelas & Kunci */}
             <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold">
                 <span className="text-slate-400 flex items-center gap-1.5">
@@ -223,21 +418,49 @@ export default function TeacherInteractiveGamesDashboard() {
           </div>
 
           <div className="relative z-10 pt-5 mt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setShowAssignModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-md transition active:scale-95"
-            >
-              <Settings size={15} />
-              <span>Tugaskan ke Kelas Tertentu</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAssignModal(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition active:scale-95"
+              >
+                <Settings size={14} />
+                <span>Tugaskan Kelas</span>
+              </button>
+
+              {/* Tombol Kunci / Buka Cepat */}
+              <button
+                type="button"
+                onClick={handleToggleExcelLock}
+                className={`px-3 py-2.5 rounded-xl text-xs font-black border transition flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                  config.isLocked
+                    ? "bg-rose-900/80 hover:bg-rose-800 text-rose-200 border-rose-500/50"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                }`}
+                title={config.isLocked ? "Buka akses game untuk siswa" : "Kunci akses game untuk siswa"}
+              >
+                {config.isLocked ? <Unlock size={14} /> : <Lock size={14} />}
+                <span>{config.isLocked ? "Buka Kunci" : "Kunci Game"}</span>
+              </button>
+
+              {/* Tombol Reset Level */}
+              <button
+                type="button"
+                onClick={() => openResetModal('EXCEL')}
+                className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-200 hover:text-rose-200 border border-slate-700 hover:border-rose-500/40 text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+                title="Reset progres level siswa atau kelas"
+              >
+                <RotateCcw size={14} />
+                <span>Reset Level</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard/interactive-learning/excel-adventure"
                 className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition flex items-center gap-1.5"
               >
-                <span>Panel Guru (IFP)</span>
+                <span>Panel IFP</span>
                 <ArrowRight size={14} />
               </Link>
               <Link
@@ -252,7 +475,7 @@ export default function TeacherInteractiveGamesDashboard() {
           </div>
         </div>
 
-        {/* KARTU 2: BORNEO EDU */}
+        {/* KARTU 2: BORNEO EDU DENGAN KENDALI KUNCI & RESET */}
         <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-950 border-2 border-amber-500/40 p-6 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -263,9 +486,18 @@ export default function TeacherInteractiveGamesDashboard() {
                   <Trophy size={26} />
                 </div>
                 <div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-500/30">
-                    Platformer 2D Kurikulum
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-500/30">
+                      Platformer 2D Kurikulum
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${
+                      borneoConfig.isLocked
+                        ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                        : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                    }`}>
+                      {borneoConfig.isLocked ? "🔒 Terkunci" : "🔓 Terbuka"}
+                    </span>
+                  </div>
                   <h3 className="text-xl font-black text-white mt-1">
                     Game Petualangan Borneo Edu
                   </h3>
@@ -283,7 +515,9 @@ export default function TeacherInteractiveGamesDashboard() {
                   <Sparkles size={14} className="text-amber-400" />
                   <span>Fitur Guru Borneo Edu:</span>
                 </span>
-                <span className="text-amber-300 text-xs">Aktif Sepanjang Tahun</span>
+                <span className="text-amber-300 text-xs">
+                  {borneoConfig.isLocked ? "Akses Sedang Dikunci" : "Aktif Sepanjang Tahun"}
+                </span>
               </div>
               <p className="text-xs text-slate-300">
                 Siswa diwajibkan menyelesaikan membaca materi sebelum game terbuka, dan mengerjakan 5 pertanyaan refleksi setelah tamat.
@@ -292,13 +526,41 @@ export default function TeacherInteractiveGamesDashboard() {
           </div>
 
           <div className="relative z-10 pt-5 mt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
-            <Link
-              href="/dashboard/interactive-learning/borneo-edu"
-              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-md transition active:scale-95"
-            >
-              <Trophy size={15} />
-              <span>Buka Meja Guru Borneo Edu</span>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/dashboard/interactive-learning/borneo-edu"
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition active:scale-95"
+              >
+                <Trophy size={14} />
+                <span>Meja Guru</span>
+              </Link>
+
+              {/* Tombol Kunci / Buka Cepat Borneo Edu */}
+              <button
+                type="button"
+                onClick={handleToggleBorneoLock}
+                className={`px-3 py-2.5 rounded-xl text-xs font-black border transition flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                  borneoConfig.isLocked
+                    ? "bg-rose-900/80 hover:bg-rose-800 text-rose-200 border-rose-500/50"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                }`}
+                title={borneoConfig.isLocked ? "Buka akses game untuk siswa" : "Kunci akses game untuk siswa"}
+              >
+                {borneoConfig.isLocked ? <Unlock size={14} /> : <Lock size={14} />}
+                <span>{borneoConfig.isLocked ? "Buka Kunci" : "Kunci Game"}</span>
+              </button>
+
+              {/* Tombol Reset Level Borneo Edu */}
+              <button
+                type="button"
+                onClick={() => openResetModal('BORNEO')}
+                className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-200 hover:text-rose-200 border border-slate-700 hover:border-rose-500/40 text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+                title="Reset progres level siswa atau kelas"
+              >
+                <RotateCcw size={14} />
+                <span>Reset Level</span>
+              </button>
+            </div>
 
             <Link
               href="/interactive-learning/borneo-edu"
@@ -312,7 +574,7 @@ export default function TeacherInteractiveGamesDashboard() {
         </div>
       </div>
 
-      {/* MODAL PENUGASAN KELAS KHUSUS GURU */}
+      {/* MODAL 1: PENUGASAN KELAS KHUSUS GURU */}
       {showAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-xl w-full p-6 sm:p-7 text-white shadow-2xl space-y-5">
@@ -378,13 +640,15 @@ export default function TeacherInteractiveGamesDashboard() {
                         className={`p-3 rounded-xl border text-left text-xs font-bold transition flex items-center justify-between ${
                           isChecked
                             ? "bg-emerald-950/70 border-emerald-400 text-emerald-200 shadow-sm"
-                            : "bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
+                            : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750"
                         }`}
                       >
                         <span>{cls.name}</span>
                         <span
-                          className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-black ${
-                            isChecked ? "bg-emerald-500 text-slate-950" : "border border-slate-500"
+                          className={`w-5 h-5 rounded-md flex items-center justify-center text-xs font-black ${
+                            isChecked
+                              ? "bg-emerald-500 text-slate-950"
+                              : "border border-slate-600"
                           }`}
                         >
                           {isChecked ? "✓" : ""}
@@ -396,54 +660,36 @@ export default function TeacherInteractiveGamesDashboard() {
               )}
             </div>
 
-            {/* Pengaturan Nilai KKM & Petunjuk */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            {/* Pengaturan Kunci Langsung di Modal */}
+            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-between">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Target Nilai KKM Minimal:
-                </label>
-                <input
-                  type="number"
-                  min={50}
-                  max={100}
-                  value={config.kkmScore}
-                  onChange={(e) =>
-                    setConfig((prev) => ({ ...prev, kkmScore: Number(e.target.value) || 75 }))
-                  }
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-bold focus:border-emerald-500 focus:outline-none"
-                />
+                <span className="text-xs font-bold text-white block">Status Kunci Permainan:</span>
+                <span className="text-[11px] text-slate-400">
+                  {config.isLocked ? "Game sedang dikunci untuk semua kelas" : "Game terbuka bagi kelas yang dicentang"}
+                </span>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Petunjuk Khusus untuk Siswa:
-                </label>
-                <input
-                  type="text"
-                  value={config.instructions}
-                  onChange={(e) =>
-                    setConfig((prev) => ({ ...prev, instructions: e.target.value }))
-                  }
-                  placeholder="Contoh: Selesaikan Level 1-5"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-medium focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
               <button
                 type="button"
-                onClick={() => setShowAssignModal(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+                onClick={() => setConfig((prev) => ({ ...prev, isLocked: !prev.isLocked }))}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black border transition ${
+                  config.isLocked
+                    ? "bg-rose-900 text-rose-200 border-rose-500"
+                    : "bg-emerald-600 text-white border-emerald-500"
+                }`}
               >
-                Batal
+                {config.isLocked ? "🔒 Terkunci" : "🔓 Terbuka"}
               </button>
+            </div>
+
+            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                {selectedClassIds.length} kelas dipilih
+              </span>
               <button
                 type="button"
                 disabled={saving}
                 onClick={handleSaveAssignments}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg disabled:opacity-50"
               >
                 {saving ? (
                   <>
@@ -453,9 +699,195 @@ export default function TeacherInteractiveGamesDashboard() {
                 ) : (
                   <>
                     <Save size={14} />
-                    <span>Simpan Penugasan Kelas</span>
+                    <span>Simpan Penugasan</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: RESET LEVEL SISWA (PER-KELAS & PER-SISWA) */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border-2 border-rose-500/50 rounded-3xl max-w-2xl w-full p-6 sm:p-8 text-white shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40">
+                  <RotateCcw size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    Reset Level Game Siswa ke Level 1
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Kembalikan progres permainan ke kondisi awal baik per-kelas maupun individu per-siswa
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Switch Tab Game */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveResetGame('EXCEL');
+                  setResetSelectedClass('ALL');
+                }}
+                className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition ${
+                  activeResetGame === 'EXCEL'
+                    ? "bg-emerald-500 text-slate-950 shadow-md"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <FileSpreadsheet size={15} />
+                <span>Game Simulasi Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveResetGame('BORNEO');
+                  setResetSelectedClass('ALL');
+                }}
+                className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition ${
+                  activeResetGame === 'BORNEO'
+                    ? "bg-amber-400 text-slate-950 shadow-md"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Trophy size={15} />
+                <span>Borneo Edu</span>
+              </button>
+            </div>
+
+            {resetNotice && (
+              <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-xl text-emerald-200 text-xs font-bold animate-in fade-in">
+                {resetNotice}
+              </div>
+            )}
+
+            {/* SEKSI A: RESET PER-KELAS */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-300">
+                  1. Reset Seluruh Siswa di Satu Kelas:
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <select
+                  value={resetSelectedClass}
+                  onChange={(e) => setResetSelectedClass(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none"
+                >
+                  <option value="ALL">Pilih Kelas yang Ingin Direset...</option>
+                  {teacherClasses.map((cls) => (
+                    <option key={cls.id} value={cls.name}>{cls.name}</option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  disabled={resetActionLoading || resetSelectedClass === 'ALL'}
+                  onClick={() => handleResetClass(activeResetGame, resetSelectedClass)}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition active:scale-95 shrink-0"
+                >
+                  <RotateCcw size={14} className={resetActionLoading ? "animate-spin" : ""} />
+                  <span>Reset Kelas Ini</span>
+                </button>
+              </div>
+            </div>
+
+            {/* SEKSI B: RESET PER-SISWA */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-300">
+                  2. Reset Siswa Tertentu:
+                </span>
+                <div className="relative w-full sm:w-56">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama siswa..."
+                    value={studentSearchQuery}
+                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-rose-400"
+                  />
+                </div>
+              </div>
+
+              {/* Tabel Siswa */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden max-h-64 overflow-y-auto">
+                {(() => {
+                  const studentList = activeResetGame === 'EXCEL' ? excelStudents : borneoStudents;
+                  const filtered = studentList.filter((s) => {
+                    const nameMatch = s.studentName?.toLowerCase().includes(studentSearchQuery.toLowerCase());
+                    const classMatch = resetSelectedClass === 'ALL' || s.className?.toLowerCase() === resetSelectedClass.toLowerCase();
+                    return nameMatch && classMatch;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="p-8 text-center text-slate-500 text-xs">
+                        Tidak ada data siswa ditemukan untuk {activeResetGame === 'EXCEL' ? "Game Excel" : "Borneo Edu"}. Siswa yang memainkan game akan otomatis tercatat di sini.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-900 text-slate-400 border-b border-slate-800 uppercase text-[10px] font-black sticky top-0">
+                        <tr>
+                          <th className="py-2.5 px-3">Nama Siswa</th>
+                          <th className="py-2.5 px-3">Kelas</th>
+                          <th className="py-2.5 px-3">Level Terkini</th>
+                          <th className="py-2.5 px-3 text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                        {filtered.map((s, idx) => (
+                          <tr key={s._id || `${s.studentName}-${idx}`} className="hover:bg-slate-900/50">
+                            <td className="py-2.5 px-3 font-bold text-white">{s.studentName}</td>
+                            <td className="py-2.5 px-3">{s.className || 'Kelas 7'}</td>
+                            <td className="py-2.5 px-3 font-black text-amber-400">
+                              Level {s.highestLevel || s.completedLevels?.length || 1}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                disabled={resetActionLoading}
+                                onClick={() => handleResetStudent(activeResetGame, s._id, s.studentName, s.className)}
+                                className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-white border border-rose-500/40 rounded-lg text-xs font-bold transition flex items-center gap-1 mx-auto"
+                              >
+                                <RotateCcw size={12} />
+                                <span>Reset L1</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+              >
+                Tutup
               </button>
             </div>
           </div>

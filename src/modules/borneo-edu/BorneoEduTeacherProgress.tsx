@@ -45,7 +45,10 @@ import {
   X,
   AlertTriangle,
   Loader2,
-  Gamepad2
+  Gamepad2,
+  RotateCcw,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 const BorneoEduGame = dynamic(
@@ -136,6 +139,10 @@ export default function BorneoEduTeacherProgress({
   const [qAlertMessage, setQAlertMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Reset Student & Class state
+  const [resettingStudent, setResettingStudent] = useState<string | null>(null);
+  const [resettingClass, setResettingClass] = useState<string | null>(null);
 
   // Load data from DB / LocalStorage
   const loadData = async () => {
@@ -393,6 +400,125 @@ export default function BorneoEduTeacherProgress({
     } catch {
       setSettingsMessage('Pengaturan disimpan di penyimpanan browser lokal.');
       setTimeout(() => setSettingsMessage(''), 4000);
+    }
+  };
+
+  const handleResetStudent = async (studentName: string, className?: string) => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin mereset progres siswa "${studentName}" ke Level 1?\n\nSemua riwayat level, skor, koin, dan badge siswa ini akan dikembalikan ke kondisi awal.`
+    );
+    if (!confirmed) return;
+
+    setResettingStudent(studentName);
+    try {
+      const res = await fetch('/api/borneo-edu/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: 'student',
+          studentName,
+          className,
+          teacherPin: config.teacherPin || 'guru123'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✓ ${data.message || 'Progres siswa berhasil direset ke Level 1'}`);
+        await loadData();
+      } else {
+        alert(data.error || 'Gagal mereset progres siswa.');
+      }
+    } catch {
+      alert('Terjadi kesalahan jaringan.');
+    } finally {
+      setResettingStudent(null);
+    }
+  };
+
+  const handleResetClass = async (className: string) => {
+    if (!className || className === 'all') {
+      alert('Pilih kelas tertentu terlebih dahulu untuk mereset seluruh siswa di kelas tersebut.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `⚠️ PERINGATAN RESET KELAS!\n\nApakah Anda yakin ingin mereset SEMUA siswa di ${className} kembali ke Level 1?\n\nTindakan ini akan mengembalikan progres seluruh siswa di kelas ini ke Level 1.`
+    );
+    if (!confirmed) return;
+
+    setResettingClass(className);
+    try {
+      const res = await fetch('/api/borneo-edu/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: 'class',
+          className,
+          teacherPin: config.teacherPin || 'guru123'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✓ ${data.message || `Seluruh siswa di ${className} berhasil direset ke Level 1`}`);
+        await loadData();
+      } else {
+        alert(data.error || 'Gagal mereset progres kelas.');
+      }
+    } catch {
+      alert('Terjadi kesalahan jaringan.');
+    } finally {
+      setResettingClass(null);
+    }
+  };
+
+  const handleToggleMasterLock = async () => {
+    const newLocked = !Boolean(config.isLocked);
+    const updatedConfig: TeacherConfig = {
+      ...config,
+      isLocked: newLocked
+    };
+    setConfig(updatedConfig);
+    saveTeacherConfigToLocal(updatedConfig);
+
+    try {
+      await fetch('/api/borneo-edu/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedConfig)
+      });
+      setSettingsMessage(
+        newLocked
+          ? '🔒 Akses game Borneo Edu berhasil DIKUNCI untuk seluruh siswa!'
+          : '🔓 Akses game Borneo Edu berhasil DIBUKA untuk siswa!'
+      );
+      setTimeout(() => setSettingsMessage(''), 4000);
+    } catch {
+      alert('Gagal memperbarui status kunci game.');
+    }
+  };
+
+  const handleToggleClassLock = async (clsName: string) => {
+    const currentLocked = config.lockedClassNames || [];
+    const exists = currentLocked.some((c) => c.toLowerCase().trim() === clsName.toLowerCase().trim());
+    const updatedList = exists
+      ? currentLocked.filter((c) => c.toLowerCase().trim() !== clsName.toLowerCase().trim())
+      : [...currentLocked, clsName];
+
+    const updatedConfig: TeacherConfig = {
+      ...config,
+      lockedClassNames: updatedList
+    };
+    setConfig(updatedConfig);
+    saveTeacherConfigToLocal(updatedConfig);
+
+    try {
+      await fetch('/api/borneo-edu/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedConfig)
+      });
+    } catch {
+      alert('Gagal memperbarui status kunci kelas.');
     }
   };
 
@@ -1141,11 +1267,40 @@ export default function BorneoEduTeacherProgress({
                     <option key={c} value={c} className="text-slate-800 bg-white">{c}</option>
                   ))}
                 </select>
+
+                {filterClass !== 'all' && (
+                  <button
+                    onClick={() => handleResetClass(filterClass)}
+                    disabled={resettingClass === filterClass}
+                    className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-black transition flex items-center gap-1.5 shadow-sm"
+                    title={`Reset seluruh progres siswa di ${filterClass} ke Level 1`}
+                  >
+                    <RotateCcw size={13} className={resettingClass === filterClass ? 'animate-spin' : ''} />
+                    <span>{resettingClass === filterClass ? 'Mereset...' : `Reset ${filterClass} ke L1`}</span>
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="text-xs text-slate-400 font-bold self-end sm:self-center">
-              Menampilkan {filteredRows.length} dari {records.length} siswa
+            <div className="flex items-center gap-3">
+              {/* Status & Kontrol Kunci Cepat */}
+              <button
+                type="button"
+                onClick={handleToggleMasterLock}
+                className={`px-3 py-2 rounded-xl text-xs font-black border transition flex items-center gap-1.5 shadow-sm ${
+                  config.isLocked
+                    ? 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
+                    : 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                }`}
+                title={config.isLocked ? 'Klik untuk membuka kunci akses game' : 'Klik untuk mengunci akses game'}
+              >
+                {config.isLocked ? <Lock size={13} /> : <Unlock size={13} />}
+                <span>{config.isLocked ? 'Game Terkunci (Buka)' : 'Akses Terbuka (Kunci)'}</span>
+              </button>
+
+              <div className="text-xs text-slate-400 font-bold self-end sm:self-center">
+                Menampilkan {filteredRows.length} dari {records.length} siswa
+              </div>
             </div>
           </div>
 
@@ -1250,13 +1405,25 @@ export default function BorneoEduTeacherProgress({
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-center">
-                            <button
-                              onClick={() => setSelectedStudentDetail(orig || null)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-bold text-xs transition-colors flex items-center gap-1 mx-auto"
-                            >
-                              <Eye size={14} />
-                              <span>Detail</span>
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => setSelectedStudentDetail(orig || null)}
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-bold text-xs transition-colors flex items-center gap-1"
+                                title="Lihat detail pencapaian siswa"
+                              >
+                                <Eye size={13} />
+                                <span>Detail</span>
+                              </button>
+                              <button
+                                onClick={() => handleResetStudent(row.studentName, row.className)}
+                                disabled={resettingStudent === row.studentName}
+                                className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 font-bold text-xs border border-rose-200 transition-colors flex items-center gap-1"
+                                title="Reset progres siswa ini kembali ke Level 1"
+                              >
+                                <RotateCcw size={13} className={resettingStudent === row.studentName ? 'animate-spin' : ''} />
+                                <span>Reset L1</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1983,6 +2150,98 @@ export default function BorneoEduTeacherProgress({
               <span>{settingsMessage}</span>
             </div>
           )}
+
+          {/* KONTROL KUNCI AKSES GAME BORNEO EDU & RESET KELAS */}
+          <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 text-white border-2 border-emerald-500/40 shadow-xl space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-2xl border ${config.isLocked ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'}`}>
+                  {config.isLocked ? <Lock size={22} /> : <Unlock size={22} />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      Kontrol Kunci Akses Game Borneo Edu
+                    </h3>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${
+                      config.isLocked
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    }`}>
+                      {config.isLocked ? '🔒 Terkunci Global' : '🔓 Akses Terbuka'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Guru dapat mengunci permainan kapan saja untuk seluruh siswa atau per kelas tertentu.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleMasterLock}
+                className={`px-5 py-2.5 rounded-xl font-black text-xs transition flex items-center gap-2 shadow-md ${
+                  config.isLocked
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                    : 'bg-rose-600 hover:bg-rose-500 text-white'
+                }`}
+              >
+                {config.isLocked ? <Unlock size={14} /> : <Lock size={14} />}
+                <span>{config.isLocked ? 'Buka Kunci Akses Siswa' : 'Kunci Game untuk Semua'}</span>
+              </button>
+            </div>
+
+            {/* Pengaturan Kunci Per Kelas */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-300 block">
+                Atau Kunci Khusus Kelas Tertentu Saja:
+              </label>
+              {classList.length === 0 && availableClasses.length === 0 ? (
+                <p className="text-xs text-slate-400">Belum ada daftar kelas yang terdata.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(classList.length > 0 ? classList.map((c) => c.name) : availableClasses).map((clsName) => {
+                    const isClassLocked = (config.lockedClassNames || []).some(
+                      (c) => c.toLowerCase().trim() === clsName.toLowerCase().trim()
+                    );
+                    return (
+                      <button
+                        key={clsName}
+                        type="button"
+                        onClick={() => handleToggleClassLock(clsName)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+                          isClassLocked
+                            ? 'bg-rose-950/80 border-rose-400 text-rose-200'
+                            : 'bg-slate-850 border-slate-700 text-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        {isClassLocked ? <Lock size={12} className="text-rose-400" /> : <Unlock size={12} className="text-slate-500" />}
+                        <span>{clsName}</span>
+                        {isClassLocked && <span className="text-[10px] text-rose-300 font-black">(Terkunci)</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Pesan Kunci Game */}
+            <div>
+              <label className="text-xs font-bold text-slate-300 block mb-1">
+                Pesan Notifikasi Kunci untuk Siswa:
+              </label>
+              <input
+                type="text"
+                value={config.lockMessage || ''}
+                onChange={(e) => setConfig({ ...config, lockMessage: e.target.value })}
+                placeholder="Game Petualangan Borneo Edu sedang dikunci oleh guru."
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-medium focus:border-emerald-400 focus:outline-none"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Pesan ini akan ditampilkan di layar perangkat siswa ketika mereka mencoba membuka game.
+              </p>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* CARD 1: PENGATURAN JUMLAH SOAL & LEVEL */}

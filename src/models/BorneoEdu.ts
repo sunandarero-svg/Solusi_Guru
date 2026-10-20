@@ -47,6 +47,7 @@ export interface IBorneoEduStudentResult extends Document {
       shield: number;
     };
   };
+  lastResetAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +89,10 @@ const BorneoEduStudentResultSchema: Schema = new Schema({
   ],
   checkpointData: {
     type: Schema.Types.Mixed,
+    default: null
+  },
+  lastResetAt: {
+    type: Date,
     default: null
   }
 }, {
@@ -169,7 +174,10 @@ export interface IBorneoEduConfig extends Document {
   maxQuestionsPerLevel: number; // Maks soal per level (default 4)
   levelQuestionsMap?: Record<string, number>; // Konfigurasi kustom per level { "1": 3, "2": 4, ... }
   activeLevelStart: number; // Level awal yang aktif (default 1)
-  activeLevelEnd: number; // Level akhir yang aktif (default 25)
+  // Kunci Game oleh Guru
+  isLocked: boolean;
+  lockedClassNames: string[];
+  lockMessage?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -195,7 +203,11 @@ const BorneoEduConfigSchema: Schema = new Schema({
   maxQuestionsPerLevel: { type: Number, default: 4 },
   levelQuestionsMap: { type: Schema.Types.Mixed, default: {} },
   activeLevelStart: { type: Number, default: 1 },
-  activeLevelEnd: { type: Number, default: 25 }
+  activeLevelEnd: { type: Number, default: 25 },
+  // Kunci Game oleh Guru
+  isLocked: { type: Boolean, default: false },
+  lockedClassNames: { type: [String], default: [] },
+  lockMessage: { type: String, default: 'Game Petualangan Borneo Edu sedang dikunci oleh guru.' }
 }, {
   timestamps: true
 });
