@@ -16,6 +16,7 @@ import {
   RefreshCw,
   AlertCircle,
   FileSpreadsheet,
+  Cpu,
 } from "lucide-react";
 import StudentQuickScan from "@/components/StudentQuickScan";
 import MaterialReaderModal from "@/components/MaterialReaderModal";
@@ -452,6 +453,80 @@ export default function StudentInteractiveDashboard() {
                 className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-base shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 group"
               >
                 <span>🎮 Mulai Misi Excel Sekarang</span>
+                <span className="text-xl group-hover:translate-x-1 transition-transform">▶</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2C. TOMBOL MULAI GAME COMPUTER SYSTEM SIMULATOR */}
+      <div
+        className={`rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden border transition-all duration-300 ${
+          hasUnread
+            ? "bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-slate-700/60 shadow-lg"
+            : "bg-gradient-to-r from-indigo-950 via-sky-950 to-slate-900 border-sky-500/40 shadow-2xl shadow-sky-500/10 hover:shadow-sky-500/20 group"
+        }`}
+      >
+        {!hasUnread && (
+          <>
+            <div className="absolute top-0 right-0 w-80 h-80 bg-sky-500/15 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
+            <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none"></div>
+          </>
+        )}
+
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-black uppercase tracking-wider backdrop-blur-md border border-white/20">
+              <Cpu size={14} className={hasUnread ? "text-slate-400" : "text-sky-400"} />
+              <span>Sistem Komputer • Lab Interaktif & Perakitan PC</span>
+              {hasUnread ? (
+                <span className="text-amber-300 flex items-center gap-1 text-[11px] font-bold">
+                  <Lock size={11} /> Terkunci (Baca Materi Dulu)
+                </span>
+              ) : (
+                <span className="text-sky-300 flex items-center gap-1 text-[11px] font-bold">
+                  <Sparkles size={11} /> Siap Dimainkan
+                </span>
+              )}
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
+              Computer System Simulator: Arsitektur & Perakitan PC
+            </h2>
+
+            <p className={hasUnread ? "text-slate-400 text-sm leading-relaxed" : "text-sky-100 text-sm leading-relaxed"}>
+              {hasUnread
+                ? "Selesaikan membaca materi di atas terlebih dahulu untuk membuka akses Computer System Simulator."
+                : "Pelajari cara kerja komputer dari dalam! Taklukkan 6 level seru: pelajari flashcard perangkat keras, pilah perangkat input/output/storage, susun siklus pemrosesan data CPU, selesaikan troubleshooting, dan rakit PC virtual impianmu!"}
+            </p>
+
+            <div className="p-3.5 rounded-2xl bg-black/20 border border-white/15 backdrop-blur-sm text-xs text-sky-200 flex items-start gap-2.5">
+              <span className="text-base shrink-0">🖥️</span>
+              <p className="leading-snug">
+                <strong>6 Level & Lab Virtual:</strong> Dapatkan bintang dan lencana ahli sistem komputer dengan menyelesaikan kuis interaktif, drag-and-drop perangkat, serta perakitan komponen PC.
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 w-full lg:w-auto">
+            {hasUnread ? (
+              <button
+                type="button"
+                onClick={() => {
+                  alert("🔒 Fitur Game Terkunci!\n\nAnda harus membaca dan mempelajari materi pelajaran terlebih dahulu sebelum memulai game.");
+                }}
+                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-slate-800 text-slate-400 border border-slate-700 font-black text-sm sm:text-base flex items-center justify-center gap-3 cursor-not-allowed opacity-90 shadow-md"
+              >
+                <Lock size={18} />
+                <span>Game Terkunci (Baca Materi Dulu)</span>
+              </button>
+            ) : (
+              <Link
+                href="/dashboard/interactive-learning/computer-system-simulator"
+                className="w-full lg:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-slate-950 font-black text-base shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 group"
+              >
+                <span>🎮 Mulai Simulasi Komputer Sekarang</span>
                 <span className="text-xl group-hover:translate-x-1 transition-transform">▶</span>
               </Link>
             )}

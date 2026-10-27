@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { Gamepad2, Sparkles, Trophy, Users, BookOpen, ArrowRight, Star, BarChart3 } from 'lucide-react';
+import { Gamepad2, Sparkles, Trophy, Users, BookOpen, ArrowRight, Star, BarChart3, Cpu } from 'lucide-react';
 
 export const metadata = {
   title: 'Pembelajaran Interaktif — Solusi Guru',
@@ -151,6 +151,72 @@ export default async function InteractiveLearningHubPage() {
             <span className="text-xl block mb-1">⚔️</span>
             <span className="text-xs font-black block">Duel Kelas IFP</span>
             <span className="text-[10px] text-slate-300">Cerdas Cermat SmartBoard</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Computer System Simulator Hero Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900 via-sky-950 to-slate-900 border-2 border-sky-500/40 p-6 sm:p-10 text-white shadow-2xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-400/20 text-sky-300 text-xs font-black border border-sky-400/40 mb-4">
+            <Cpu size={14} />
+            <span>SIMULASI SISTEM KOMPUTER INTERAKTIF</span>
+          </div>
+
+          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Computer System Simulator
+          </h2>
+          <p className="text-lg font-bold text-sky-300 mt-1">
+            {isTeacher
+              ? '"Demonstrasi Arsitektur Komputer untuk Kelas dengan Mode Guru"'
+              : '"Jelajahi Perangkat Keras, Arsitektur & Alur Data Sistem Komputer!"'}
+          </p>
+          <p className="text-sm text-slate-200 mt-3 leading-relaxed">
+            {isTeacher
+              ? 'Game edukasi 6 level interaktif tentang perangkat keras komputer. Siswa mempelajari flashcard visual, menyelesaikan tantangan klasifikasi, simulasi I/O, troubleshooting & merakit PC virtual. Mode Guru tersedia untuk demonstrasi di IFP/Smartboard.'
+              : 'Petualangan 6 level edukatif: pelajari flashcard perangkat keras, klasifikasikan perangkat I/O, susun alur data, simulasikan proses sistem, troubleshoot masalah & rakit PC virtual lengkap! Dilengkapi Lab Animasi interaktif.'}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-4 mt-6">
+            <Link
+              href="/dashboard/interactive-learning/computer-system-simulator"
+              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-slate-950 font-black text-sm shadow-xl transition-transform active:scale-95 flex items-center gap-2"
+            >
+              <span>{isTeacher ? 'BUKA DEMONSTRASI GURU / SMARTBOARD' : 'MULAI SIMULASI SEKARANG'}</span>
+              <ArrowRight size={18} />
+            </Link>
+            <Link
+              href="/interactive-learning/computer-system-simulator"
+              className="px-5 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition"
+            >
+              Mode Layar Penuh (Standalone)
+            </Link>
+          </div>
+        </div>
+
+        {/* Feature Highlights Grid */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8 pt-6 border-t border-white/10">
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">🖥️</span>
+            <span className="text-xs font-black block">6 Level Edukatif</span>
+            <span className="text-[10px] text-slate-300">Flashcard & Tantangan</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">⚙️</span>
+            <span className="text-xs font-black block">Lab Animasi</span>
+            <span className="text-[10px] text-slate-300">Visualisasi Alur Data</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">🔧</span>
+            <span className="text-xs font-black block">Rakit PC Virtual</span>
+            <span className="text-[10px] text-slate-300">Input, CPU, Output, Storage</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">👨‍🏫</span>
+            <span className="text-xs font-black block">{isTeacher ? 'Mode Guru IFP' : 'Lencana & Bintang'}</span>
+            <span className="text-[10px] text-slate-300">{isTeacher ? 'Kontrol Demo Kelas' : '18 Bintang & 6 Lencana'}</span>
           </div>
         </div>
       </div>

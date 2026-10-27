@@ -22,7 +22,8 @@ import {
   ExternalLink,
   HelpCircle,
   Eye,
-  Search
+  Search,
+  Cpu
 } from "lucide-react";
 
 interface TeacherClassItem {
@@ -345,7 +346,7 @@ export default function TeacherInteractiveGamesDashboard() {
       </div>
 
       {/* Grid Kartu Game */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* KARTU 1: EXCEL ADVENTURE DENGAN KENDALI PENUGASAN KELAS & KUNCI */}
         <div className="rounded-3xl bg-gradient-to-br from-teal-950 via-slate-900 to-slate-950 border-2 border-emerald-500/40 p-6 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -567,6 +568,74 @@ export default function TeacherInteractiveGamesDashboard() {
               target="_blank"
               className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
               title="Coba Game Borneo Edu"
+            >
+              <ExternalLink size={15} />
+            </Link>
+          </div>
+        </div>
+
+        {/* KARTU 3: COMPUTER SYSTEM SIMULATOR */}
+        <div className="rounded-3xl bg-gradient-to-br from-indigo-950 via-sky-950 to-slate-950 border-2 border-sky-500/40 p-6 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-inner">
+                  <Cpu size={26} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 text-[10px] font-black uppercase tracking-wider border border-sky-500/30">
+                      Simulasi Hardware & Arsitektur
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                      🔓 Aktif Bebas
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-white mt-1">
+                    Computer System Simulator
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Modul interaktif 6 level: flashcard perangkat keras, klasifikasi perangkat I/O & storage, siklus alur data pemrosesan CPU, simulasi proses sistem, troubleshooting, dan perakitan PC virtual interaktif.
+            </p>
+
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-sky-400" />
+                  <span>Fitur Guru & SmartBoard IFP:</span>
+                </span>
+                <span className="text-sky-300 text-xs font-black">
+                  Mode Guru Didukung
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Mode Guru memungkinkan demonstrasi langsung di depan kelas, membuka semua level secara instan, dan menampilkan kunci jawaban untuk diskusi interaktif.
+              </p>
+            </div>
+          </div>
+
+          <div className="relative z-10 pt-5 mt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard/interactive-learning/computer-system-simulator"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition active:scale-95"
+              >
+                <Cpu size={14} />
+                <span>Panel IFP SmartBoard</span>
+              </Link>
+            </div>
+
+            <Link
+              href="/interactive-learning/computer-system-simulator"
+              target="_blank"
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+              title="Buka Layar Penuh Standalone"
             >
               <ExternalLink size={15} />
             </Link>
