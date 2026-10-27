@@ -54,8 +54,8 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">Aplikasi Penilaian Tulisan Tangan Siswa</h1>
-          <p className="text-slate-500 mt-2 text-sm font-medium">AI tidak akan menggantikan peran Guru</p>
+          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">Sinra Tensei</h1>
+          <p className="text-slate-500 mt-2 text-sm font-medium">Sistem Pembelajaran Terintegrasi</p>
         </div>
 
         {/* Card */}
