@@ -1,7 +1,21 @@
 'use client';
 
 import React from 'react';
-import { FileSpreadsheet, BarChart2, PieChart, TrendingUp, Search } from 'lucide-react';
+import {
+  FileSpreadsheet,
+  BarChart2,
+  PieChart,
+  TrendingUp,
+  Search,
+  Type,
+  Percent,
+  Layers,
+  Calculator,
+  Database,
+  Package,
+  Wallet,
+  Crown
+} from 'lucide-react';
 
 export const FlashcardVisual: React.FC<{ type: string }> = ({ type }) => {
   switch (type) {
@@ -134,6 +148,7 @@ export const FlashcardVisual: React.FC<{ type: string }> = ({ type }) => {
         </div>
       );
     case 'vlookup-flow':
+    case 'vlookup-database':
       return (
         <div className="bg-slate-900 p-3.5 rounded-xl border border-orange-500/40 font-mono text-xs sm:text-sm text-center">
           <span className="text-orange-400 font-bold">=VLOOKUP(</span>
@@ -142,6 +157,98 @@ export const FlashcardVisual: React.FC<{ type: string }> = ({ type }) => {
           <span className="text-amber-300">2</span>
           <span className="text-orange-400 font-bold">)</span>
           <div className="text-[11px] text-slate-400 mt-1">Mencari kunci A2 di tabel D1:E5 dan mengambil kolom 2</div>
+        </div>
+      );
+    case 'text-functions':
+      return (
+        <div className="bg-slate-900 p-4 rounded-xl border border-teal-500/40 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2 font-mono text-xs sm:text-sm">
+            <span className="px-2 py-1 bg-teal-500/20 text-teal-300 rounded font-bold">=CONCAT(B2, " ", C2)</span>
+            <span className="text-slate-400">➔</span>
+            <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded font-bold">"Budi Santoso"</span>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] text-slate-300 font-mono">
+            <span className="text-cyan-300">UPPER: "BUDI"</span>
+            <span>•</span>
+            <span className="text-amber-300">LEFT: "2024"</span>
+            <span>•</span>
+            <span className="text-rose-300">RIGHT: "RPL"</span>
+          </div>
+        </div>
+      );
+    case 'percent-calc':
+      return (
+        <div className="bg-slate-900 p-4 rounded-xl border border-emerald-500/40 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2 font-mono text-xs sm:text-sm">
+            <span className="text-slate-300">Diskon 10% (0.1)</span>
+            <span className="text-slate-400">➔</span>
+            <span className="text-amber-300 font-bold">=B2*0.1</span>
+            <span className="text-slate-400">➔</span>
+            <span className="text-emerald-300 font-bold">=B2-D2</span>
+          </div>
+          <div className="text-xs text-slate-400">Mengalikan harga asli dengan % lalu mengurangkan dari harga asli</div>
+        </div>
+      );
+    case 'nested-if':
+      return (
+        <div className="bg-slate-900 p-3.5 rounded-xl border border-purple-500/40 font-mono text-xs text-center">
+          <div className="text-purple-300 font-bold">=IF(B2&gt;=90, "A", IF(B2&gt;=80, "B", "C"))</div>
+          <div className="text-[11px] text-slate-400 mt-1">Uji kondisi bertingkat: 90+ dapat A, 80+ dapat B, sisanya C</div>
+        </div>
+      );
+    case 'round-math':
+      return (
+        <div className="bg-slate-900 p-3.5 rounded-xl border border-amber-500/40 font-mono text-xs text-center space-y-1">
+          <div className="text-amber-300 font-bold">=ROUND(87.666, 1) ➔ 87.7</div>
+          <div className="text-cyan-300 font-bold">=ROUNDUP(15.2, 0) ➔ 16 | =POWER(8, 2) ➔ 64</div>
+          <div className="text-[11px] text-slate-400">Membulatkan angka desimal dan operasi pangkat secara presisi</div>
+        </div>
+      );
+    case 'averageif-flow':
+      return (
+        <div className="bg-slate-900 p-3.5 rounded-xl border border-orange-500/40 font-mono text-xs sm:text-sm text-center">
+          <span className="text-orange-400 font-bold">=AVERAGEIF(</span>
+          <span className="text-cyan-300">B2:B5</span>,{' '}
+          <span className="text-emerald-400">"P"</span>,{' '}
+          <span className="text-amber-300">C2:C5</span>
+          <span className="text-orange-400 font-bold">)</span>
+          <div className="text-[11px] text-slate-400 mt-1">Menghitung rata-rata nilai khusus kategori yang cocok</div>
+        </div>
+      );
+    case 'inventory-stock':
+      return (
+        <div className="bg-slate-900 p-4 rounded-xl border border-teal-500/40 flex flex-col items-center gap-1.5 text-xs font-mono">
+          <div className="text-teal-300 font-bold">Sisa Stok = Stok Awal (B2) - Terjual (C2)</div>
+          <div className="text-amber-300 font-bold">=IF(D2&lt;=10, "Pesan Lagi", "Aman")</div>
+          <div className="text-[11px] text-slate-400">Peringatan otomatis restock barang saat stok di bawah batas minimal</div>
+        </div>
+      );
+    case 'cashflow-balance':
+      return (
+        <div className="bg-slate-900 p-4 rounded-xl border border-emerald-500/40 flex flex-col items-center gap-1.5 text-xs font-mono">
+          <div className="text-emerald-300 font-bold">Saldo Berjalan = Saldo Lalu (D2) + Masuk (B3) - Keluar (C3)</div>
+          <div className="text-cyan-300 font-bold">Verifikasi Saldo Akhir = =SUM(Masuk) - =SUM(Keluar)</div>
+          <div className="text-[11px] text-slate-400">Pembukuan keuangan kas kelas yang akurat dan seimbang</div>
+        </div>
+      );
+    case 'trend-line-chart':
+      return (
+        <div className="bg-slate-900 p-4 rounded-xl border border-pink-500/40 flex items-center justify-center gap-4 text-xs font-mono">
+          <TrendingUp className="w-8 h-8 text-pink-400 shrink-0" />
+          <div className="text-left">
+            <div className="text-pink-300 font-bold">Pertumbuhan = Bulan Ini (B3) - Bulan Lalu (B2)</div>
+            <div className="text-slate-400 text-[11px] mt-0.5">Line Chart memperlihatkan arah tren perkembangan bisnis</div>
+          </div>
+        </div>
+      );
+    case 'master-capstone':
+      return (
+        <div className="bg-slate-900 p-4 rounded-xl border border-amber-500/40 flex items-center justify-center gap-4 text-xs">
+          <Crown className="w-8 h-8 text-amber-400 shrink-0 animate-bounce" />
+          <div className="text-left text-slate-200">
+            <div className="font-black text-amber-300 text-sm">Gelar Puncak: Legenda Spreadsheet</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Ujian pamungkas menggabungkan VLOOKUP, IF, AVERAGE & COUNTIF!</div>
+          </div>
         </div>
       );
     default:

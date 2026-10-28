@@ -21,7 +21,10 @@ const ExcelAdventureConfigSchema: Schema = new Schema(
     assignedClassIds: { type: [String], default: [] },
     assignedClassNames: { type: [String], default: [] },
     kkmScore: { type: Number, default: 75 },
-    activeLevels: { type: [Number], default: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    activeLevels: {
+      type: [Number],
+      default: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    },
     instructions: { type: String, default: 'Selesaikan seluruh misi dan latihan spreadsheet sesuai petunjuk guru.' },
     allowReplay: { type: Boolean, default: true },
     updatedBy: { type: String, default: 'Guru' }

@@ -837,5 +837,947 @@ export const LEVELS_DATA: LevelData[] = [
         hint: 'Ketik =SUMIF(B2:B5, "Lulus", C2:C5) pada sel C8 lalu tekan Simpan/Enter.'
       }
     ]
+  },
+  // =========================================================================
+  // LEVEL 11: MANIPULASI TEKS & PENGGABUNGAN DATA
+  // =========================================================================
+  {
+    id: 11,
+    title: 'Manipulasi Teks & Penggabungan',
+    subtitle: 'Mengolah Teks dengan CONCAT, UPPER, LOWER, dan Potong Kode',
+    icon: 'Type',
+    badgeName: 'Spesialis Teks',
+    color: 'from-teal-500 via-emerald-600 to-green-600',
+    flashcards: [
+      {
+        id: '11-1',
+        term: 'Fungsi CONCAT / CONCATENATE',
+        visualType: 'text-functions',
+        frontQuestion: 'Bagaimana cara menggabungkan teks dari beberapa sel menjadi satu kalimat utuh?',
+        explanation: 'Fungsi =CONCAT(teks1, teks2, ...) menggabungkan beberapa potongan teks atau isi sel menjadi satu kesatuan. Untuk menambahkan spasi antar kata, sisipkan teks spasi berjarak " " di antara alamat sel.',
+        example: '=CONCAT(B2, " ", C2) menggabungkan nama depan di B2 dan nama belakang di C2 dengan pemisah spasi.'
+      },
+      {
+        id: '11-2',
+        term: 'Fungsi UPPER & LOWER',
+        visualType: 'text-functions',
+        frontQuestion: 'Fungsi apa yang digunakan untuk mengubah tulisan menjadi huruf kapital atau huruf kecil semua?',
+        explanation: '• =UPPER(teks): Mengubah seluruh huruf menjadi HURUF BESAR (KAPITAL).\n• =LOWER(teks): Mengubah seluruh huruf menjadi huruf kecil.',
+        example: '=UPPER("smp") menghasilkan "SMP". =LOWER("JAKARTA") menghasilkan "jakarta".'
+      },
+      {
+        id: '11-3',
+        term: 'Fungsi LEFT & RIGHT',
+        visualType: 'text-functions',
+        frontQuestion: 'Bagaimana cara memotong atau mengambil karakter awal dan akhir dari sebuah kode?',
+        explanation: '• =LEFT(teks, jumlah): Mengambil sejumlah karakter dari sisi paling KIRI.\n• =RIGHT(teks, jumlah): Mengambil sejumlah karakter dari sisi paling KANAN.',
+        example: 'Jika sel A2 berisi "2024-RPL", maka =LEFT(A2, 4) mengambil "2024", dan =RIGHT(A2, 3) mengambil "RPL".'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Kode Registrasi', style: { bold: true, bg: '#ccfbf1' } },
+      B1: { value: 'Nama Depan', style: { bold: true, bg: '#ccfbf1' } },
+      C1: { value: 'Nama Belakang', style: { bold: true, bg: '#ccfbf1' } },
+      D1: { value: 'Nama Lengkap', style: { bold: true, bg: '#ccfbf1' } },
+      E1: { value: 'Nama Huruf Besar', style: { bold: true, bg: '#ccfbf1' } },
+      A2: { value: '2024-RPL', style: { align: 'center' } },
+      B2: { value: 'Budi', style: {} },
+      C2: { value: 'Santoso', style: {} },
+      D2: { value: '', style: { bg: '#fef9c3' } },
+      E2: { value: '', style: { bg: '#fef9c3' } },
+      A3: { value: '2024-TKJ', style: { align: 'center' } },
+      B3: { value: 'Siti', style: {} },
+      C3: { value: 'Aminah', style: {} },
+      D3: { value: '=CONCAT(B3," ",C3)', style: {} },
+      E3: { value: '=UPPER(D3)', style: {} },
+      A5: { value: 'Tahun Angkatan (LEFT)', style: { bold: true } },
+      B5: { value: '', style: { bg: '#dcfce7', align: 'center', bold: true } },
+      A6: { value: 'Kode Jurusan (RIGHT)', style: { bold: true } },
+      B6: { value: '', style: { bg: '#dcfce7', align: 'center', bold: true } }
+    },
+    tasks: [
+      {
+        id: 't11-1',
+        instruction: 'Misi 1: Gabungkan Nama Depan (B2) dan Nama Belakang (C2) dengan spasi di sel D2 menggunakan rumus =CONCAT(B2," ",C2)!',
+        type: 'formula_result',
+        targetCell: 'D2',
+        expectedValue: 'Budi Santoso',
+        expectedFunc: 'CONCAT',
+        hint: 'Ketik =CONCAT(B2," ",C2) pada sel D2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't11-2',
+        instruction: 'Misi 2: Ubah Nama Lengkap di sel D2 menjadi HURUF BESAR (KAPITAL) pada sel E2 menggunakan fungsi UPPER!',
+        type: 'formula_result',
+        targetCell: 'E2',
+        expectedValue: 'BUDI SANTOSO',
+        expectedFunc: 'UPPER',
+        hint: 'Ketik =UPPER(D2) pada sel E2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't11-3',
+        instruction: 'Misi 3: Ambil 4 karakter Tahun Angkatan dari sisi kiri kode di sel A2 ("2024-RPL") pada sel B5 menggunakan fungsi LEFT!',
+        type: 'formula_result',
+        targetCell: 'B5',
+        expectedValue: '2024',
+        expectedFunc: 'LEFT',
+        hint: 'Ketik =LEFT(A2,4) pada sel B5 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't11-4',
+        instruction: 'Misi 4: Ambil 3 karakter Kode Jurusan dari sisi kanan kode di sel A2 pada sel B6 menggunakan fungsi RIGHT!',
+        type: 'formula_result',
+        targetCell: 'B6',
+        expectedValue: 'RPL',
+        expectedFunc: 'RIGHT',
+        hint: 'Ketik =RIGHT(A2,3) pada sel B6 lalu tekan Simpan/Enter.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 12: PERHITUNGAN PERSENTASE & DISKON
+  // =========================================================================
+  {
+    id: 12,
+    title: 'Perhitungan Persentase & Diskon',
+    subtitle: 'Menguasai Format Persen (%), Potongan Harga & Belanja Hemat',
+    icon: 'Percent',
+    badgeName: 'Analis Keuangan',
+    color: 'from-emerald-600 via-teal-600 to-green-700',
+    flashcards: [
+      {
+        id: '12-1',
+        term: 'Konsep Persentase di Spreadsheet',
+        visualType: 'percent-calc',
+        frontQuestion: 'Bagaimana cara komputer menyimpan dan menghitung angka persentase (%)?',
+        explanation: 'Nilai 10% sebenarnya bernilai desimal 0.1 di dalam sistem, dan 50% bernilai 0.5. Dengan menerapkan Format Persen (%), angka desimal akan tampil rapi dengan simbol % dan tetap dapat dikalikan secara langsung dengan nominal harga.',
+        example: 'Ketik 0.1 lalu klik tombol %, tampilannya menjadi 10%.'
+      },
+      {
+        id: '12-2',
+        term: 'Rumus Menghitung Potongan Diskon & Harga Bersih',
+        visualType: 'percent-calc',
+        frontQuestion: 'Bagaimana rumus mencari besaran potongan harga dan harga akhir yang harus dibayar?',
+        explanation: '• Potongan Diskon = Harga Asli * Persentase Diskon -> misal =B2*C2 atau =B2*0.1\n• Harga Bersih = Harga Asli - Potongan Diskon -> misal =B2-D2',
+        example: 'Harga Rp 100.000 dengan diskon 10% mendapat potongan Rp 10.000, sehingga harga bayarnya Rp 90.000.'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Nama Barang', style: { bold: true, bg: '#dcfce7' } },
+      B1: { value: 'Harga Normal', style: { bold: true, bg: '#dcfce7', align: 'right' } },
+      C1: { value: 'Diskon (%)', style: { bold: true, bg: '#dcfce7', align: 'center' } },
+      D1: { value: 'Potongan (Rp)', style: { bold: true, bg: '#dcfce7', align: 'right' } },
+      E1: { value: 'Harga Bayar', style: { bold: true, bg: '#dcfce7', align: 'right' } },
+      A2: { value: 'Tas Sekolah', style: {} },
+      B2: { value: '100000', style: { format: 'currency' } },
+      C2: { value: '0.1', style: { align: 'center' } },
+      D2: { value: '', style: { bg: '#fef9c3', format: 'currency' } },
+      E2: { value: '', style: { bg: '#fef9c3', format: 'currency' } },
+      A3: { value: 'Sepatu Olahraga', style: {} },
+      B3: { value: '200000', style: { format: 'currency' } },
+      C3: { value: '20', style: { align: 'center', format: 'percent' } },
+      D3: { value: '=B3*0.2', style: { format: 'currency' } },
+      E3: { value: '=B3-D3', style: { format: 'currency' } },
+      A4: { value: 'Tempat Pensil', style: {} },
+      B4: { value: '25000', style: { format: 'currency' } },
+      C4: { value: '10', style: { align: 'center', format: 'percent' } },
+      D4: { value: '2500', style: { format: 'currency' } },
+      E4: { value: '22500', style: { format: 'currency' } },
+      A6: { value: 'Total Tagihan Belanja', style: { bold: true } },
+      E6: { value: '', style: { bg: '#bbf7d0', bold: true, align: 'right', format: 'currency' } }
+    },
+    tasks: [
+      {
+        id: 't12-1',
+        instruction: 'Misi 1: Ubah tampilan angka desimal 0.1 di sel C2 menjadi format Persen (%) menggunakan tombol % di toolbar Ribbon!',
+        type: 'cell_style',
+        targetCell: 'C2',
+        styleKey: 'format',
+        expectedStyle: 'percent',
+        hint: 'Pilih sel C2, lalu tekan tombol ikon % (Format Persen) pada Ribbon.'
+      },
+      {
+        id: 't12-2',
+        instruction: 'Misi 2: Hitung besaran potongan diskon Tas Sekolah di sel D2: kalikan Harga Normal (B2) dengan Diskon (C2 atau 0.1)! Rumus: =B2*C2',
+        type: 'formula_result',
+        targetCell: 'D2',
+        expectedValue: 10000,
+        requireFormula: true,
+        hint: 'Ketik =B2*C2 atau =B2*0.1 pada sel D2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't12-3',
+        instruction: 'Misi 3: Hitung Harga Bayar Tas Sekolah di sel E2 dengan mengurangkan Harga Normal (B2) dengan Potongan (D2)! Rumus: =B2-D2',
+        type: 'formula_result',
+        targetCell: 'E2',
+        expectedValue: 90000,
+        requireFormula: true,
+        hint: 'Ketik =B2-D2 pada sel E2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't12-4',
+        instruction: 'Misi 4: Hitung Total Tagihan Belanja seluruh barang di sel E6 dengan menjumlahkan rentang E2:E4 menggunakan fungsi SUM!',
+        type: 'formula_result',
+        targetCell: 'E6',
+        expectedValue: 272500,
+        expectedFunc: 'SUM',
+        hint: 'Ketik =SUM(E2:E4) pada sel E6 lalu tekan Simpan/Enter.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 13: LOGIKA BERTINGKAT & PREDIKAT NILAI
+  // =========================================================================
+  {
+    id: 13,
+    title: 'Logika Bertingkat & Predikat Nilai',
+    subtitle: 'Menguasai IF Bersarang (Nested IF) untuk Menentukan Kategori A, B, & C',
+    icon: 'Layers',
+    badgeName: 'Logikawan Senior',
+    color: 'from-violet-600 via-purple-600 to-indigo-700',
+    flashcards: [
+      {
+        id: '13-1',
+        term: 'Konsep IF Bertingkat (Nested IF)',
+        visualType: 'nested-if',
+        frontQuestion: 'Bagaimana cara membuat keputusan otomatis jika terdapat lebih dari 2 pilihan hasil (A, B, C)?',
+        explanation: 'Kita memasukkan fungsi IF kedua di dalam bagian nilai salah dari IF pertama. Excel akan menguji syarat pertama, jika tidak terpenuhi akan langsung menguji syarat berikutnya.',
+        example: '=IF(B2>=90, "A", IF(B2>=80, "B", "C"))'
+      },
+      {
+        id: '13-2',
+        term: 'Aturan Urutan Pengujian Nilai',
+        visualType: 'nested-if',
+        frontQuestion: 'Mengapa pengujian nilai lebih besar (>=) harus diurutkan dari angka tertinggi ke terendah?',
+        explanation: 'Excel mengevaluasi rumus dari kiri ke kanan. Jika kita menguji B2>=80 sebelum B2>=90, maka nilai 95 akan langsung dianggap "B" karena 95 sudah lebih besar dari 80! Oleh karena itu, selalu uji nilai tertinggi terlebih dahulu (>=90 baru kemudian >=80).',
+        example: 'Urutan benar: >=90 (A) -> >=80 (B) -> selain itu (C).'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Nama Siswa', style: { bold: true, bg: '#ede9fe' } },
+      B1: { value: 'Nilai Akhir', style: { bold: true, bg: '#ede9fe', align: 'center' } },
+      C1: { value: 'Predikat (A/B/C)', style: { bold: true, bg: '#ede9fe', align: 'center' } },
+      A2: { value: 'Ahmad', style: {} },
+      B2: { value: '92', style: { align: 'center' } },
+      C2: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A3: { value: 'Bilqis', style: {} },
+      B3: { value: '84', style: { align: 'center' } },
+      C3: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A4: { value: 'Chandra', style: {} },
+      B4: { value: '72', style: { align: 'center' } },
+      C4: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A5: { value: 'Dinda', style: {} },
+      B5: { value: '95', style: { align: 'center' } },
+      C5: { value: '=IF(B5>=90,"A",IF(B5>=80,"B","C"))', style: { align: 'center', bold: true } },
+      A7: { value: 'Jumlah Peraih Predikat A', style: { bold: true } },
+      C7: { value: '', style: { bg: '#dcfce7', align: 'center', bold: true } }
+    },
+    tasks: [
+      {
+        id: 't13-1',
+        instruction: 'Misi 1: Buat rumus IF bersarang pada sel C2 untuk Ahmad (nilai 92): jika B2>=90 predikat "A", jika B2>=80 predikat "B", selain itu "C"!',
+        type: 'formula_result',
+        targetCell: 'C2',
+        expectedValue: 'A',
+        expectedFunc: 'IF',
+        hint: 'Ketik =IF(B2>=90,"A",IF(B2>=80,"B","C")) pada sel C2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't13-2',
+        instruction: 'Misi 2: Terapkan rumus IF bersarang pada sel C3 untuk Bilqis (nilai 84)! Hasil yang diharapkan adalah "B".',
+        type: 'formula_result',
+        targetCell: 'C3',
+        expectedValue: 'B',
+        expectedFunc: 'IF',
+        hint: 'Ketik =IF(B3>=90,"A",IF(B3>=80,"B","C")) pada sel C3.'
+      },
+      {
+        id: 't13-3',
+        instruction: 'Misi 3: Terapkan rumus IF bersarang pada sel C4 untuk Chandra (nilai 72)! Hasil yang diharapkan adalah "C".',
+        type: 'formula_result',
+        targetCell: 'C4',
+        expectedValue: 'C',
+        expectedFunc: 'IF',
+        hint: 'Ketik =IF(B4>=90,"A",IF(B4>=80,"B","C")) pada sel C4.'
+      },
+      {
+        id: 't13-4',
+        instruction: 'Misi 4: Hitung berapa siswa yang meraih Predikat "A" (rentang C2:C5) pada sel C7 dengan fungsi COUNTIF!',
+        type: 'formula_result',
+        targetCell: 'C7',
+        expectedValue: 2,
+        expectedFunc: 'COUNTIF',
+        hint: 'Ketik =COUNTIF(C2:C5,"A") pada sel C7 lalu tekan Simpan/Enter.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 14: PEMBULATAN & MATEMATIKA PRESISI
+  // =========================================================================
+  {
+    id: 14,
+    title: 'Pembulatan & Matematika Presisi',
+    subtitle: 'Menguasai ROUND, ROUNDUP, ROUNDDOWN, dan Perpangkatan',
+    icon: 'Calculator',
+    badgeName: 'Master Presisi',
+    color: 'from-amber-500 via-orange-500 to-yellow-600',
+    flashcards: [
+      {
+        id: '14-1',
+        term: 'Fungsi ROUND, ROUNDUP & ROUNDDOWN',
+        visualType: 'round-math',
+        frontQuestion: 'Bagaimana cara mengatur pembulatan angka desimal di lembar kerja Excel?',
+        explanation: '• =ROUND(angka, digit): Membulatkan sesuai aturan matematika (>=5 ke atas, <5 ke bawah).\n• =ROUNDUP(angka, digit): Selalu memaksa pembulatan KE ATAS.\n• =ROUNDDOWN(angka, digit): Selalu membulatkan KE BAWAH (memangkas desimal).',
+        example: '=ROUND(85.67, 1) menghasilkan 85.7. =ROUND(85.67, 0) menghasilkan 86.'
+      },
+      {
+        id: '14-2',
+        term: 'Fungsi Perpangkatan (POWER & Simbol ^)',
+        visualType: 'round-math',
+        frontQuestion: 'Bagaimana cara menghitung bilangan berpangkat (misal 5 kuadrat)?',
+        explanation: 'Gunakan operator pangkat (^) atau fungsi =POWER(bilangan, pangkat). Misalnya 5 dipangkatkan 2 ditulis =5^2 atau =POWER(5, 2).',
+        example: '=B2^2 atau =POWER(B2, 2) menghasilkan nilai kuadrat dari sel B2.'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Item Uji', style: { bold: true, bg: '#fef3c7' } },
+      B1: { value: 'Nilai Mentah', style: { bold: true, bg: '#fef3c7', align: 'center' } },
+      C1: { value: 'Hasil Pembulatan / Hitung', style: { bold: true, bg: '#fef3c7', align: 'center' } },
+      A2: { value: 'Rata-rata Kelas (Bulatkan 1 Desimal)', style: {} },
+      B2: { value: '87.666', style: { align: 'center' } },
+      C2: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A3: { value: 'Skor Akhir (Bulatkan 0 Desimal)', style: {} },
+      B3: { value: '74.8', style: { align: 'center' } },
+      C3: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A4: { value: 'Tarif Taksi (ROUNDUP ke Atas)', style: {} },
+      B4: { value: '15200.2', style: { align: 'center' } },
+      C4: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A5: { value: 'Luas Persegi Sisi 8 (POWER 2)', style: {} },
+      B5: { value: '8', style: { align: 'center' } },
+      C5: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } }
+    },
+    tasks: [
+      {
+        id: 't14-1',
+        instruction: 'Misi 1: Bulatkan nilai mentah 87.666 pada sel B2 menjadi 1 angka di belakang koma pada sel C2 menggunakan rumus =ROUND(B2, 1)!',
+        type: 'formula_result',
+        targetCell: 'C2',
+        expectedValue: 87.7,
+        expectedFunc: 'ROUND',
+        hint: 'Ketik =ROUND(B2, 1) pada sel C2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't14-2',
+        instruction: 'Misi 2: Bulatkan skor mentah 74.8 pada sel B3 ke bilangan bulat utuh (0 desimal) pada sel C3 menggunakan rumus =ROUND(B3, 0)!',
+        type: 'formula_result',
+        targetCell: 'C3',
+        expectedValue: 75,
+        expectedFunc: 'ROUND',
+        hint: 'Ketik =ROUND(B3, 0) pada sel C3 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't14-3',
+        instruction: 'Misi 3: Bulatkan KE ATAS angka 15200.2 pada sel B4 menjadi bilangan bulat pada sel C4 menggunakan fungsi ROUNDUP!',
+        type: 'formula_result',
+        targetCell: 'C4',
+        expectedValue: 15201,
+        expectedFunc: 'ROUNDUP',
+        hint: 'Ketik =ROUNDUP(B4, 0) pada sel C4 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't14-4',
+        instruction: 'Misi 4: Hitung kuadrat dari panjang sisi 8 di sel B5 menggunakan rumus =POWER(B5, 2) atau =B5^2 pada sel C5!',
+        type: 'formula_result',
+        targetCell: 'C5',
+        expectedValue: 64,
+        requireFormula: true,
+        hint: 'Ketik =POWER(B5, 2) atau =B5^2 pada sel C5 lalu tekan Simpan/Enter.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 15: DATABASE & PENCARIAN DATA VLOOKUP
+  // =========================================================================
+  {
+    id: 15,
+    title: 'Database & Pencarian Data VLOOKUP',
+    subtitle: 'Mengambil Informasi Siswa & Barang dari Tabel Referensi Master',
+    icon: 'Search',
+    badgeName: 'Database Master',
+    color: 'from-blue-600 via-indigo-600 to-cyan-700',
+    flashcards: [
+      {
+        id: '15-1',
+        term: 'Mengenal Tabel Master & Tabel Transaksi',
+        visualType: 'vlookup-database',
+        frontQuestion: 'Mengapa data identitas atau barang sebaiknya disimpan dalam satu Tabel Master?',
+        explanation: 'Dengan tabel master, kita tidak perlu mengetik nama atau harga berulang kali. Cukup masukkan Nomor Induk (NIS) atau Kode Barang, lalu fungsi VLOOKUP akan otomatis mengisi detail lainnya.',
+        example: 'Ketik NIS 101, maka Nama "Aisyah Putri" otomatis terisi.'
+      },
+      {
+        id: '15-2',
+        term: 'Struktur Parameter VLOOKUP',
+        visualType: 'vlookup-database',
+        frontQuestion: 'Apa saja 3 parameter wajib di dalam rumus VLOOKUP?',
+        explanation: '=VLOOKUP(lookup_value, table_range, col_index)\n1) Nilai Kunci yang dicari (misal sel A2)\n2) Rentang Tabel Master (misal D2:E5)\n3) Nomor Urut Kolom data yang ingin diambil (kolom 2 untuk nama).',
+        example: '=VLOOKUP(A2, D2:E5, 2) mengambil kolom ke-2 dari tabel master.'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'NIS Input', style: { bold: true, bg: '#dbeafe', align: 'center' } },
+      B1: { value: 'Nama Siswa Terpanggil', style: { bold: true, bg: '#dbeafe' } },
+      D1: { value: 'NIS Master', style: { bold: true, bg: '#e2e8f0', align: 'center' } },
+      E1: { value: 'Nama Master', style: { bold: true, bg: '#e2e8f0' } },
+      A2: { value: '101', style: { align: 'center', bold: true } },
+      B2: { value: '', style: { bg: '#fef9c3' } },
+      D2: { value: '101', style: { align: 'center' } },
+      E2: { value: 'Aisyah Putri', style: {} },
+      A3: { value: '103', style: { align: 'center', bold: true } },
+      B3: { value: '', style: { bg: '#fef9c3' } },
+      D3: { value: '102', style: { align: 'center' } },
+      E3: { value: 'Bambang Irawan', style: {} },
+      A4: { value: '102', style: { align: 'center', bold: true } },
+      B4: { value: '', style: { bg: '#fef9c3' } },
+      D4: { value: '103', style: { align: 'center' } },
+      E4: { value: 'Cindy Claudia', style: {} },
+      D5: { value: '104', style: { align: 'center' } },
+      E5: { value: 'Dedi Kurniawan', style: {} }
+    },
+    tasks: [
+      {
+        id: 't15-1',
+        instruction: 'Misi 1: Panggil nama siswa pemilik NIS 101 pada sel B2 menggunakan rumus =VLOOKUP(A2, D2:E5, 2)!',
+        type: 'formula_result',
+        targetCell: 'B2',
+        expectedValue: 'Aisyah Putri',
+        expectedFunc: 'VLOOKUP',
+        hint: 'Ketik =VLOOKUP(A2, D2:E5, 2) pada sel B2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't15-2',
+        instruction: 'Misi 2: Panggil nama siswa pemilik NIS 103 pada sel B3 menggunakan rumus VLOOKUP dari tabel master D2:E5!',
+        type: 'formula_result',
+        targetCell: 'B3',
+        expectedValue: 'Cindy Claudia',
+        expectedFunc: 'VLOOKUP',
+        hint: 'Ketik =VLOOKUP(A3, D2:E5, 2) pada sel B3 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't15-3',
+        instruction: 'Misi 3: Panggil nama siswa pemilik NIS 102 pada sel B4 menggunakan rumus VLOOKUP!',
+        type: 'formula_result',
+        targetCell: 'B4',
+        expectedValue: 'Bambang Irawan',
+        expectedFunc: 'VLOOKUP',
+        hint: 'Ketik =VLOOKUP(A4, D2:E5, 2) pada sel B4 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't15-4',
+        instruction: 'Misi 4: Format judul tabel input di sel A1 menjadi huruf TEBAL (Bold) agar tampilan tabel rapi!',
+        type: 'cell_style',
+        targetCell: 'A1',
+        styleKey: 'bold',
+        expectedStyle: true,
+        hint: 'Pilih sel A1 lalu klik tombol B (Bold) pada Ribbon.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 16: ANALISIS STATISTIK BERSYARAT (AVERAGEIF & SUMIF)
+  // =========================================================================
+  {
+    id: 16,
+    title: 'Analisis Statistik Bersyarat',
+    subtitle: 'Menghitung Rata-rata Bersyarat dengan AVERAGEIF & Evaluasi Kriteria',
+    icon: 'TrendingUp',
+    badgeName: 'Analis Kriteria Ulung',
+    color: 'from-orange-500 via-amber-600 to-red-600',
+    flashcards: [
+      {
+        id: '16-1',
+        term: 'Fungsi AVERAGEIF',
+        visualType: 'averageif-flow',
+        frontQuestion: 'Bagaimana cara menghitung rata-rata nilai khusus untuk kelompok atau kategori tertentu saja?',
+        explanation: 'Gunakan fungsi =AVERAGEIF(rentang_kriteria, kriteria, [rentang_rata2]). Excel akan menyaring baris yang cocok dengan kriteria lalu menghitung nilai rata-ratanya.',
+        example: '=AVERAGEIF(B2:B5, "P", C2:C5) menghitung rata-rata nilai khusus siswa Perempuan (P).'
+      },
+      {
+        id: '16-2',
+        term: 'Kriteria Angka pada COUNTIF',
+        visualType: 'averageif-flow',
+        frontQuestion: 'Bagaimana format penulisan kriteria perbandingan angka seperti "lebih besar sama dengan 80"?',
+        explanation: 'Kriteria perbandingan angka wajib diapit tanda kutip dua. Misalnya ">=80" atau "<75".',
+        example: '=COUNTIF(C2:C5, ">=80") menghitung jumlah siswa yang nilainya mencapai 80 atau lebih.'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Nama Siswa', style: { bold: true, bg: '#ffedd5' } },
+      B1: { value: 'Gender', style: { bold: true, bg: '#ffedd5', align: 'center' } },
+      C1: { value: 'Nilai Ujian', style: { bold: true, bg: '#ffedd5', align: 'center' } },
+      A2: { value: 'Adit', style: {} },
+      B2: { value: 'L', style: { align: 'center' } },
+      C2: { value: '80', style: { align: 'center' } },
+      A3: { value: 'Bela', style: {} },
+      B3: { value: 'P', style: { align: 'center' } },
+      C3: { value: '90', style: { align: 'center' } },
+      A4: { value: 'Coki', style: {} },
+      B4: { value: 'L', style: { align: 'center' } },
+      C4: { value: '70', style: { align: 'center' } },
+      A5: { value: 'Dara', style: {} },
+      B5: { value: 'P', style: { align: 'center' } },
+      C5: { value: '100', style: { align: 'center' } },
+      A7: { value: 'Jumlah Nilai >=80 (COUNTIF)', style: { bold: true } },
+      C7: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A8: { value: 'Rata-rata Siswa Perempuan (AVERAGEIF)', style: { bold: true } },
+      C8: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A9: { value: 'Rata-rata Siswa Laki-laki (AVERAGEIF)', style: { bold: true } },
+      C9: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A10: { value: 'Total Nilai Perempuan (SUMIF)', style: { bold: true } },
+      C10: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } }
+    },
+    tasks: [
+      {
+        id: 't16-1',
+        instruction: 'Misi 1: Hitung berapa siswa yang nilainya >=80 pada rentang C2:C5 menggunakan fungsi COUNTIF di sel C7!',
+        type: 'formula_result',
+        targetCell: 'C7',
+        expectedValue: 3,
+        expectedFunc: 'COUNTIF',
+        hint: 'Ketik =COUNTIF(C2:C5, ">=80") pada sel C7 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't16-2',
+        instruction: 'Misi 2: Hitung Rata-Rata nilai khusus siswa Perempuan ("P") di sel C8 menggunakan fungsi AVERAGEIF!',
+        type: 'formula_result',
+        targetCell: 'C8',
+        expectedValue: 95,
+        expectedFunc: 'AVERAGEIF',
+        hint: 'Ketik =AVERAGEIF(B2:B5, "P", C2:C5) pada sel C8 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't16-3',
+        instruction: 'Misi 3: Hitung Rata-Rata nilai khusus siswa Laki-laki ("L") di sel C9 menggunakan fungsi AVERAGEIF!',
+        type: 'formula_result',
+        targetCell: 'C9',
+        expectedValue: 75,
+        expectedFunc: 'AVERAGEIF',
+        hint: 'Ketik =AVERAGEIF(B2:B5, "L", C2:C5) pada sel C9 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't16-4',
+        instruction: 'Misi 4: Jumlahkan TOTAL nilai khusus siswa Perempuan di sel C10 menggunakan fungsi SUMIF!',
+        type: 'formula_result',
+        targetCell: 'C10',
+        expectedValue: 190,
+        expectedFunc: 'SUMIF',
+        hint: 'Ketik =SUMIF(B2:B5, "P", C2:C5) pada sel C10 lalu tekan Simpan/Enter.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 17: INVENTARIS & SIMULASI STOK GUDANG
+  // =========================================================================
+  {
+    id: 17,
+    title: 'Inventaris & Simulasi Stok Gudang',
+    subtitle: 'Monitoring Barang Masuk, Keluar, dan Status Restock Otomatis',
+    icon: 'Package',
+    badgeName: 'Manajer Logistik',
+    color: 'from-emerald-600 via-teal-600 to-cyan-600',
+    flashcards: [
+      {
+        id: '17-1',
+        term: 'Manajemen Stok & Saldo Barang',
+        visualType: 'inventory-stock',
+        frontQuestion: 'Bagaimana rumus dasar menghitung sisa stok barang di gudang atau koperasi?',
+        explanation: 'Sisa Stok Akhir dihitung dengan mengurangkan Stok Awal dengan Jumlah Terjual (atau Masuk - Keluar).\nContoh: Sisa Stok = Stok Awal (B2) - Terjual (C2).',
+        example: '=B2-C2 menghitung sisa barang yang ada di rak toko.'
+      },
+      {
+        id: '17-2',
+        term: 'Peringatan Restock Otomatis dengan IF',
+        visualType: 'inventory-stock',
+        frontQuestion: 'Bagaimana membuat status peringatan otomatis jika stok barang hampir habis?',
+        explanation: 'Gunakan fungsi IF dengan batas minimum. Misalnya jika sisa stok <= 10 maka tampilkan "Pesan Lagi", jika masih cukup tampilkan "Aman".',
+        example: '=IF(D2<=10, "Pesan Lagi", "Aman")'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Nama Barang', style: { bold: true, bg: '#ccfbf1' } },
+      B1: { value: 'Stok Awal', style: { bold: true, bg: '#ccfbf1', align: 'center' } },
+      C1: { value: 'Terjual', style: { bold: true, bg: '#ccfbf1', align: 'center' } },
+      D1: { value: 'Sisa Stok', style: { bold: true, bg: '#ccfbf1', align: 'center' } },
+      E1: { value: 'Status Gudang', style: { bold: true, bg: '#ccfbf1', align: 'center' } },
+      A2: { value: 'Buku Gambar', style: {} },
+      B2: { value: '50', style: { align: 'center' } },
+      C2: { value: '42', style: { align: 'center' } },
+      D2: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      E2: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A3: { value: 'Penghapus 2B', style: {} },
+      B3: { value: '100', style: { align: 'center' } },
+      C3: { value: '30', style: { align: 'center' } },
+      D3: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      E3: { value: '', style: { bg: '#fef9c3', align: 'center', bold: true } },
+      A4: { value: 'Penggaris 30cm', style: {} },
+      B4: { value: '40', style: { align: 'center' } },
+      C4: { value: '35', style: { align: 'center' } },
+      D4: { value: '=B4-C4', style: { align: 'center', bold: true } },
+      E4: { value: '=IF(D4<=10,"Pesan Lagi","Aman")', style: { align: 'center', bold: true } },
+      A6: { value: 'Total Sisa Seluruh Barang', style: { bold: true } },
+      D6: { value: '', style: { bg: '#dcfce7', align: 'center', bold: true } }
+    },
+    tasks: [
+      {
+        id: 't17-1',
+        instruction: 'Misi 1: Hitung Sisa Stok Buku Gambar di sel D2 dengan rumus pengurangan antara Stok Awal (B2) dan Terjual (C2)! Rumus: =B2-C2',
+        type: 'formula_result',
+        targetCell: 'D2',
+        expectedValue: 8,
+        requireFormula: true,
+        hint: 'Ketik =B2-C2 pada sel D2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't17-2',
+        instruction: 'Misi 2: Tentukan status gudang di sel E2: jika D2<=10 tampilkan "Pesan Lagi", jika tidak tampilkan "Aman"!',
+        type: 'formula_result',
+        targetCell: 'E2',
+        expectedValue: 'Pesan Lagi',
+        expectedFunc: 'IF',
+        hint: 'Ketik =IF(D2<=10,"Pesan Lagi","Aman") pada sel E2.'
+      },
+      {
+        id: 't17-3',
+        instruction: 'Misi 3: Hitung Sisa Stok Penghapus di sel D3 menggunakan rumus =B3-C3!',
+        type: 'formula_result',
+        targetCell: 'D3',
+        expectedValue: 70,
+        requireFormula: true,
+        hint: 'Ketik =B3-C3 pada sel D3 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't17-4',
+        instruction: 'Misi 4: Tentukan status gudang Penghapus di sel E3 menggunakan rumus =IF(D3<=10,"Pesan Lagi","Aman")! Hasil: "Aman"',
+        type: 'formula_result',
+        targetCell: 'E3',
+        expectedValue: 'Aman',
+        expectedFunc: 'IF',
+        hint: 'Ketik =IF(D3<=10,"Pesan Lagi","Aman") pada sel E3.'
+      },
+      {
+        id: 't17-5',
+        instruction: 'Misi 5: Hitung Total Sisa Seluruh Barang di sel D6 dengan menjumlahkan rentang D2:D4 menggunakan fungsi SUM!',
+        type: 'formula_result',
+        targetCell: 'D6',
+        expectedValue: 83,
+        expectedFunc: 'SUM',
+        hint: 'Ketik =SUM(D2:D4) pada sel D6.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 18: KAS KELAS & PEMBUKUAN KEUANGAN
+  // =========================================================================
+  {
+    id: 18,
+    title: 'Kas Kelas & Pembukuan Keuangan',
+    subtitle: 'Saldo Berjalan, Pemasukan, Pengeluaran & Rekapitulasi Kas',
+    icon: 'Wallet',
+    badgeName: 'Bendahara Teladan',
+    color: 'from-green-600 via-emerald-700 to-teal-800',
+    flashcards: [
+      {
+        id: '18-1',
+        term: 'Konsep Saldo Berjalan (Running Balance)',
+        visualType: 'cashflow-balance',
+        frontQuestion: 'Bagaimana cara bendahara menghitung saldo kas yang terus diperbarui setiap ada transaksi?',
+        explanation: 'Saldo berjalan pada baris aktif dihitung dari:\nSaldo Baris Sebelumnya + Pemasukan Baris Ini - Pengeluaran Baris Ini.\nRumus pada baris 3: =D2+B3-C3.',
+        example: 'Saldo kemarin Rp 100.000 + masuk Rp 0 - keluar Rp 25.000 = Saldo baru Rp 75.000.'
+      },
+      {
+        id: '18-2',
+        term: 'Prinsip Rekonsiliasi Kas',
+        visualType: 'cashflow-balance',
+        frontQuestion: 'Bagaimana cara membuktikan bahwa hitungan saldo akhir kas kelas sudah benar dan tidak ada selisih?',
+        explanation: 'Saldo Kas Akhir WAJIB sama dengan:\nTotal Seluruh Pemasukan dikurangi Total Seluruh Pengeluaran.\nJika Saldo Akhir baris terakhir sama dengan =SUM(Pemasukan) - SUM(Pengeluaran), maka pembukuan terbukti akurat!',
+        example: 'Total Pemasukan Rp 150.000 - Total Pengeluaran Rp 25.000 = Saldo Akhir Rp 125.000.'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Keterangan Transaksi', style: { bold: true, bg: '#d1fae5' } },
+      B1: { value: 'Masuk (Rp)', style: { bold: true, bg: '#d1fae5', align: 'right' } },
+      C1: { value: 'Keluar (Rp)', style: { bold: true, bg: '#d1fae5', align: 'right' } },
+      D1: { value: 'Saldo Kas (Rp)', style: { bold: true, bg: '#d1fae5', align: 'right' } },
+      A2: { value: 'Saldo Awal Bulan', style: {} },
+      B2: { value: '100000', style: { format: 'currency' } },
+      C2: { value: '0', style: { format: 'currency' } },
+      D2: { value: '100000', style: { bold: true, format: 'currency' } },
+      A3: { value: 'Beli Spidol & Penghapus', style: {} },
+      B3: { value: '0', style: { format: 'currency' } },
+      C3: { value: '25000', style: { format: 'currency' } },
+      D3: { value: '', style: { bg: '#fef9c3', format: 'currency', bold: true } },
+      A4: { value: 'Iuran Kas Mingguan', style: {} },
+      B4: { value: '50000', style: { format: 'currency' } },
+      C4: { value: '0', style: { format: 'currency' } },
+      D4: { value: '', style: { bg: '#fef9c3', format: 'currency', bold: true } },
+      A6: { value: 'TOTAL REKAP', style: { bold: true } },
+      B6: { value: '', style: { bg: '#dcfce7', bold: true, format: 'currency' } },
+      C6: { value: '', style: { bg: '#fee2e2', bold: true, format: 'currency' } },
+      D6: { value: '', style: { bg: '#bbf7d0', bold: true, format: 'currency' } }
+    },
+    tasks: [
+      {
+        id: 't18-1',
+        instruction: 'Misi 1: Hitung Saldo Berjalan di sel D3 (Transaksi 2): Saldo sebelumnya (D2) + Masuk (B3) - Keluar (C3) menggunakan rumus =D2+B3-C3!',
+        type: 'formula_result',
+        targetCell: 'D3',
+        expectedValue: 75000,
+        requireFormula: true,
+        hint: 'Ketik =D2+B3-C3 pada sel D3 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't18-2',
+        instruction: 'Misi 2: Hitung Saldo Berjalan di sel D4 (Transaksi 3): Saldo sebelumnya (D3) + Masuk (B4) - Keluar (C4) menggunakan rumus =D3+B4-C4!',
+        type: 'formula_result',
+        targetCell: 'D4',
+        expectedValue: 125000,
+        requireFormula: true,
+        hint: 'Ketik =D3+B4-C4 pada sel D4 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't18-3',
+        instruction: 'Misi 3: Hitung Total Seluruh Uang Masuk pada sel B6 dengan fungsi SUM untuk rentang B2:B4!',
+        type: 'formula_result',
+        targetCell: 'B6',
+        expectedValue: 150000,
+        expectedFunc: 'SUM',
+        hint: 'Ketik =SUM(B2:B4) pada sel B6.'
+      },
+      {
+        id: 't18-4',
+        instruction: 'Misi 4: Hitung Total Seluruh Uang Keluar pada sel C6 dengan fungsi SUM untuk rentang C2:C4!',
+        type: 'formula_result',
+        targetCell: 'C6',
+        expectedValue: 25000,
+        expectedFunc: 'SUM',
+        hint: 'Ketik =SUM(C2:C4) pada sel C6.'
+      },
+      {
+        id: 't18-5',
+        instruction: 'Misi 5: Hitung Saldo Kas Akhir di sel D6 dengan rumus =B6-C6 (Total Masuk dikurangi Total Keluar)!',
+        type: 'formula_result',
+        targetCell: 'D6',
+        expectedValue: 125000,
+        requireFormula: true,
+        hint: 'Ketik =B6-C6 pada sel D6.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 19: TREN PENJUALAN & DASHBOARD VISUAL
+  // =========================================================================
+  {
+    id: 19,
+    title: 'Tren Penjualan & Dashboard Visual',
+    subtitle: 'Membuat Diagram Garis (Line Chart), Analisis Pertumbuhan & Tren',
+    icon: 'TrendingUp',
+    badgeName: 'Analis Bisnis Visual',
+    color: 'from-fuchsia-600 via-pink-600 to-rose-600',
+    flashcards: [
+      {
+        id: '19-1',
+        term: 'Analisis Tren dengan Diagram Garis (Line Chart)',
+        visualType: 'trend-line-chart',
+        frontQuestion: 'Kapan Diagram Garis (Line Chart) paling tepat digunakan dibandingkan diagram batang?',
+        explanation: 'Diagram Garis dirancang khusus untuk memperlihatkan perubahan data secara berurutan dari waktu ke waktu (time series), seperti omset bulanan, grafik suhu, atau tren nilai rapor siswa.',
+        example: 'Grafik omset dari Januari sampai April memperlihatkan garis yang menanjak saat bisnis berkembang.'
+      },
+      {
+        id: '19-2',
+        term: 'Menghitung Selisih Pertumbuhan Bulanan',
+        visualType: 'trend-line-chart',
+        frontQuestion: 'Bagaimana rumus menghitung peningkatan omset penjualan dari bulan sebelumnya?',
+        explanation: 'Pertumbuhan = Nilai Bulan Berjalan - Nilai Bulan Sebelumnya.\nContoh untuk Februari dibanding Januari: =B3-B2.',
+        example: 'Jika Januari 500.000 dan Februari 650.000, maka pertumbuhan = =B3-B2 menghasilkan 150.000.'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'Bulan', style: { bold: true, bg: '#fce7f3' } },
+      B1: { value: 'Omset Koperasi (Rp)', style: { bold: true, bg: '#fce7f3', align: 'right' } },
+      C1: { value: 'Pertumbuhan (Rp)', style: { bold: true, bg: '#fce7f3', align: 'right' } },
+      A2: { value: 'Januari', style: {} },
+      B2: { value: '500000', style: { format: 'currency' } },
+      C2: { value: '-', style: { align: 'center' } },
+      A3: { value: 'Februari', style: {} },
+      B3: { value: '650000', style: { format: 'currency' } },
+      C3: { value: '', style: { bg: '#fef9c3', format: 'currency' } },
+      A4: { value: 'Maret', style: {} },
+      B4: { value: '800000', style: { format: 'currency' } },
+      C4: { value: '', style: { bg: '#fef9c3', format: 'currency' } },
+      A5: { value: 'April', style: {} },
+      B5: { value: '750000', style: { format: 'currency' } },
+      C5: { value: '=B5-B4', style: { format: 'currency' } },
+      A7: { value: 'Rekor Omset Tertinggi (MAX)', style: { bold: true } },
+      B7: { value: '', style: { bg: '#dcfce7', bold: true, format: 'currency' } },
+      A8: { value: 'Rata-rata Omset Bulanan (AVERAGE)', style: { bold: true } },
+      B8: { value: '', style: { bg: '#dcfce7', bold: true, format: 'currency' } }
+    },
+    tasks: [
+      {
+        id: 't19-1',
+        instruction: 'Misi 1: Buka menu "📊 Buat Grafik" pada Ribbon di atas dan pilih jenis Diagram Garis (Line Chart)!',
+        type: 'create_chart',
+        chartType: 'line',
+        hint: 'Klik tombol "📊 Buat Grafik" pada bilah Ribbon lalu pilih Diagram Garis (Line).'
+      },
+      {
+        id: 't19-2',
+        instruction: 'Misi 2: Hitung pertumbuhan omset bulan Februari di sel C3 dengan mengurangkan Omset Februari (B3) dengan Januari (B2)! Rumus: =B3-B2',
+        type: 'formula_result',
+        targetCell: 'C3',
+        expectedValue: 150000,
+        requireFormula: true,
+        hint: 'Ketik =B3-B2 pada sel C3 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't19-3',
+        instruction: 'Misi 3: Hitung pertumbuhan omset bulan Maret di sel C4 dengan rumus =B4-B3!',
+        type: 'formula_result',
+        targetCell: 'C4',
+        expectedValue: 150000,
+        requireFormula: true,
+        hint: 'Ketik =B4-B3 pada sel C4 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't19-4',
+        instruction: 'Misi 4: Temukan Rekor Omset Tertinggi di sel B7 menggunakan fungsi MAX untuk rentang B2:B5!',
+        type: 'formula_result',
+        targetCell: 'B7',
+        expectedValue: 800000,
+        expectedFunc: 'MAX',
+        hint: 'Ketik =MAX(B2:B5) pada sel B7.'
+      },
+      {
+        id: 't19-5',
+        instruction: 'Misi 5: Hitung Rata-rata Omset Bulanan di sel B8 menggunakan fungsi AVERAGE untuk rentang B2:B5!',
+        type: 'formula_result',
+        targetCell: 'B8',
+        expectedValue: 675000,
+        expectedFunc: 'AVERAGE',
+        hint: 'Ketik =AVERAGE(B2:B5) pada sel B8.'
+      }
+    ]
+  },
+  // =========================================================================
+  // LEVEL 20: GRAND FINAL: DIREKTUR DATA SEKOLAH
+  // =========================================================================
+  {
+    id: 20,
+    title: 'Grand Final: Direktur Data Sekolah',
+    subtitle: 'Misi Puncak Penutup: VLOOKUP, Logika IF, Statistik & Pelaporan Lengkap',
+    icon: 'Crown',
+    badgeName: 'Legenda Spreadsheet',
+    color: 'from-amber-500 via-rose-600 to-purple-800',
+    flashcards: [
+      {
+        id: '20-1',
+        term: 'Misi Puncak: Gelar Legenda Spreadsheet',
+        visualType: 'master-capstone',
+        frontQuestion: 'Apa saja kompetensi terpadu yang diuji pada Level 20 pamungkas ini?',
+        explanation: 'Sebagai Direktur Data Sekolah, kamu akan menggabungkan:\n1. VLOOKUP untuk melengkapi nama siswa dari database NIS\n2. AVERAGE untuk rata-rata nilai ujian\n3. Logika IF untuk menentukan status kelulusan\n4. COUNTIF untuk merekap jumlah siswa lulus.',
+        example: 'Selesaikan seluruh misi puncak ini untuk menyelesaikan seluruh 20 Level petualangan Excel Adventure!'
+      },
+      {
+        id: '20-2',
+        term: 'Kesiapan Uji Sertifikasi Spreadsheet',
+        visualType: 'master-capstone',
+        frontQuestion: 'Apa manfaat menguasai seluruh 20 level Excel Adventure ini bagi masa depanmu?',
+        explanation: 'Keterampilan spreadsheet tabel, rumus matematika, logika kondisi, pengurutan, filter data, dan visualisasi grafik adalah keterampilan digital nomor 1 di seluruh dunia pendidikan dan industri modern.',
+        example: 'Raih 3 Bintang di Level 20 dan buktikan kamu adalah Master Spreadsheet sejati!'
+      }
+    ],
+    initialGrid: {
+      A1: { value: 'NIS', style: { bold: true, bg: '#fef3c7', align: 'center' } },
+      B1: { value: 'Nama Siswa', style: { bold: true, bg: '#fef3c7' } },
+      C1: { value: 'Nilai Ujian', style: { bold: true, bg: '#fef3c7', align: 'center' } },
+      D1: { value: 'Status (KKM 75)', style: { bold: true, bg: '#fef3c7', align: 'center' } },
+      A2: { value: '201', style: { align: 'center' } },
+      B2: { value: '', style: { bg: '#fffbeb' } },
+      C2: { value: '85', style: { align: 'center' } },
+      D2: { value: '', style: { bg: '#fffbeb', align: 'center' } },
+      A3: { value: '202', style: { align: 'center' } },
+      B3: { value: '', style: { bg: '#fffbeb' } },
+      C3: { value: '70', style: { align: 'center' } },
+      D3: { value: '', style: { bg: '#fffbeb', align: 'center' } },
+      A4: { value: '203', style: { align: 'center' } },
+      B4: { value: '=VLOOKUP(A4,A8:B10,2)', style: {} },
+      C4: { value: '85', style: { align: 'center' } },
+      D4: { value: '=IF(C4>=75,"Lulus","Remedial")', style: { align: 'center' } },
+      A6: { value: 'Jumlah Siswa Lulus (COUNTIF)', style: { bold: true } },
+      D6: { value: '', style: { bg: '#dcfce7', align: 'center', bold: true } },
+      A7: { value: 'Rata-rata Nilai Kelas (AVERAGE)', style: { bold: true } },
+      C7: { value: '', style: { bg: '#e0f2fe', align: 'center', bold: true } },
+      A8: { value: '201', style: { align: 'center' } },
+      B8: { value: 'Alif Pratama', style: {} },
+      A9: { value: '202', style: { align: 'center' } },
+      B9: { value: 'Binar Mentari', style: {} },
+      A10: { value: '203', style: { align: 'center' } },
+      B10: { value: 'Calista Putri', style: {} }
+    },
+    tasks: [
+      {
+        id: 't20-1',
+        instruction: 'Tugas 1: Panggil nama siswa untuk NIS 201 di sel B2 menggunakan rumus VLOOKUP dari tabel master A8:B10! Rumus: =VLOOKUP(A2, A8:B10, 2)',
+        type: 'formula_result',
+        targetCell: 'B2',
+        expectedValue: 'Alif Pratama',
+        expectedFunc: 'VLOOKUP',
+        hint: 'Ketik =VLOOKUP(A2, A8:B10, 2) pada sel B2 lalu tekan Simpan/Enter.'
+      },
+      {
+        id: 't20-2',
+        instruction: 'Tugas 2: Panggil nama siswa untuk NIS 202 di sel B3 menggunakan rumus =VLOOKUP(A3, A8:B10, 2)!',
+        type: 'formula_result',
+        targetCell: 'B3',
+        expectedValue: 'Binar Mentari',
+        expectedFunc: 'VLOOKUP',
+        hint: 'Ketik =VLOOKUP(A3, A8:B10, 2) pada sel B3.'
+      },
+      {
+        id: 't20-3',
+        instruction: 'Tugas 3: Tentukan status kelulusan Alif di sel D2 dengan rumus IF: jika nilai C2>=75 maka "Lulus", jika tidak "Remedial"!',
+        type: 'formula_result',
+        targetCell: 'D2',
+        expectedValue: 'Lulus',
+        expectedFunc: 'IF',
+        hint: 'Ketik =IF(C2>=75,"Lulus","Remedial") pada sel D2.'
+      },
+      {
+        id: 't20-4',
+        instruction: 'Tugas 4: Tentukan status kelulusan Binar di sel D3 dengan rumus IF: jika nilai C3>=75 maka "Lulus", jika tidak "Remedial"!',
+        type: 'formula_result',
+        targetCell: 'D3',
+        expectedValue: 'Remedial',
+        expectedFunc: 'IF',
+        hint: 'Ketik =IF(C3>=75,"Lulus","Remedial") pada sel D3.'
+      },
+      {
+        id: 't20-5',
+        instruction: 'Tugas 5: Hitung berapa siswa yang Lulus di rentang D2:D4 pada sel D6 menggunakan fungsi COUNTIF!',
+        type: 'formula_result',
+        targetCell: 'D6',
+        expectedValue: 2,
+        expectedFunc: 'COUNTIF',
+        hint: 'Ketik =COUNTIF(D2:D4, "Lulus") pada sel D6.'
+      },
+      {
+        id: 't20-6',
+        instruction: 'Tugas 6: Hitung Rata-Rata nilai kelas untuk rentang C2:C4 pada sel C7 menggunakan fungsi AVERAGE!',
+        type: 'formula_result',
+        targetCell: 'C7',
+        expectedValue: 80,
+        expectedFunc: 'AVERAGE',
+        hint: 'Ketik =AVERAGE(C2:C4) pada sel C7.'
+      }
+    ]
   }
 ];

@@ -64,7 +64,9 @@ export async function GET(req: NextRequest) {
         assignedClassIds: [],
         assignedClassNames: [],
         kkmScore: 75,
-        activeLevels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        activeLevels: [
+          1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+        ],
         instructions: 'Selesaikan seluruh misi dan latihan spreadsheet sesuai petunjuk guru.',
         allowReplay: true
       };
@@ -157,7 +159,10 @@ export async function GET(req: NextRequest) {
             lockReason: config.lockMessage || 'Game Simulasi Excel sedang dikunci oleh guru.',
             assignedClassNames: config.assignedClassNames || [],
             kkmScore: config.kkmScore || 75,
-            activeLevels: config.activeLevels || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            activeLevels:
+              config.activeLevels || [
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+              ]
           });
         }
       }
@@ -235,7 +240,11 @@ export async function POST(req: NextRequest) {
       assignedClassIds: updatedAssignedIds,
       assignedClassNames: assignedClassNames,
       kkmScore: Number(body.kkmScore) || existingConfig?.kkmScore || 75,
-      activeLevels: body.activeLevels || existingConfig?.activeLevels || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      activeLevels:
+        body.activeLevels ||
+        existingConfig?.activeLevels || [
+          1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+        ],
       instructions:
         body.instructions !== undefined
           ? body.instructions

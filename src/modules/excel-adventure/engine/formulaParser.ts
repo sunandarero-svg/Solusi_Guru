@@ -63,11 +63,11 @@ export const evaluateSimpleArithmetic = (
   const cleanExpr = expr.replace(/\s+/g, '');
 
   // Validasi karakter ilegal
-  if (/[^A-E0-9.+\-*/()$]/i.test(cleanExpr)) {
+  if (/[^A-E0-9.+\-*/()$^]/i.test(cleanExpr)) {
     return { error: '#NAME? (Periksa penulisan rumus)' };
   }
 
-  const tokenRegex = /(\$?[A-E]\$?(?:10|[1-9]))|(\d+(?:\.\d+)?)|([+\-*/()])/gi;
+  const tokenRegex = /(\$?[A-E]\$?(?:10|[1-9]))|(\d+(?:\.\d+)?)|([+\-*/()^])/gi;
   const tokens: { type: 'num' | 'op'; value: any }[] = [];
   let match: RegExpExecArray | null;
 
@@ -93,13 +93,14 @@ export const evaluateSimpleArithmetic = (
   const ops: string[] = [];
 
   const precedence = (op: string) =>
-    op === '+' || op === '-' ? 1 : op === '*' || op === '/' ? 2 : 0;
+    op === '+' || op === '-' ? 1 : op === '*' || op === '/' ? 2 : op === '^' ? 3 : 0;
 
   const applyOp = (a: number, b: number, op: string) => {
     if (op === '+') return a + b;
     if (op === '-') return a - b;
     if (op === '*') return a * b;
     if (op === '/') return b === 0 ? NaN : a / b;
+    if (op === '^') return Math.pow(a, b);
     return 0;
   };
 
@@ -145,17 +146,24 @@ export const evaluateSimpleArithmetic = (
   return { result: Math.round(values[0] * 100) / 100 };
 };
 
-// Pemisah argumen formula yang aman terhadap tanda kutip
+// Pemisah argumen formula yang aman terhadap tanda kutip dan tanda kurung bersarang
 const parseFormulaArgs = (argsRaw: string): string[] => {
   const args: string[] = [];
   let current = '';
   let inQuotes = false;
+  let parenDepth = 0;
   for (let i = 0; i < argsRaw.length; i++) {
     const ch = argsRaw[i];
     if (ch === '"') {
       inQuotes = !inQuotes;
       current += ch;
-    } else if ((ch === ',' || ch === ';') && !inQuotes) {
+    } else if (ch === '(' && !inQuotes) {
+      parenDepth++;
+      current += ch;
+    } else if (ch === ')' && !inQuotes) {
+      if (parenDepth > 0) parenDepth--;
+      current += ch;
+    } else if ((ch === ',' || ch === ';') && !inQuotes && parenDepth === 0) {
       args.push(current.trim());
       current = '';
     } else {
@@ -222,7 +230,11 @@ export const evaluateFormula = (
         isTrue = String(leftCell).toLowerCase() !== String(rightVal).toLowerCase();
 
       const chosenArg = isTrue ? args[1] : args[2];
-      const cleanVal = chosenArg.replace(/^["']|["']$/g, '');
+      const trimmedChosen = chosenArg.trim();
+      if (/^[A-Z_]+\(.*\)$/i.test(trimmedChosen)) {
+        return evaluateFormula('=' + trimmedChosen, grid, visited);
+      }
+      const cleanVal = trimmedChosen.replace(/^["']|["']$/g, '');
       return { result: cleanVal };
     }
 
@@ -289,6 +301,59 @@ export const evaluateFormula = (
       });
 
       return { result: Math.round(total * 100) / 100 };
+    }
+
+    // 3b. Fungsi AVERAGEIF: =AVERAGEIF(rentang_kriteria, kriteria, [rentang_rata2])
+    if (funcName === 'AVERAGEIF') {
+      if (args.length < 2 || args.length > 3) {
+        return { error: '#ERROR! Format AVERAGEIF: =AVERAGEIF(rentang_kriteria, kriteria, [rentang_rata2])' };
+      }
+      const critRange = expandRange(args[0]);
+      const avgRange = args.length === 3 ? expandRange(args[2]) : critRange;
+      if (critRange.length === 0 || avgRange.length === 0) {
+        return { error: '#ERROR! Rentang AVERAGEIF tidak valid' };
+      }
+
+      const criteria = args[1].replace(/^["']|["']$/g, '').trim();
+      const critMatch = criteria.match(/^(>=|<=|<>|>|<|=)?(.*)$/);
+      const op = critMatch && critMatch[1] ? critMatch[1] : '=';
+      const targetVal = critMatch ? critMatch[2].trim() : criteria;
+      const targetNum = Number(targetVal);
+
+      let total = 0;
+      let count = 0;
+
+      critRange.forEach((c, idx) => {
+        const critVal = getComputedCellValue(c, grid, new Set(visited));
+        const critValNum = Number(critVal);
+
+        let isMatch = false;
+        if (!isNaN(critValNum) && !isNaN(targetNum) && op !== '=') {
+          if (op === '>=' && critValNum >= targetNum) isMatch = true;
+          else if (op === '<=' && critValNum <= targetNum) isMatch = true;
+          else if (op === '>' && critValNum > targetNum) isMatch = true;
+          else if (op === '<' && critValNum < targetNum) isMatch = true;
+          else if (op === '<>' && critValNum !== targetNum) isMatch = true;
+        } else {
+          if (op === '<>') {
+            if (String(critVal).toLowerCase() !== targetVal.toLowerCase()) isMatch = true;
+          } else {
+            if (String(critVal).toLowerCase() === targetVal.toLowerCase()) isMatch = true;
+          }
+        }
+
+        if (isMatch) {
+          const avgCell = avgRange[idx] || avgRange[avgRange.length - 1];
+          const val = Number(getComputedCellValue(avgCell, grid, new Set(visited)));
+          if (!isNaN(val)) {
+            total += val;
+            count++;
+          }
+        }
+      });
+
+      if (count === 0) return { error: '#DIV/0! Tidak ada data yang cocok' };
+      return { result: Math.round((total / count) * 100) / 100 };
     }
 
     // 4. Fungsi VLOOKUP: =VLOOKUP(lookup_value, table_range, col_index, [exact_match])
@@ -379,6 +444,41 @@ export const evaluateFormula = (
         ? String(getComputedCellValue(target, grid, new Set(visited)))
         : target;
       return { result: val.slice(-num) };
+    }
+
+    // 5b. Fungsi Matematika Presisi: ROUND, ROUNDUP, ROUNDDOWN, POWER
+    if (funcName === 'ROUND' || funcName === 'ROUNDUP' || funcName === 'ROUNDDOWN') {
+      if (args.length < 1) return { error: '#ERROR! Format: =ROUND(angka, [digit])' };
+      const rawTarget = args[0].replace(/^["']|["']$/g, '');
+      const val = /^[A-E]\d+$/i.test(rawTarget)
+        ? Number(getComputedCellValue(rawTarget, grid, new Set(visited)))
+        : Number(rawTarget);
+      const digits = args[1] ? parseInt(args[1], 10) : 0;
+      if (isNaN(val)) return { error: '#VALUE! Bukan angka' };
+      const factor = Math.pow(10, digits);
+      let rounded: number;
+      if (funcName === 'ROUNDUP') {
+        rounded = Math.ceil(val * factor) / factor;
+      } else if (funcName === 'ROUNDDOWN') {
+        rounded = Math.floor(val * factor) / factor;
+      } else {
+        rounded = Math.round(val * factor) / factor;
+      }
+      return { result: rounded };
+    }
+
+    if (funcName === 'POWER') {
+      if (args.length !== 2) return { error: '#ERROR! Format: =POWER(angka, pangkat)' };
+      const baseRaw = args[0].replace(/^["']|["']$/g, '');
+      const expRaw = args[1].replace(/^["']|["']$/g, '');
+      const baseVal = /^[A-E]\d+$/i.test(baseRaw)
+        ? Number(getComputedCellValue(baseRaw, grid, new Set(visited)))
+        : Number(baseRaw);
+      const expVal = /^[A-E]\d+$/i.test(expRaw)
+        ? Number(getComputedCellValue(expRaw, grid, new Set(visited)))
+        : Number(expRaw);
+      if (isNaN(baseVal) || isNaN(expVal)) return { error: '#VALUE! Bukan angka' };
+      return { result: Math.pow(baseVal, expVal) };
     }
 
     // 6. Fungsi Statistik Rentang: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA

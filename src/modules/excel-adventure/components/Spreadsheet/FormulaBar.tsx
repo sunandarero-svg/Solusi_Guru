@@ -26,7 +26,11 @@ const SNIPPETS = [
   '=IF(',
   '=COUNTIF(',
   '=SUMIF(',
-  '=VLOOKUP('
+  '=AVERAGEIF(',
+  '=VLOOKUP(',
+  '=CONCAT(',
+  '=UPPER(',
+  '=ROUND('
 ];
 
 export const FormulaBar: React.FC<FormulaBarProps> = ({

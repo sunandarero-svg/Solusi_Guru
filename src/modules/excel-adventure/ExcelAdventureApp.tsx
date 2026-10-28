@@ -1317,7 +1317,7 @@ export default function ExcelAdventureApp({
                         ? (lockMessage || 'Game Simulasi Excel sedang dikunci oleh guru.')
                         : !isTeacherUser && !isStudentAssigned
                         ? `Kelas Anda (${studentAssignedClassName || 'Kelas Siswa'}) belum dimasukkan ke daftar penugasan aktif oleh guru. Anda belum dapat memulai level latihan sebelum guru menugaskannya.`
-                        : 'Pelajari Flash Card visual, selesaikan 10 Level petualangan bertahap, pasang diagram, gunakan AutoFill, raih XP, dan gelar Excel Master!'}
+                        : 'Pelajari Flash Card visual, selesaikan 20 Level petualangan bertahap, pasang diagram, gunakan AutoFill, raih XP, dan gelar Excel Master!'}
                     </p>
                   </div>
 
@@ -1509,13 +1509,13 @@ export default function ExcelAdventureApp({
                 }}
                 className="w-full min-h-[54px] bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-base shadow-lg flex items-center justify-center gap-2"
               >
-                Buka Peta 10 Level <ChevronRight className="w-5 h-5" />
+                Buka Peta 20 Level <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           </div>
         )}
 
-        {/* PETA 10 LEVEL */}
+        {/* PETA 20 LEVEL */}
         {screen === 'MAP' && (
           <div className="max-w-7xl mx-auto p-4 sm:p-8">
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 mb-8 flex flex-wrap items-center justify-between gap-4 shadow-lg">
@@ -1531,7 +1531,7 @@ export default function ExcelAdventureApp({
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    10 Level Terstruktur • Flash Card & Simulasi Rumus Interaktif
+                    20 Level Terstruktur • Flash Card & Simulasi Rumus Interaktif
                   </p>
                 </div>
               </div>
@@ -1546,14 +1546,14 @@ export default function ExcelAdventureApp({
                 <div className="bg-slate-800 px-4 py-2 rounded-2xl border border-slate-700 text-center">
                   <div className="text-[10px] text-slate-400 uppercase font-bold">Total Bintang</div>
                   <div className="text-lg font-black text-yellow-400 flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400" /> {totalStars} / 30
+                    <Star className="w-4 h-4 fill-yellow-400" /> {totalStars} / {LEVELS_DATA.length * 3}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Grid 10 Level */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Grid 20 Level */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {LEVELS_DATA.map((lvl) => {
                 const isUnlocked = teacherUnlockAll || unlockedLevels.includes(lvl.id);
                 const isStudied = !!studiedFlashcards[lvl.id];
@@ -1991,11 +1991,11 @@ export default function ExcelAdventureApp({
                 <h2 className="text-2xl font-black text-white flex items-center gap-2">
                   <Trophy className="w-7 h-7 text-amber-400" /> Koleksi Lencana & Riwayat
                 </h2>
-                <p className="text-slate-400 text-sm mt-1">10 Lencana Keterampilan Spreadsheet</p>
+                <p className="text-slate-400 text-sm mt-1">20 Lencana Keterampilan Spreadsheet</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
               {LEVELS_DATA.map((lvl) => {
                 const earned = badges.includes(lvl.badgeName);
                 return (
@@ -2514,7 +2514,7 @@ export default function ExcelAdventureApp({
 
                 <div className="bg-slate-800/70 border border-slate-700 p-4 rounded-2xl flex items-center justify-between">
                   <div>
-                    <div className="font-bold text-white text-sm">Buka Seluruh 10 Level</div>
+                    <div className="font-bold text-white text-sm">Buka Seluruh 20 Level</div>
                     <div className="text-xs text-slate-400">Kontrol guru untuk akses langsung materi</div>
                   </div>
                   <button
