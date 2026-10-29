@@ -17,18 +17,19 @@ async function getDynamicModels(apiKey: string): Promise<string[]> {
   if (!res.ok) {
     console.warn(`[Groq] Failed to fetch models list for key prefix ${apiKey.substring(0, 8)}`);
     return [
-      "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
       "qwen/qwen3.8-27b",
       "qwen/qwen3.6-27b"
-    ]; // Fallback defaults: Llama 4 (higher TPM) + Qwen3 (lower TPM fallback)
+    ]; // Fallback defaults: Khusus model Qwen
   }
   
   const data = await res.json();
-  const availableModels = data.data.map((m: any) => m.id);
-  console.log(`[Groq] Available models for key prefix ${apiKey.substring(0, 8)}:`, availableModels.join(", "));
-  modelCache[apiKey] = availableModels;
-  return availableModels;
+  const availableModels = (data.data || [])
+    .map((m: any) => m.id as string)
+    .filter((id: string) => id.toLowerCase().includes("qwen"));
+  console.log(`[Groq] Available Qwen models for key prefix ${apiKey.substring(0, 8)}:`, availableModels.join(", "));
+  const finalModels = availableModels.length > 0 ? availableModels : ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b"];
+  modelCache[apiKey] = finalModels;
+  return finalModels;
 }
 
 export interface VerifyResult {
@@ -41,19 +42,11 @@ export interface VerifyResult {
 
 /**
  * Check if a model supports multimodal (image) input.
- * Covers: vision models, Llama 4 Scout/Maverick, Qwen3 VL series
+ * Covers: Qwen VL / Qwen Vision series on Groq
  */
 function isMultimodalModel(modelId: string): boolean {
   const lower = modelId.toLowerCase();
-  return (
-    lower.includes("vision") ||
-    lower.includes("llava") ||
-    lower.includes("pixtral") ||
-    lower.includes("scout") ||
-    lower.includes("maverick") ||
-    lower.includes("qwen3") ||
-    lower.includes("qwen-vl")
-  );
+  return lower.includes("qwen");
 }
 
 export async function verifyPageReadability(pages: any[]): Promise<VerifyResult> {
@@ -103,14 +96,12 @@ WAJIB balas dalam format JSON murni (tanpa markdown) seperti ini:
       const multimodalModels = availableModels.filter(isMultimodalModel);
       
       let modelsToTry = multimodalModels.length > 0 ? multimodalModels : [
-        "meta-llama/llama-4-scout-17b-16e-instruct",
-        "meta-llama/llama-4-maverick-17b-128e-instruct",
         "qwen/qwen3.8-27b",
         "qwen/qwen3.6-27b"
       ];
       
       const customModel = process.env.GROQ_MODEL?.trim();
-      if (customModel) {
+      if (customModel && customModel.toLowerCase().includes("qwen")) {
         modelsToTry = [customModel, ...modelsToTry];
       }
 

@@ -39,14 +39,14 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
   if (groqKeysStr) {
     try {
       const { key } = await groqRateLimiter.waitForKey(10000);
-      const groqModels = [
+      const rawGroqModels = [
         process.env.GROQ_MODEL?.trim(),
-        "llama-3.3-70b-versatile",
         "qwen/qwen3.8-27b",
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "llama-3.1-8b-instant",
-      ].filter(Boolean) as string[];
+        "qwen/qwen-2.5-72b",
+        "qwen/qwen-2.5-32b",
+        "qwen/qwen3.6-27b",
+      ].filter((m) => m && m.toLowerCase().includes("qwen")) as string[];
+      const groqModels = rawGroqModels.length > 0 ? rawGroqModels : ["qwen/qwen3.8-27b", "qwen/qwen-2.5-72b"];
 
       for (const groqModel of groqModels) {
         try {

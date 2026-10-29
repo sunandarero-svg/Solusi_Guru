@@ -93,12 +93,15 @@ export class AIService {
       }
     }
 
-    // Fallback logic
+    // Fallback logic jika primary provider (GroqProvider) gagal
     if (primaryFailed) {
+      console.warn(`[AI] Primary provider (${primaryProvider.providerName}) gagal. Memeriksa fallback yang tersedia...`);
       let secondarySuccess = false;
 
-      if (isGroqForced) {
-        console.log(`[AI] Falling back to OpenRouterProvider because Groq was forced and failed...`);
+      // Cek apakah OpenRouter memiliki key yang valid
+      const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
+      if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
+        console.log(`[AI] Mencoba fallback ke OpenRouterProvider...`);
         try {
           const { OpenRouterProvider } = await import("./OpenRouterProvider");
           const fallbackProvider = new OpenRouterProvider();
@@ -108,33 +111,18 @@ export class AIService {
             answerKey,
             questions
           );
-          console.log(`[AI] OpenRouterProvider fallback succeeded!`);
+          console.log(`[AI] OpenRouterProvider fallback berhasil!`);
           Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
           secondarySuccess = true;
-        } catch (fallbackError) {
-          console.warn(`[AI] OpenRouterProvider fallback also failed: ${fallbackError}`);
+        } catch (fallbackError: any) {
+          console.warn(`[AI] OpenRouterProvider fallback juga gagal: ${fallbackError?.message || fallbackError}`);
         }
       } else {
-        console.log(`[AI] Falling back to GroqProvider because OpenRouter was primary and failed...`);
-        try {
-          const { GroqProvider } = await import("./GroqProvider");
-          const fallbackProvider = new GroqProvider();
-          assessmentResult = await fallbackProvider.assessSubmission(
-            pages as any,
-            [],
-            answerKey,
-            questions
-          );
-          console.log(`[AI] GroqProvider fallback succeeded!`);
-          Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
-          secondarySuccess = true;
-        } catch (fallbackError) {
-          console.warn(`[AI] GroqProvider fallback also failed: ${fallbackError}`);
-        }
+        console.log(`[AI] Melewati fallback OpenRouter (OPENROUTER_API_KEY tidak dikonfigurasi atau tidak valid).`);
       }
 
       if (!secondarySuccess) {
-        throw new Error(`AI assessment failed on all providers (Groq and OpenRouter). Both providers exhausted.`);
+        throw new Error(`AI assessment gagal pada seluruh provider. Primary provider (${primaryProvider.providerName}) exhausted.`);
       }
     }
 
