@@ -34,8 +34,32 @@ import {
   FileText,
   Eye,
   EyeOff,
-  Check
+  Check,
+  Lock,
+  Unlock,
+  Settings,
+  Users,
+  CheckSquare,
+  Square,
+  Search,
+  ShieldAlert
 } from 'lucide-react';
+import {
+  Level7BinaryBasics,
+  Level8BinaryToDecimal,
+  Level9DecimalToBinary,
+  Level10OctalToDecimal,
+  Level11BinaryToOctal,
+  Level12HexBasics,
+  Level13HexToDecimal,
+  Level14DecimalToHex,
+  Level15BinaryToHex,
+  Level16HexToBinary,
+  Level17HexToOctal,
+  Level18OctalToHex,
+  Level19HexColorAscii,
+  Level20GrandMasterMultiBase
+} from './levels/NumberSystemChallenges';
 
 // ============================================================================
 // WEB AUDIO SYNTHESIZER (Tanpa file eksternal, berjalan di semua browser)
@@ -322,7 +346,7 @@ const HardwareSVG: React.FC<HardwareSVGProps> = ({ type, active = false, size = 
 };
 
 // ============================================================================
-// DATA FLASHCARD UNIK UNTUK SETIAP LEVEL (Level 1 s/d Level 6)
+// DATA FLASHCARD UNIK UNTUK SETIAP LEVEL (Level 1 s/d Level 20)
 // ============================================================================
 interface FlashcardData {
   id: string;
@@ -409,6 +433,202 @@ const LEVEL_DATA: LevelData[] = [
       { id: 'l6-c4', category: 'Memilih Storage Device', title: 'Kecepatan dan Kapasitas Penyimpanan', svgType: 'ssd', summary: 'Gunakan SSD agar sistem operasi dan file tugas cepat dibuka serta aman tersimpan.', dailyExample: 'SSD 256GB atau 512GB cukup untuk sistem operasi, aplikasi sekolah, dan ribuan dokumen tugas.', animText: 'SSD Cepat → Waktu Muat Singkat & Data Aman' },
       { id: 'l6-c5', category: 'Manajemen Anggaran & Pengujian', title: 'Hemat Biaya & Uji Simulasi Sistem', svgType: 'keyboard', summary: 'Teknisi cerdas memilih komponen yang memenuhi semua kebutuhan pengguna tanpa melampaui batas anggaran yang tersedia.', dailyExample: 'Setelah semua komponen terpasang, nyalakan simulasi untuk menguji alur Input → CPU → Output → Storage!', animText: 'Pilih Komponen → Cek Anggaran → Jalankan Simulasi Pengujian' }
     ]
+  },
+  {
+    id: 7,
+    title: 'Sistem Bilangan Biner & Desimal',
+    subtitle: 'Bahasa Digital Komputer: Bit 0 dan 1 vs Desimal Basis 10',
+    badgeName: 'Inisiator Bahasa Biner',
+    description: 'Pahami bagaimana sirkuit komputer hanya memahami sinyal listrik On (1) dan Off (0), serta konsep dasar bobot perpangkatan 2.',
+    flashcards: [
+      { id: 'l7-c1', category: 'Sistem Bilangan Digital', title: 'Basis 10 (Desimal) vs Basis 2 (Biner)', svgType: 'cpu', summary: 'Manusia menggunakan sistem Desimal (basis 10: angka 0-9), sedangkan komputer menggunakan sistem Biner (basis 2: angka 0 dan 1).', dailyExample: 'Angka 10 pada desimal bernilai sepuluh, tetapi 10 pada biner bernilai dua.', animText: 'Desimal: 0-9 • Biner: 0 dan 1' },
+      { id: 'l7-c2', category: 'Konsep Bit', title: 'Binary Digit (Bit)', svgType: 'cpu', summary: 'Bit adalah satuan data terkecil dalam komputer. Satu bit hanya bisa bernilai 0 (mati/low voltage) atau 1 (hidup/high voltage).', dailyExample: 'Sebuah saklar lampu: posisi OFF adalah 0, posisi ON adalah 1.', animText: 'OFF (0) ↔ ON (1)' },
+      { id: 'l7-c3', category: 'Transistor Komputer', title: 'Miliaran Saklar dalam Prosesor', svgType: 'cpu', summary: 'Prosesor (CPU) tersusun dari miliaran transistor mikroskopis yang berfungsi sebagai saklar digital pengolah bit biner.', dailyExample: 'Saat CPU menghitung, jutaan transistor berpindah kondisi 0 dan 1 miliaran kali per detik.', animText: 'Transistor: Mengatur aliran arus listrik 0 dan 1' },
+      { id: 'l7-c4', category: 'Bobot Nilai Tempat Biner', title: 'Perpangkatan Basis 2 (2ⁿ)', svgType: 'ram', summary: 'Setiap posisi bit dari kanan ke kiri memiliki bobot perpangkatan 2: 2⁰=1, 2¹=2, 2²=4, 2³=8, 2⁴=16, 2⁵=32, 2⁶=64, 2⁷=128.', dailyExample: 'Kombinasi bit 00001001 memiliki nilai aktif di bobot 8 dan 1, sehingga nilainya 8 + 1 = 9.', animText: 'Bobot: 128 • 64 • 32 • 16 • 8 • 4 • 2 • 1' },
+      { id: 'l7-c5', category: 'Satuan Penyimpanan Data', title: 'Byte dan Kelipatannya', svgType: 'ssd', summary: '8 bit digabungkan menjadi 1 Byte. 1 Byte mampu menampung 256 variasi nilai (0 sampai 255) atau satu karakter huruf.', dailyExample: 'Satu huruf "A" yang diketik disimpan sebagai 1 Byte memori komputer.', animText: '8 Bit = 1 Byte • 1024 Byte = 1 KB' }
+    ]
+  },
+  {
+    id: 8,
+    title: 'Konversi Biner ke Desimal',
+    subtitle: 'Menghitung Nilai Posisi Bobot Pangkat Dua (2ⁿ)',
+    badgeName: 'Penerjemah Biner Mahir',
+    description: 'Pelajari rumus posisi bobot perpangkatan dua untuk mengonversi deretan biner apa pun menjadi angka desimal dengan cepat.',
+    flashcards: [
+      { id: 'l8-c1', category: 'Teknik Konversi', title: 'Metode Penjumlahan Bobot', svgType: 'cpu', summary: 'Untuk mengubah biner ke desimal, kalikan setiap digit bit (0 atau 1) dengan bobot posisinya (2ⁿ), lalu jumlahkan semuanya.', dailyExample: 'Biner 1011₂ = (1×8) + (0×4) + (1×2) + (1×1) = 8 + 0 + 2 + 1 = 11₁₀.', animText: 'Bit × Bobot Posisi ➔ Jumlahkan Semua' },
+      { id: 'l8-c2', category: 'Identifikasi Bit', title: 'MSB dan LSB', svgType: 'ram', summary: 'Bit paling kanan disebut LSB (Least Significant Bit) dengan bobot 2⁰=1. Bit paling kiri disebut MSB (Most Significant Bit) dengan bobot terbesar.', dailyExample: 'Pada biner 1000, bit 1 adalah MSB bernilai 8, sedangkan bit 0 paling kanan adalah LSB bernilai 1.', animText: 'MSB (Kiri, Bobot Terbesar) ➔ LSB (Kanan, Bobot 1)' },
+      { id: 'l8-c3', category: 'Contoh Praktis', title: 'Menghitung 1111₂ (Semua Bit Aktif)', svgType: 'cpu', summary: 'Jika 4 bit semuanya bernilai 1 (1111₂), nilai desimalnya adalah 8 + 4 + 2 + 1 = 15₁₀.', dailyExample: '15 adalah nilai maksimal yang bisa disimpan dalam 4 bit data (1 nibble).', animText: '1111₂ = 8 + 4 + 2 + 1 = 15₁₀' },
+      { id: 'l8-c4', category: 'Aplikasi Komputer', title: 'Pembacaan Instruksi Mesin', svgType: 'ssd', summary: 'Komputer membaca instruksi program sebagai biner, lalu sirkuit perangkat keras menerjemahkannya ke angka dan perintah nyata.', dailyExample: 'Instruksi ADD, SUB, dan JUMP disimpan dalam memori sebagai kumpulan biner.', animText: 'Kode Biner ➔ Diterjemahkan Sirkuit CPU ➔ Eksekusi' },
+      { id: 'l8-c5', category: 'Tips Cepat', title: 'Abaikan Bit Bernilai Nol', svgType: 'gpu', summary: 'Karena 0 dikali berapa pun bernilai 0, kamu cukup menjumlahkan bobot nilai tempat yang memiliki bit bernilai 1 saja.', dailyExample: '100001₂: cukup hitung 32 + 1 = 33₁₀. Sangat cepat dan menghemat waktu!', animText: 'Hanya hitung bobot bit yang bernilai 1' }
+    ]
+  },
+  {
+    id: 9,
+    title: 'Konversi Desimal ke Biner',
+    subtitle: 'Metode Pembagian Berulang dengan Basis 2 (Sisa Bagi)',
+    badgeName: 'Ahli Modulo Biner',
+    description: 'Pelajari algoritma pembagian berulang dengan 2 (modulo 2) dan susun sisa pembagian dari urutan terbawah ke teratas.',
+    flashcards: [
+      { id: 'l9-c1', category: 'Algoritma Pembagian', title: 'Metode Bagi 2 Berulang', svgType: 'cpu', summary: 'Bagi bilangan desimal dengan 2, catat hasil bagi dan sisanya (0 atau 1). Ulangi proses hingga hasil bagi menjadi 0.', dailyExample: 'Contoh: 13 ÷ 2 = 6 sisa 1; 6 ÷ 2 = 3 sisa 0; 3 ÷ 2 = 1 sisa 1; 1 ÷ 2 = 0 sisa 1.', animText: 'Desimal ÷ 2 ➔ Catat Hasil Bagi & Sisa Bagi' },
+      { id: 'l9-c2', category: 'Arah Pembacaan Sisa', title: 'Membaca dari Bawah ke Atas', svgType: 'ram', summary: 'Sisa pembagian terakhir menjadi bit paling depan (MSB), dan sisa pembagian pertama menjadi bit paling belakang (LSB).', dailyExample: 'Sisa dari angka 13 adalah 1, 0, 1, 1 (dari pertama ke terakhir), dibaca dari bawah: 1101₂.', animText: 'Sisa Terakhir (MSB) ➔ Sisa Pertama (LSB)' },
+      { id: 'l9-c3', category: 'Metode Alternatif', title: 'Metode Pengurangan Bobot Pangkat 2', svgType: 'ssd', summary: 'Kurangi angka desimal dengan bobot pangkat 2 terbesar yang muat. Jika muat beri bit 1, jika tidak muat beri bit 0.', dailyExample: 'Desimal 25: kurangi 16 (sisa 9, bit=1), kurangi 8 (sisa 1, bit=1), kurangi 4 (tak muat, bit=0), kurangi 2 (tak muat, bit=0), kurangi 1 (sisa 0, bit=1) -> 11001₂.', animText: 'Kurangi Bobot Terbesar yang Muat' },
+      { id: 'l9-c4', category: 'Penerapan Sistem Komputer', title: 'Kompilator Bahasa Pemrograman', svgType: 'keyboard', summary: 'Kompilator (compiler) mengubah angka dan teks desimal yang diketik pemrogram menjadi kode biner sebelum dijalankan prosesor.', dailyExample: 'Saat kamu menulis int skor = 25;, komputer menyimpannya sebagai biner 00011001.', animText: 'Kode Desimal Pengguna ➔ Kompiler ➔ Biner Mesin' },
+      { id: 'l9-c5', category: 'Latihan Mandiri', title: 'Verifikasi Hasil Biner', svgType: 'monitor', summary: 'Selalu uji kembali hasil biner dengan mengonversinya kembali ke desimal untuk memastikan tidak ada sisa bagi yang terlewat.', dailyExample: 'Biner 11001₂ = 16 + 8 + 1 = 25₁₀ (Cocok!).', animText: 'Biner ➔ Uji Balik ke Desimal ➔ Validasi' }
+    ]
+  },
+  {
+    id: 10,
+    title: 'Sistem Bilangan Oktal (Basis 8)',
+    subtitle: 'Karakteristik Digit 0-7 dan Konversi Oktal ke Desimal',
+    badgeName: 'Kalkulator Oktal',
+    description: 'Pelajari sistem bilangan oktal berbasis 8 yang hanya menggunakan digit 0 sampai 7, serta cara mengonversinya ke sistem desimal.',
+    flashcards: [
+      { id: 'l10-c1', category: 'Karakteristik Oktal', title: 'Sistem Bilangan Basis 8', svgType: 'cpu', summary: 'Sistem bilangan oktal hanya memiliki 8 simbol angka: 0, 1, 2, 3, 4, 5, 6, dan 7. Angka 8 dan 9 TIDAK PERNAH ada di sistem oktal!', dailyExample: 'Setelah angka 7₈, bilangan berikutnya adalah 10₈ (yang bernilai 8 desimal).', animText: 'Digit Valid: 0, 1, 2, 3, 4, 5, 6, 7 (Tanpa 8 dan 9)' },
+      { id: 'l10-c2', category: 'Bobot Posisi Oktal', title: 'Perpangkatan Basis 8 (8ⁿ)', svgType: 'ram', summary: 'Bobot posisi oktal dari kanan ke kiri adalah: 8⁰ = 1, 8¹ = 8, 8² = 64, 8³ = 512, 8⁴ = 4096.', dailyExample: 'Oktal 25₈ = (2 × 8¹) + (5 × 8⁰) = 16 + 5 = 21₁₀.', animText: 'Posisi: ... 8²(64) • 8¹(8) • 8⁰(1)' },
+      { id: 'l10-c3', category: 'Sejarah & Fungsi', title: 'Mengapa Oktal Diciptakan?', svgType: 'ssd', summary: 'Oktal diciptakan para insinyur komputer untuk meringkas deretan angka biner yang panjang tanpa harus menggunakan desimal.', dailyExample: 'Satu digit oktal mewakili tepat 3 digit biner (karena 2³ = 8).', animText: '1 Digit Oktal = 3 Bit Biner' },
+      { id: 'l10-c4', category: 'Penerapan Praktis', title: 'Hak Akses File Sistem Operasi Linux (chmod)', svgType: 'ssd', summary: 'Sistem operasi Linux dan server internet menggunakan oktal untuk mengatur izin file (permission): Read(4), Write(2), Execute(1).', dailyExample: 'Perintah chmod 755 file.txt menggunakan angka oktal 7 (4+2+1) dan 5 (4+1).', animText: 'Izin File Linux: 755, 644, 777 (Format Oktal)' },
+      { id: 'l10-c5', category: 'Rumus Konversi ke Desimal', title: 'Langkah Menghitung Oktal ke Desimal', svgType: 'monitor', summary: 'Kalikan setiap digit oktal dengan 8 pangkat posisinya, lalu jumlahkan seluruh hasil kali tersebut.', dailyExample: '144₈ = (1×64) + (4×8) + (4×1) = 64 + 32 + 4 = 100₁₀.', animText: 'Digit × 8ⁿ ➔ Jumlahkan ➔ Nilai Desimal' }
+    ]
+  },
+  {
+    id: 11,
+    title: 'Konversi Biner ke Oktal',
+    subtitle: 'Trik Pengelompokan 3 Bit (2³ = 8) Cepat dan Akurat',
+    badgeName: 'Master Pola 3-Bit',
+    description: 'Kuasai teknik ajaib mengelompokkan biner setiap 3 bit dari kanan ke kiri untuk langsung diubah menjadi digit oktal tanpa lewat desimal.',
+    flashcards: [
+      { id: 'l11-c1', category: 'Rahasia Hubungan 2³ = 8', title: 'Mengapa Dikelompokkan Tiap 3 Bit?', svgType: 'cpu', summary: 'Karena 2 pangkat 3 sama dengan 8, setiap kombinasi 3 bit biner (dari 000 hingga 111) setara dengan tepat satu digit oktal (0 sampai 7).', dailyExample: 'Biner 101 setara dengan 4 + 0 + 1 = 5 dalam oktal.', animText: '2³ = 8 ➔ 3 Bit Biner = 1 Digit Oktal' },
+      { id: 'l11-c2', category: 'Arah Pengelompokan', title: 'Wajib dari Kanan ke Kiri (LSB ke MSB)', svgType: 'ram', summary: 'Pengelompokan 3 bit harus selalu dimulai dari bit paling kanan. Jika kelompok bit paling kiri kurang dari 3 bit, tambahkan angka 0 di depannya.', dailyExample: 'Biner 11011 dibagi menjadi: [011] dan [011] (bukan dari kiri!).', animText: 'Mulai dari KANAN ➔ Tambah 0 di Kiri jika kurang' },
+      { id: 'l11-c3', category: 'Tabel Pintar 3-Bit', title: 'Daftar Padanan 3 Bit ke Oktal', svgType: 'ssd', summary: '000=0, 001=1, 010=2, 011=3, 100=4, 101=5, 110=6, 111=7. Hafalkan pola bobot 4-2-1 untuk mengingatnya dengan instan.', dailyExample: 'Kombinasi 110 memiliki bit aktif di bobot 4 dan 2, sehingga nilainya 6.', animText: 'Bobot 3-Bit: 4 - 2 - 1' },
+      { id: 'l11-c4', category: 'Contoh Lengkap', title: 'Konversi 101110₂ ke Oktal', svgType: 'gpu', summary: 'Bagi 101110 menjadi dua kelompok 3 bit: [101] dan [110]. [101] = 5, [110] = 6. Hasilnya adalah 56₈.', dailyExample: 'Biner sepanjang 6 bit langsung ringkas menjadi 2 digit oktal saja.', animText: '101 110₂ ➔ 5 6₈' },
+      { id: 'l11-c5', category: 'Keuntungan bagi Teknisi', title: 'Efisiensi Pembacaan Data', svgType: 'monitor', summary: 'Menggunakan oktal mempercepat komunikasi antar teknisi saat membaca status bit register perangkat keras tanpa salah hitung.', dailyExample: 'Menyebut "Status 56 oktal" jauh lebih ringkas daripada menyebut "1-0-1-1-1-0 biner".', animText: 'Ringkas • Akurat • Mudah Dibaca' }
+    ]
+  },
+  {
+    id: 12,
+    title: 'Pengenalan Heksadesimal (Basis 16)',
+    subtitle: 'Dunia 16 Simbol: Angka 0-9 dan Huruf A, B, C, D, E, F',
+    badgeName: 'Penjelajah Heksadesimal',
+    description: 'Kenali sistem bilangan basis 16 yang menjadi standar utama arsitektur komputer modern, alamat memori RAM, dan kode warna grafis.',
+    flashcards: [
+      { id: 'l12-c1', category: 'Karakteristik Heksadesimal', title: 'Sistem Bilangan Basis 16', svgType: 'cpu', summary: 'Heksadesimal memiliki 16 simbol: angka 0 sampai 9, dilanjutkan dengan 6 huruf: A(10), B(11), C(12), D(13), E(14), dan F(15).', dailyExample: 'Angka 15 dalam desimal ditulis sebagai satu karakter "F" dalam heksadesimal.', animText: 'Simbol: 0-9 dan A, B, C, D, E, F' },
+      { id: 'l12-c2', category: 'Mengapa Menggunakan Huruf?', title: 'Mencegah Kerancuan 2 Digit', svgType: 'ram', summary: 'Jika angka 10 ditulis sebagai "10" dalam basis 16, akan membingungkan antara angka sepuluh atau nilai 1×16+0. Oleh karena itu digunakan huruf A sampai F.', dailyExample: 'Huruf A mewakili nilai 10, C mewakili 12, dan F mewakili nilai 15.', animText: 'A=10, B=11, C=12, D=13, E=14, F=15' },
+      { id: 'l12-c3', category: 'Alamat Memori Komputer (RAM)', title: 'Representasi Pointer dan Lokasi Memori', svgType: 'ram', summary: 'Sistem operasi menampilkan alamat fisik memori RAM dalam format heksadesimal (misalnya: 0x0040FA12) agar mudah dilacak.', dailyExample: 'Pesan kesalahan Blue Screen atau crash sering menunjukkan alamat memori hex.', animText: 'Alamat Memori RAM: Format Hexadesimal (0x...)' },
+      { id: 'l12-c4', category: 'Media Grafis & Desain Web', title: 'Kode Warna CSS (#RRGGBB)', svgType: 'gpu', summary: 'Warna digital pada layar komputer menggunakan kode heksadesimal 6 digit: 2 digit Red, 2 digit Green, dan 2 digit Blue.', dailyExample: '#FFFFFF adalah warna Putih murni, #000000 adalah Hitam, #FF0000 adalah Merah.', animText: '#RR GG BB ➔ Merah • Hijau • Biru' },
+      { id: 'l12-c5', category: 'MAC Address Kartu Jaringan', title: 'Identitas Unik Perangkat WiFi & LAN', svgType: 'ssd', summary: 'Kartu jaringan komputer memiliki nomor identitas unik fisik (MAC Address) sepanjang 12 digit heksadesimal.', dailyExample: 'Contoh MAC Address laptop: E4:5F:01:3B:89:A2.', animText: 'MAC Address: 12 Digit Heksadesimal Unik' }
+    ]
+  },
+  {
+    id: 13,
+    title: 'Konversi Heksadesimal ke Desimal',
+    subtitle: 'Perhitungan Nilai Bobot Posisi Berbasis 16 (16ⁿ)',
+    badgeName: 'Dekoder Memori Heksadesimal',
+    description: 'Ubah kode heksadesimal menjadi bilangan desimal dengan mengalikan tiap digit dengan bobot perpangkatan 16 (1, 16, 256, 4096).',
+    flashcards: [
+      { id: 'l13-c1', category: 'Bobot Posisi Heksadesimal', title: 'Perpangkatan 16 (16ⁿ)', svgType: 'cpu', summary: 'Bobot posisi dari kanan ke kiri adalah: 16⁰ = 1, 16¹ = 16, 16² = 256, 16³ = 4096, 16⁴ = 65536.', dailyExample: 'Heksadesimal 1A₁₆ = (1 × 16) + (A × 1) = 16 + 10 = 26₁₀.', animText: 'Posisi: ... 16²(256) • 16¹(16) • 16⁰(1)' },
+      { id: 'l13-c2', category: 'Langkah Substitusi Huruf', title: 'Ubah Huruf Menjadi Nilai Angka Dulu', svgType: 'ram', summary: 'Sebelum mengalikan dengan bobot, ubah huruf A-F menjadi angka desimalnya: A=10, B=11, C=12, D=13, E=14, F=15.', dailyExample: '2F₁₆ = (2 × 16¹) + (15 × 16⁰) = 32 + 15 = 47₁₀.', animText: 'Ganti Huruf ke Angka ➔ Kalikan Bobot ➔ Jumlahkan' },
+      { id: 'l13-c3', category: 'Nilai Spesial: FF₁₆', title: 'Nilai Maksimum 1 Byte', svgType: 'ssd', summary: 'FF₁₆ adalah nilai heksadesimal terbesar untuk 1 byte (2 digit). Nilai desimalnya adalah (15 × 16) + 15 = 240 + 15 = 255₁₀.', dailyExample: 'Itulah mengapa intensitas warna RGB web bernilai maksimal 255 (FF)!', animText: 'FF₁₆ = 255₁₀ (Kapasitas Maksimal 1 Byte)' },
+      { id: 'l13-c4', category: 'Konversi 3 Digit Hex', title: 'Menghitung Digit Bernilai Ratusan', svgType: 'gpu', summary: 'Untuk 3 digit seperti 1C4₁₆: (1 × 256) + (12 × 16) + (4 × 1) = 256 + 192 + 4 = 452₁₀.', dailyExample: 'Perhitungan ini digunakan saat prosesor menghitung offset alamat data.', animText: '1C4₁₆ = 256 + 192 + 4 = 452₁₀' },
+      { id: 'l13-c5', category: 'Tips Cepat', title: 'Awalan "0x" pada Bahasa Pemrograman', svgType: 'keyboard', summary: 'Dalam bahasa pemrograman seperti C++, Java, dan JavaScript, bilangan heksadesimal ditulis dengan awalan "0x", misalnya 0x2A.', dailyExample: 'Kode 0x2A dibaca oleh komputer sebagai desimal 42.', animText: 'Notasi: 0x... Menandakan Bilangan Heksadesimal' }
+    ]
+  },
+  {
+    id: 14,
+    title: 'Konversi Desimal ke Heksadesimal',
+    subtitle: 'Metode Pembagian Berulang dengan Basis 16',
+    badgeName: 'Spesialis Konversi Hex',
+    description: 'Bagi bilangan desimal dengan 16 berulang kali, catat sisa bagi, dan ubah sisa 10–15 menjadi huruf A–F untuk mendapat kode hex yang tepat.',
+    flashcards: [
+      { id: 'l14-c1', category: 'Algoritma Pembagian', title: 'Bagi 16 Secara Bertahap', svgType: 'cpu', summary: 'Bagi angka desimal dengan 16. Catat hasil bagi dan sisanya. Ulangi terus proses pembagian hingga hasil bagi bernilai 0.', dailyExample: 'Desimal 45: 45 ÷ 16 = 2 sisa 13. 2 ÷ 16 = 0 sisa 2.', animText: 'Desimal ÷ 16 ➔ Catat Hasil & Sisa Bagi' },
+      { id: 'l14-c2', category: 'Substitusi Sisa Bernilai 10-15', title: 'Ubah Sisa Menjadi Karakter A-F', svgType: 'ram', summary: 'Jika sisa pembagian adalah angka antara 10 sampai 15, kamu WAJIB menggantinya dengan huruf A sampai F.', dailyExample: 'Sisa 13 diganti menjadi huruf D. Sisa 10 menjadi A. Sisa 15 menjadi F.', animText: 'Sisa 10=A, 11=B, 12=C, 13=D, 14=E, 15=F' },
+      { id: 'l14-c3', category: 'Arah Penulisan Hasil', title: 'Susun Sisa dari Bawah ke Atas', svgType: 'ssd', summary: 'Sisa pembagian terakhir diletakkan di posisi paling depan (kiri), dan sisa pertama di posisi belakang (kanan).', dailyExample: 'Desimal 45 menghasilkan sisa 13 (D) lalu sisa 2. Dibaca dari bawah: 2D₁₆.', animText: 'Sisa Terakhir ➔ Sisa Pertama ➔ Hasil Hex' },
+      { id: 'l14-c4', category: 'Contoh Angka Besar', title: 'Konversi 254₁₀ ke Heksadesimal', svgType: 'gpu', summary: '254 ÷ 16 = 15 sisa 14. 15 ÷ 16 = 0 sisa 15. Sisa 14 adalah E, sisa 15 adalah F. Hasilnya: FE₁₆.', dailyExample: 'FE₁₆ = (15 × 16) + 14 = 240 + 14 = 254₁₀. Sangat presisi!', animText: '254₁₀ ➔ FE₁₆' },
+      { id: 'l14-c5', category: 'Uji Mandiri Cepat', title: 'Verifikasi Melalui Perkalian', svgType: 'monitor', summary: 'Kalikan kembali digit heksadesimal dengan 16 untuk memastikan hasil konversimu sama dengan desimal awal.', dailyExample: '2D₁₆ = (2 × 16) + 13 = 32 + 13 = 45₁₀ (Tepat!).', animText: 'Verifikasi: Hex × 16ⁿ = Desimal Semula' }
+    ]
+  },
+  {
+    id: 15,
+    title: 'Konversi Biner ke Heksadesimal',
+    subtitle: 'Pengelompokan 4 Bit (1 Nibble = 1 Digit Hex, 2⁴ = 16)',
+    badgeName: 'Arsitek Nibble Biner',
+    description: 'Ketahui rahasia mengapa 1 byte (8 bit) selalu tepat menjadi 2 digit heksadesimal melalui pengelompokan 4 bit (nibble).',
+    flashcards: [
+      { id: 'l15-c1', category: 'Rahasia Hubungan 2⁴ = 16', title: '1 Digit Hex = Tepat 4 Bit Biner', svgType: 'cpu', summary: 'Karena 2 pangkat 4 sama dengan 16, setiap 4 bit biner (dari 0000 sampai 1111) dapat dinyatakan persis oleh 1 digit heksadesimal (0 sampai F).', dailyExample: 'Biner 1010 bernilai 10, yang ditulis sebagai satu huruf A dalam heksadesimal.', animText: '2⁴ = 16 ➔ 4 Bit Biner = 1 Digit Hex' },
+      { id: 'l15-c2', category: 'Konsep Nibble', title: 'Setengah Byte (4 Bit)', svgType: 'ram', summary: 'Dalam istilah informatika, 4 bit disebut 1 Nibble. Satu Byte (8 bit) terdiri dari High Nibble (4 bit kiri) dan Low Nibble (4 bit kanan).', dailyExample: 'Setiap Byte memori komputer selalu ditampilkan sebagai 2 digit hex (contoh: 7F, A2).', animText: '4 Bit = 1 Nibble • 8 Bit (1 Byte) = 2 Nibble' },
+      { id: 'l15-c3', category: 'Aturan Pengelompokan', title: 'Kelompokkan 4 Bit dari Kanan', svgType: 'ssd', summary: 'Selalu bagi biner menjadi kelompok 4 bit dimulai dari bit paling kanan. Tambahkan 0 di depan jika kelompok kiri kurang dari 4 bit.', dailyExample: 'Biner 1101011 dibagi menjadi: [0110] dan [1011].', animText: 'Kelompokkan Tiap 4 Bit dari KANAN' },
+      { id: 'l15-c4', category: 'Bobot 4-Bit: 8-4-2-1', title: 'Menghitung Cepat Tiap Nibble', svgType: 'gpu', summary: 'Gunakan bobot 8, 4, 2, 1 untuk setiap kelompok 4 bit. Jumlahkan bit aktif lalu sesuaikan dengan huruf A-F jika nilainya ≥ 10.', dailyExample: '1100 = 8 + 4 = 12 = C₁₆. 1010 = 8 + 2 = 10 = A₁₆.', animText: 'Bobot Nibble: 8 - 4 - 2 - 1' },
+      { id: 'l15-c5', category: 'Contoh 1 Byte Penuh', title: 'Konversi 11001010₂ ke Hex', svgType: 'monitor', summary: 'Kelompok 1 (Kiri): 1100 = 12 = C. Kelompok 2 (Kanan): 1010 = 10 = A. Hasil akhirnya adalah CA₁₆.', dailyExample: 'Byte biner panjang langsung ringkas menjadi 2 karakter "CA"!', animText: '1100 1010₂ ➔ CA₁₆' }
+    ]
+  },
+  {
+    id: 16,
+    title: 'Konversi Heksadesimal ke Biner',
+    subtitle: 'Ekspansi Langsung 4 Bit per Digit Hex',
+    badgeName: 'Insinyur Biner Mikroprosesor',
+    description: 'Setiap satu digit heksadesimal diuraikan menjadi tepat 4 bit biner lengkap (termasuk angka nol di depan).',
+    flashcards: [
+      { id: 'l16-c1', category: 'Metode Ekspansi Langsung', title: '1 Digit Hex ➔ 4 Bit Biner', svgType: 'cpu', summary: 'Untuk mengubah heksadesimal ke biner, uraikan setiap digit hex secara terpisah menjadi tepat 4 bit biner menggunakan bobot 8-4-2-1.', dailyExample: 'Digit 7 diubah menjadi 0111₂, bukan 111₂ (wajib 4 bit lengkap!).', animText: 'Setiap Digit Hex ➔ Buka Menjadi 4 Bit Biner' },
+      { id: 'l16-c2', category: 'Pentingnya Angka Nol di Depan', title: 'Jangan Hilangkan Leading Zero!', svgType: 'ram', summary: 'Jika suatu digit menghasilkan kurang dari 4 bit, kamu wajib menambahkan angka 0 di depannya agar panjang nibble tetap 4 bit.', dailyExample: 'Digit 3 harus ditulis 0011₂. Jika hanya ditulis 11₂, posisi bit berikutnya akan kacau.', animText: 'Digit 3 = 0011₂ (Wajib 4 Bit Lengkap)' },
+      { id: 'l16-c3', category: 'Ekspansi Huruf A-F', title: 'Ubah Huruf Menjadi Biner', svgType: 'ssd', summary: 'Ingat nilai desimal dari huruf: A(10)=1010₂, B(11)=1011₂, C(12)=1100₂, D(13)=1101₂, E(14)=1110₂, F(15)=1111₂.', dailyExample: 'B5₁₆ diuraikan menjadi: B=1011₂ dan 5=0101₂. Digabungkan menjadi 10110101₂.', animText: 'B5₁₆ ➔ [1011] [0101]₂' },
+      { id: 'l16-c4', category: 'Bahasa Assembly & Mikroprosesor', title: 'Instruksi Mesin Tingkat Rendah', svgType: 'keyboard', summary: 'Programmer bahasa Assembly menulis instruksi opcode dalam heksadesimal (misal: B8 untuk MOV), dan CPU menerjemahkannya ke biner sirkuit.', dailyExample: 'Instruksi hex B8 langsung diterjemahkan menjadi 10111000₂ di bus data prosesor.', animText: 'Opcode Hex ➔ Jalur Bus Biner CPU' },
+      { id: 'l16-c5', category: 'Gabungkan Semua Bit', title: 'Menyusun Hasil Biner Akhir', svgType: 'monitor', summary: 'Setelah semua digit hex diekspansi menjadi 4 bit, satukan semua kelompok bit dari kiri ke kanan menjadi satu deretan biner utuh.', dailyExample: 'Hex 3C₁₆ ➔ 3(0011) dan C(1100) ➔ 00111100₂.', animText: 'Satukan Seluruh 4-Bit ➔ Kode Biner Utuh' }
+    ]
+  },
+  {
+    id: 17,
+    title: 'Konversi Heksadesimal ke Oktal',
+    subtitle: 'Jembatan Biner: Heksadesimal (4-Bit) ➔ Biner ➔ Oktal (3-Bit)',
+    badgeName: 'Jembatan Emas Hex-Oktal',
+    description: 'Konversikan heksadesimal ke oktal secara elegan melalui jembatan biner perantara tanpa perlu menghitung perkalian desimal.',
+    flashcards: [
+      { id: 'l17-c1', category: 'Konsep Jembatan Biner', title: 'Mengapa Menggunakan Jalur Biner?', svgType: 'cpu', summary: 'Mengubah hex ke desimal lalu ke oktal memakan waktu dan rentan salah hitung. Jalur biner jauh lebih cepat: Hex (4-bit) ➔ Biner ➔ Regrouping (3-bit) ➔ Oktal.', dailyExample: 'Jembatan biner adalah trik paling populer yang digunakan para insinyur informatika.', animText: 'Hex (4-bit) ➔ BINER ➔ Oktal (3-bit)' },
+      { id: 'l17-c2', category: 'Langkah 1: Ekspansi Hex ke Biner', title: 'Uraikan Tiap Digit Hex Jadi 4 Bit', svgType: 'ram', summary: 'Ubah setiap digit heksadesimal menjadi 4 bit biner seperti yang dipelajari pada level sebelumnya.', dailyExample: 'Contoh 2B₁₆: digit 2 menjadi 0010, dan digit B(11) menjadi 1011 ➔ biner: 00101011₂.', animText: 'Langkah 1: Hex ➔ 4 Bit per digit' },
+      { id: 'l17-c3', category: 'Langkah 2: Kelompokkan Ulang 3 Bit', title: 'Regrouping dari Kanan ke Kiri', svgType: 'ssd', summary: 'Ambil deretan biner yang dihasilkan, lalu kelompokkan ulang setiap 3 bit dari arah kanan ke kiri.', dailyExample: 'Biner 00101011 dikelompokkan: [000] [101] [011].', animText: 'Langkah 2: Kelompokkan Tiap 3 Bit dari KANAN' },
+      { id: 'l17-c4', category: 'Langkah 3: Ubah ke Digit Oktal', title: 'Konversikan Tiap 3 Bit ke Digit 0-7', svgType: 'gpu', summary: 'Ubah setiap blok 3 bit menjadi nilai oktalnya: 000=0, 101=5, 011=3. Hasil akhirnya adalah 53₈!', dailyExample: 'Sehingga heksadesimal 2B₁₆ sama nilainya dengan 53₈ dalam oktal.', animText: '[000] [101] [011] ➔ 53₈' },
+      { id: 'l17-c5', category: 'Kecepatan dan Keakuratan', title: 'Keunggulan Menggunakan Jembatan Biner', svgType: 'monitor', summary: 'Metode ini tidak memerlukan operasi perkalian dan pembagian sama sekali, hanya melihat pola bit 4-bit dan 3-bit.', dailyExample: 'Mengonversi file biner besar antarformat dilakukan komputer menggunakan metode ini.', animText: 'Cepat • Tanpa Perkalian Rumit • Presisi' }
+    ]
+  },
+  {
+    id: 18,
+    title: 'Konversi Oktal ke Heksadesimal',
+    subtitle: 'Jembatan Biner: Oktal (3-Bit) ➔ Biner ➔ Heksadesimal (4-Bit)',
+    badgeName: 'Transformator Oktal-Hex',
+    description: 'Kuasai kebalikan jembatan biner: pecah digit oktal ke 3 bit biner, lalu kelompokkan ulang setiap 4 bit dari kanan untuk memperoleh heksadesimal.',
+    flashcards: [
+      { id: 'l18-c1', category: 'Konsep Kebalikan Jembatan Biner', title: 'Oktal (3-Bit) ➔ Biner ➔ Hex (4-Bit)', svgType: 'cpu', summary: 'Untuk mengubah oktal ke heksadesimal, gunakan biner sebagai jembatan: uraikan oktal ke 3 bit biner, lalu kelompokkan ulang menjadi blok 4 bit.', dailyExample: 'Oktal 75₈ ➔ Biner ➔ Heksadesimal 3D₁₆.', animText: 'Oktal (3-bit) ➔ BINER ➔ Hex (4-bit)' },
+      { id: 'l18-c2', category: 'Langkah 1: Ekspansi 3 Bit per Digit Oktal', title: 'Pecah Tiap Digit Oktal ke 3 Bit', svgType: 'ram', summary: 'Ubah setiap digit oktal (0-7) menjadi tepat 3 bit biner. Contoh: 7 = 111, 5 = 101.', dailyExample: 'Oktal 75₈ diuraikan menjadi: 111 dan 101 ➔ biner: 111101₂.', animText: 'Langkah 1: Oktal ➔ 3 Bit per digit' },
+      { id: 'l18-c3', category: 'Langkah 2: Regrouping 4 Bit dari Kanan', title: 'Kelompokkan Ulang Tiap 4 Bit', svgType: 'ssd', summary: 'Mulai dari kanan, ambil 4 bit untuk Low Nibble. Bit sisanya di sebelah kiri ditambah nol agar genap 4 bit untuk High Nibble.', dailyExample: 'Biner 111101₂ dikelompokkan dari kanan: [0011] dan [1101].', animText: 'Langkah 2: Kelompokkan Tiap 4 Bit dari KANAN' },
+      { id: 'l18-c4', category: 'Langkah 3: Konversi Tiap Nibble ke Hex', title: 'Ubah Tiap 4 Bit Menjadi Simbol Hex', svgType: 'gpu', summary: '[0011] bernilai 3, dan [1101] bernilai 13 (huruf D). Maka hasilnya adalah 3D₁₆.', dailyExample: '75₈ = (7×8)+5 = 61₁₀. 3D₁₆ = (3×16)+13 = 61₁₀. Nilainya terbukti sama persis!', animText: '[0011] [1101] ➔ 3D₁₆' },
+      { id: 'l18-c5', category: 'Penerapan di Sistem Operasi Modern', title: 'Interoperabilitas Sistem', svgType: 'monitor', summary: 'Sistem operasi modern sering membaca log lama berformat oktal dan mengonversinya ke hex untuk ditampilkan di antarmuka sistem.', dailyExample: 'Konversi otomatis log server dari basis 8 ke basis 16.', animText: 'Log Sistem Oktal ➔ Konversi Biner ➔ Tampilan Hex' }
+    ]
+  },
+  {
+    id: 19,
+    title: 'Kode Warna Hex & ASCII Komputer',
+    subtitle: 'Aplikasi Nyata Heksadesimal pada Grafis RGB (#RRGGBB) dan Teks',
+    badgeName: 'Hacker Kode Warna & ASCII',
+    description: 'Pelajari bagaimana heksadesimal digunakan di dunia nyata untuk kode warna web CSS dan tabel representasi huruf teks ASCII.',
+    flashcards: [
+      { id: 'l19-c1', category: 'Kode Warna Grafis Web', title: 'Format Hex RGB (#RRGGBB)', svgType: 'gpu', summary: 'Layar komputer menghasilkan jutaan warna dari gabungan Red, Green, Blue. Setiap warna diwakili oleh 2 digit hex dari 00 (mati) hingga FF (maksimal 255).', dailyExample: '#FF0000 = Merah murni, #00FF00 = Hijau murni, #0000FF = Biru murni.', animText: '#RR GG BB • 2 Digit Hex per Warna' },
+      { id: 'l19-c2', category: 'Warna Campuran Sekunder', title: 'Kombinasi Warna RGB', svgType: 'gpu', summary: 'Menggabungkan Red dan Green (#FFFF00) menghasilkan Kuning. Red dan Blue (#FF00FF) menghasilkan Magenta/Ungu. Green dan Blue (#00FFFF) menghasilkan Cyan.', dailyExample: 'Layar monitor smartphone kamu mencampurkan piksel sub-RGB ini untuk menampilkan semua foto.', animText: '#FFFF00=Kuning • #FF00FF=Magenta • #00FFFF=Cyan' },
+      { id: 'l19-c3', category: 'Teks Digital Komputer', title: 'Standar ASCII (American Standard Code)', svgType: 'keyboard', summary: 'Komputer tidak menyimpan huruf secara langsung, melainkan menyimpan angka kodenya. Standar ASCII memetakan setiap tombol huruf/angka ke sebuah byte heksadesimal.', dailyExample: 'Huruf "A" besar memiliki kode desimal 65, atau dalam heksadesimal adalah 41₁₆.', animText: 'Huruf "A" = 65₁₀ = 41₁₆ = 01000001₂' },
+      { id: 'l19-c4', category: 'Membaca Pesan Hexadecimal', title: 'Pesan Teks Tersandi dalam Hex', svgType: 'ssd', summary: 'Jika memori RAM membaca urutan byte: 43 50 55, komputer menerjemahkannya menjadi: 43=C, 50=P, 55=U, membentuk kata "CPU".', dailyExample: 'Analisis forensik digital membaca teks di dalam file menggunakan editor hex (Hex Editor).', animText: 'Hex: 43 50 55 ➔ Teks: C P U' },
+      { id: 'l19-c5', category: 'Header Paket Jaringan Internet', title: 'Analisis Lalu Lintas Jaringan', svgType: 'monitor', summary: 'Paket data yang dikirim melalui internet memiliki header heksadesimal yang berisi alamat IP, port aplikasi, dan checksum keamanan.', dailyExample: 'Aplikasi Wireshark menampilkan paket internet dalam format heksadesimal dan ASCII.', animText: 'Paket Data Internet: Hex Header + Payload ASCII' }
+    ]
+  },
+  {
+    id: 20,
+    title: 'Grand Master Konversi Multi-Basis',
+    subtitle: 'Ujian Puncak: Biner, Oktal, Desimal, Heksadesimal & ALU',
+    badgeName: 'Grand Master Sistem Komputer',
+    description: 'Ujian komprehensif menguji penguasaan seluruh 4 sistem bilangan, operasi aritmetika biner prosesor (ALU), dan verifikasi sistem komputer.',
+    flashcards: [
+      { id: 'l20-c1', category: 'Rangkuman 4 Sistem Bilangan', title: 'Tabel Ekuivalensi Multi-Basis', svgType: 'cpu', summary: 'Desimal (Basis 10: 0-9), Biner (Basis 2: 0-1), Oktal (Basis 8: 0-7), dan Heksadesimal (Basis 16: 0-9 & A-F). Keempatnya saling melengkapi di dunia komputasi.', dailyExample: 'Angka 15 desimal = 1111 biner = 17 oktal = F heksadesimal.', animText: 'Desimal ➔ Biner ➔ Oktal ➔ Heksadesimal' },
+      { id: 'l20-c2', category: 'Aritmetika ALU Komputer', title: 'Operasi Penjumlahan Biner Dasar', svgType: 'cpu', summary: 'ALU menghitung penjumlahan biner dengan aturan: 0+0=0, 0+1=1, 1+0=1, dan 1+1=10 (tulis 0 simpan carry 1 ke posisi berikutnya).', dailyExample: '1011₂ (11) + 0110₂ (6) = 10001₂ (17 desimal).', animText: 'Penjumlahan Biner: 1 + 1 = 10 (Carry 1)' },
+      { id: 'l20-c3', category: 'Konversi Cepat Antar Basis', title: 'Peta Navigasi Konversi', svgType: 'ram', summary: 'Gunakan Biner sebagai terminal transit utama! Konversi Oktal ➔ Biner ➔ Hex atau sebaliknya adalah rute tercepat tanpa perhitungan rumit.', dailyExample: 'Insinyur komputer selalu menggunakan biner sebagai jembatan transit serbaguna.', animText: 'Biner = Terminal Transit Seluruh Sistem Bilangan' },
+      { id: 'l20-c4', category: 'Arsitektur Komputer Modern', title: '64-Bit Arsitektur CPU', svgType: 'gpu', summary: 'Prosesor 64-bit modern mampu memproses 64 bit biner (atau 8 byte / 16 digit hex) dalam satu siklus clock instruksi.', dailyExample: 'Sistem operasi 64-bit dapat mengakses memori RAM hingga lebih dari 16 Exabyte!', animText: 'CPU 64-Bit: Memproses 16 Digit Hex per Siklus' },
+      { id: 'l20-c5', category: 'Puncak Pencapaian Teknisi Muda', title: 'Gelar Grand Master Sistem Komputer', svgType: 'monitor', summary: 'Selamat! Menguasai perangkat keras fisik, alur proses data, penyimpanan file, pemecahan masalah, dan sistem bilangan digital membuktikan kamu siap menjadi ahli informatika!', dailyExample: 'Gelar ini adalah bukti keahlian tingkat lanjutmu di bidang sistem komputer.', animText: 'Raih Gelar Tertinggi: Grand Master Sistem Komputer!' }
+    ]
   }
 ];
 
@@ -425,29 +645,69 @@ interface LevelProgress {
 
 interface AppProps {
   initialMode?: 'STUDENT' | 'TEACHER';
+  userRole?: string;
+  userName?: string;
 }
 
 // ============================================================================
 // KOMPONEN UTAMA APLIKASI
 // ============================================================================
-export default function ComputerSystemSimulatorApp({ initialMode = 'STUDENT' }: AppProps) {
+export default function ComputerSystemSimulatorApp({
+  initialMode = 'STUDENT',
+  userRole,
+  userName = 'Siswa Hebat'
+}: AppProps) {
   const [screen, setScreen] = useState<string>('home');
   const [activeLevelId, setActiveLevelId] = useState(1);
-  const [userMode, setUserMode] = useState<'student' | 'teacher'>(initialMode === 'TEACHER' ? 'teacher' : 'student');
+  const [userMode, setUserMode] = useState<'student' | 'teacher'>(
+    initialMode === 'TEACHER' ? 'teacher' : 'student'
+  );
   const [hideScoreInTeacherMode, setHideScoreInTeacherMode] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [bgmOn, setBgmOn] = useState(false);
   const [animSpeed, setAnimSpeed] = useState(1);
-  const [levelProgress, setLevelProgress] = useState<Record<number, LevelProgress>>({
-    1: { unlocked: true, completed: false, stars: 0, score: 0, flashcardsDone: false },
-    2: { unlocked: false, completed: false, stars: 0, score: 0, flashcardsDone: false },
-    3: { unlocked: false, completed: false, stars: 0, score: 0, flashcardsDone: false },
-    4: { unlocked: false, completed: false, stars: 0, score: 0, flashcardsDone: false },
-    5: { unlocked: false, completed: false, stars: 0, score: 0, flashcardsDone: false },
-    6: { unlocked: false, completed: false, stars: 0, score: 0, flashcardsDone: false }
-  });
+
+  // Inisialisasi 20 Level
+  const createDefaultProgress = () => {
+    const prog: Record<number, LevelProgress> = {};
+    for (let i = 1; i <= 20; i++) {
+      prog[i] = {
+        unlocked: i === 1,
+        completed: false,
+        stars: 0,
+        score: 0,
+        flashcardsDone: false
+      };
+    }
+    return prog;
+  };
+
+  const [levelProgress, setLevelProgress] = useState<Record<number, LevelProgress>>(createDefaultProgress);
   const [badges, setBadges] = useState<string[]>([]);
   const [notification, setNotification] = useState<{ msg: string; type: string } | null>(null);
+
+  // Penugasan Kelas & Pengaturan Guru
+  const [availableTeacherClasses, setAvailableTeacherClasses] = useState<{ id: string; name: string }[]>([]);
+  const [assignedClassIds, setAssignedClassIds] = useState<string[]>([]);
+  const [assignedClassNames, setAssignedClassNames] = useState<string[]>([]);
+  const [teacherIsLocked, setTeacherIsLocked] = useState(false);
+  const [teacherLockMessage, setTeacherLockMessage] = useState('Simulator Sistem Komputer sedang dikunci oleh guru.');
+  const [kkmScore, setKkmScore] = useState(75);
+  const [teacherInstructions, setTeacherInstructions] = useState('Selesaikan seluruh misi sistem komputer dan konversi basis bilangan sesuai petunjuk.');
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
+  const [teacherActiveTab, setTeacherActiveTab] = useState<'demo' | 'assignment' | 'recap'>('demo');
+
+  // Gating & Status Siswa
+  const [isSimulatorLocked, setIsSimulatorLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState('Simulator Sistem Komputer sedang dikunci oleh guru.');
+  const [isClassAssigned, setIsClassAssigned] = useState(true);
+  const [studentClassName, setStudentClassName] = useState('Kelas Siswa');
+
+  // Rekap & Reset Siswa di Mode Guru
+  const [studentResults, setStudentResults] = useState<any[]>([]);
+  const [selectedResetClass, setSelectedResetClass] = useState<string>('ALL');
+  const [resettingClassLoading, setResettingClassLoading] = useState(false);
+  const [resettingStudentId, setResettingStudentId] = useState<string | null>(null);
 
   useEffect(() => {
     sfx.enabled = soundOn;
@@ -457,6 +717,200 @@ export default function ComputerSystemSimulatorApp({ initialMode = 'STUDENT' }: 
   const showToast = (msg: string, type = 'info') => {
     setNotification({ msg, type });
     setTimeout(() => { setNotification((prev) => (prev?.msg === msg ? null : prev)); }, 3200);
+  };
+
+  // Muat pengaturan penugasan kelas dan sinkronisasi reset/progres siswa
+  const fetchAssignmentSettings = async () => {
+    try {
+      const res = await fetch('/api/computer-system-simulator/settings', {
+        credentials: 'include'
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.success) return;
+
+      if (data.isTeacher) {
+        if (data.teacherClasses) setAvailableTeacherClasses(data.teacherClasses);
+        if (data.config) {
+          setAssignedClassIds(data.config.assignedClassIds || []);
+          setAssignedClassNames(data.config.assignedClassNames || []);
+          if (data.config.kkmScore) setKkmScore(data.config.kkmScore);
+          if (data.config.instructions) setTeacherInstructions(data.config.instructions);
+          setTeacherIsLocked(Boolean(data.config.isLocked));
+          if (data.config.lockMessage) setTeacherLockMessage(data.config.lockMessage);
+        }
+      } else {
+        // Mode Siswa
+        setIsSimulatorLocked(Boolean(data.isLocked));
+        setIsClassAssigned(Boolean(data.isAssigned));
+        if (data.lockReason) setLockMessage(data.lockReason);
+        if (data.studentClassName) setStudentClassName(data.studentClassName);
+
+        // Ambil hasil dan periksa apakah ada reset dari guru
+        fetch('/api/computer-system-simulator/results')
+          .then((r) => r.json())
+          .then((resData) => {
+            if (resData.success && resData.data) {
+              const sData = resData.data;
+              if (sData.lastResetAt) {
+                const localReset = typeof window !== 'undefined' ? localStorage.getItem('css_simulator_last_reset_at') : null;
+                const serverResetTime = new Date(sData.lastResetAt).getTime();
+                const localResetTime = localReset ? new Date(localReset).getTime() : 0;
+
+                if (serverResetTime > localResetTime) {
+                  setLevelProgress(createDefaultProgress());
+                  setBadges([]);
+                  setActiveLevelId(1);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('css_simulator_last_reset_at', sData.lastResetAt);
+                  }
+                  showToast('Guru telah mereset progres simulasi Anda kembali ke Level 1.', 'info');
+                  return;
+                }
+              }
+
+              if (sData.levelScores && Object.keys(sData.levelScores).length > 0) {
+                setLevelProgress((prev) => {
+                  const merged = { ...prev };
+                  Object.keys(sData.levelScores).forEach((k) => {
+                    const numK = Number(k);
+                    if (merged[numK]) {
+                      merged[numK] = {
+                        ...merged[numK],
+                        ...sData.levelScores[k],
+                        unlocked: true
+                      };
+                    }
+                  });
+                  if (sData.highestLevel && sData.highestLevel <= 20) {
+                    for (let i = 1; i <= sData.highestLevel; i++) {
+                      if (merged[i]) merged[i].unlocked = true;
+                    }
+                  }
+                  return merged;
+                });
+                if (sData.badges) setBadges(sData.badges);
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // offline fallback
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignmentSettings();
+  }, []);
+
+  const fetchTeacherStudentResults = async (cls = selectedResetClass) => {
+    try {
+      const url = cls && cls !== 'ALL' ? `/api/computer-system-simulator/results?className=${encodeURIComponent(cls)}` : '/api/computer-system-simulator/results';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setStudentResults(data.data || []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const saveTeacherAssignment = async () => {
+    setAssignmentSaving(true);
+    try {
+      const res = await fetch('/api/computer-system-simulator/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedClassIds,
+          isLocked: teacherIsLocked,
+          lockMessage: teacherLockMessage,
+          kkmScore,
+          instructions: teacherInstructions,
+          userRole: userRole || 'TEACHER',
+          userName: userName || 'Guru'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Pengaturan penugasan kelas berhasil disimpan!', 'success');
+        if (data.data?.assignedClassNames) setAssignedClassNames(data.data.assignedClassNames);
+      } else {
+        showToast(data.error || 'Gagal menyimpan penugasan kelas.', 'error');
+      }
+    } catch (e: any) {
+      showToast(e.message || 'Terjadi kesalahan jaringan.', 'error');
+    } finally {
+      setAssignmentSaving(false);
+    }
+  };
+
+  const handleTeacherResetClass = async (cls: string) => {
+    if (!cls || cls === 'ALL') {
+      showToast('Pilih kelas spesifik untuk melakukan reset.', 'warn');
+      return;
+    }
+    if (typeof window !== 'undefined' && !window.confirm(`Yakin ingin mereset seluruh progres siswa di ${cls} kembali ke Level 1?`)) {
+      return;
+    }
+    setResettingClassLoading(true);
+    try {
+      const res = await fetch('/api/computer-system-simulator/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: 'class', className: cls })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || `Progres kelas ${cls} berhasil direset ke Level 1.`, 'success');
+        fetchTeacherStudentResults(cls);
+      } else {
+        showToast(data.error || 'Gagal mereset kelas.', 'error');
+      }
+    } catch (e: any) {
+      showToast(e.message || 'Kesalahan jaringan.', 'error');
+    } finally {
+      setResettingClassLoading(false);
+    }
+  };
+
+  const handleTeacherResetStudent = async (studentId: string, name: string) => {
+    if (typeof window !== 'undefined' && !window.confirm(`Reset progres siswa "${name}" kembali ke Level 1?`)) {
+      return;
+    }
+    setResettingStudentId(studentId);
+    try {
+      const res = await fetch('/api/computer-system-simulator/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: 'student', resultId: studentId, studentName: name })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Progres ${name} berhasil direset ke Level 1.`, 'success');
+        fetchTeacherStudentResults();
+      } else {
+        showToast(data.error || 'Gagal mereset siswa.', 'error');
+      }
+    } catch (e: any) {
+      showToast(e.message || 'Kesalahan jaringan.', 'error');
+    } finally {
+      setResettingStudentId(null);
+    }
+  };
+
+  const handleResetCurrentGame = () => {
+    if (typeof window !== 'undefined' && !window.confirm('Reset game ke Level 1? Seluruh progres akan kembali dari awal.')) {
+      return;
+    }
+    sfx.deleteFile();
+    setLevelProgress(createDefaultProgress());
+    setBadges([]);
+    setActiveLevelId(1);
+    setScreen('home');
+    showToast('Game berhasil direset ke Level 1!', 'info');
   };
 
   const totalScore = useMemo(() => Object.values(levelProgress).reduce((acc, curr) => acc + curr.score, 0), [levelProgress]);
@@ -480,13 +934,43 @@ export default function ComputerSystemSimulatorApp({ initialMode = 'STUDENT' }: 
   const handleLevelSuccess = (lvlId: number, earnedScore: number, earnedStars: number) => {
     sfx.levelWin();
     const lvlInfo = LEVEL_DATA.find((l) => l.id === lvlId);
-    setLevelProgress((prev) => {
-      const nextLvl = lvlId < 6 ? lvlId + 1 : null;
-      const updated = { ...prev, [lvlId]: { ...prev[lvlId], completed: true, stars: Math.max(prev[lvlId].stars, earnedStars), score: Math.max(prev[lvlId].score, earnedScore) } };
-      if (nextLvl) { updated[nextLvl] = { ...updated[nextLvl], unlocked: true }; }
-      return updated;
-    });
-    if (lvlInfo && !badges.includes(lvlInfo.badgeName)) { setBadges((prev) => [...prev, lvlInfo.badgeName]); }
+    const nextLvl = lvlId < 20 ? lvlId + 1 : null;
+    const updated = {
+      ...levelProgress,
+      [lvlId]: {
+        ...levelProgress[lvlId],
+        completed: true,
+        stars: Math.max(levelProgress[lvlId].stars, earnedStars),
+        score: Math.max(levelProgress[lvlId].score, earnedScore)
+      }
+    };
+    if (nextLvl) {
+      updated[nextLvl] = { ...updated[nextLvl], unlocked: true };
+    }
+    setLevelProgress(updated);
+
+    const updatedBadges = lvlInfo && !badges.includes(lvlInfo.badgeName) ? [...badges, lvlInfo.badgeName] : badges;
+    if (lvlInfo && !badges.includes(lvlInfo.badgeName)) {
+      setBadges(updatedBadges);
+    }
+
+    // Simpan progres ke API
+    const updatedTotalScore = Object.values(updated).reduce((acc, curr) => acc + curr.score, 0);
+    const unlockedList = Object.keys(updated).filter((k) => updated[Number(k)].unlocked).map(Number);
+
+    fetch('/api/computer-system-simulator/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentName: userName || 'Siswa',
+        className: studentClassName || 'Kelas Siswa',
+        highestLevel: nextLvl || lvlId,
+        unlockedLevels: unlockedList,
+        levelScores: updated,
+        totalScore: updatedTotalScore,
+        badges: updatedBadges
+      })
+    }).catch(() => {});
   };
 
   const activeLevelObj = LEVEL_DATA.find((l) => l.id === activeLevelId) || LEVEL_DATA[0];
@@ -504,9 +988,9 @@ export default function ComputerSystemSimulatorApp({ initialMode = 'STUDENT' }: 
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold tracking-tight text-sm md:text-lg bg-gradient-to-r from-sky-300 via-cyan-200 to-indigo-300 bg-clip-text text-transparent">COMPUTER SYSTEM SIMULATOR</span>
-                  <span className="hidden sm:inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">SMP / SMK</span>
+                  <span className="hidden sm:inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">20 LEVEL</span>
                 </div>
-                <p className="text-xs text-slate-400 hidden sm:block">Petualangan Mengenal Sistem Komputer Interaktif</p>
+                <p className="text-xs text-slate-400 hidden sm:block">Perangkat Keras, Alur Sistem & Konversi Basis Bilangan</p>
               </div>
             </button>
           </div>
@@ -523,7 +1007,7 @@ export default function ComputerSystemSimulatorApp({ initialMode = 'STUDENT' }: 
 
             {!(userMode === 'teacher' && hideScoreInTeacherMode) && (
               <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl">
-                <div className="flex items-center gap-1 text-amber-400 font-bold text-xs md:text-sm"><Star className="w-4 h-4 fill-amber-400" /><span>{totalStars}/18</span></div>
+                <div className="flex items-center gap-1 text-amber-400 font-bold text-xs md:text-sm"><Star className="w-4 h-4 fill-amber-400" /><span>{totalStars}/60</span></div>
                 <span className="text-slate-600">|</span>
                 <div className="flex items-center gap-1 text-sky-400 font-bold text-xs md:text-sm"><Zap className="w-4 h-4" /><span>{totalScore} Poin</span></div>
               </div>
@@ -543,30 +1027,314 @@ export default function ComputerSystemSimulatorApp({ initialMode = 'STUDENT' }: 
           </div>
         </div>
 
+        {/* PANEL KHUSUS MODE GURU */}
         {userMode === 'teacher' && (
-          <div className="max-w-7xl mx-auto mt-2 pt-2 border-t border-amber-500/30 flex flex-wrap items-center justify-between gap-2 bg-amber-500/10 px-3 py-2 rounded-xl">
-            <div className="flex items-center gap-2 text-amber-300 text-xs md:text-sm font-semibold"><GraduationCap className="w-5 h-5 shrink-0" /><span>Panel Demonstrasi Kelas (Smartboard/IFP):</span></div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-300 mr-1">Pilih Level:</span>
-                {[1, 2, 3, 4, 5, 6].map((num) => (
-                  <button key={num} onClick={() => { sfx.click(); setActiveLevelId(num); setScreen('flashcard'); }} className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${activeLevelId === num && (screen === 'flashcard' || screen === 'level') ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}>L{num}</button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-700 text-xs">
-                <span className="text-slate-400">Kecepatan:</span>
-                {[0.5, 1, 2].map((spd) => (<button key={spd} onClick={() => { sfx.click(); setAnimSpeed(spd); }} className={`px-1.5 py-0.5 rounded font-bold ${animSpeed === spd ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'}`}>{spd}x</button>))}
-              </div>
-              <button onClick={() => { sfx.click(); setHideScoreInTeacherMode(!hideScoreInTeacherMode); }} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
-                {hideScoreInTeacherMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                <span>{hideScoreInTeacherMode ? 'Tampilkan Skor' : 'Sembunyikan Skor'}</span>
-              </button>
-              {(screen === 'flashcard' || screen === 'level') && (
-                <button onClick={() => { sfx.click(); setScreen(screen === 'flashcard' ? 'level' : 'flashcard'); }} className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">
-                  {screen === 'flashcard' ? 'Langsung ke Tantangan →' : '← Buka Flashcard Materi'}
+          <div className="max-w-7xl mx-auto mt-2 pt-2 border-t border-amber-500/30 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-amber-500/10 px-3 py-2 rounded-xl">
+              <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-amber-500/30">
+                <button
+                  onClick={() => { sfx.click(); setTeacherActiveTab('demo'); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    teacherActiveTab === 'demo' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Presentasi IFP</span>
                 </button>
-              )}
+                <button
+                  onClick={() => { sfx.click(); setTeacherActiveTab('assignment'); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    teacherActiveTab === 'assignment' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Penugasan Kelas</span>
+                </button>
+                <button
+                  onClick={() => { sfx.click(); setTeacherActiveTab('recap'); fetchTeacherStudentResults(); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    teacherActiveTab === 'recap' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Rekap & Reset Siswa</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleResetCurrentGame}
+                  className="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1 transition"
+                  title="Reset permainan sesi saat ini ke Level 1"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Sesi ke Level 1</span>
+                </button>
+              </div>
             </div>
+
+            {/* TAB 1: PRESENTASI IFP */}
+            {teacherActiveTab === 'demo' && (
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-xl text-xs">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-slate-400 mr-1 font-semibold">Lompat Level (1-20):</span>
+                  <div className="flex flex-wrap gap-1 max-w-2xl">
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => { sfx.click(); setActiveLevelId(num); setScreen('flashcard'); }}
+                        className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
+                          activeLevelId === num && (screen === 'flashcard' || screen === 'level')
+                            ? 'bg-amber-400 text-slate-950 shadow'
+                            : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                        }`}
+                      >
+                        L{num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-lg border border-slate-700">
+                    <span className="text-slate-400">Kecepatan:</span>
+                    {[0.5, 1, 2].map((spd) => (
+                      <button
+                        key={spd}
+                        onClick={() => { sfx.click(); setAnimSpeed(spd); }}
+                        className={`px-1.5 py-0.5 rounded font-bold ${animSpeed === spd ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        {spd}x
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => { sfx.click(); setHideScoreInTeacherMode(!hideScoreInTeacherMode); }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700"
+                  >
+                    {hideScoreInTeacherMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    <span>{hideScoreInTeacherMode ? 'Tampilkan Skor' : 'Sembunyikan Skor'}</span>
+                  </button>
+
+                  {(screen === 'flashcard' || screen === 'level') && (
+                    <button
+                      onClick={() => { sfx.click(); setScreen(screen === 'flashcard' ? 'level' : 'flashcard'); }}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+                    >
+                      {screen === 'flashcard' ? 'Langsung ke Tantangan →' : '← Buka Flashcard Materi'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: PENUGASAN KELAS */}
+            {teacherActiveTab === 'assignment' && (
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4 text-xs md:text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-amber-400" />
+                      <span>Pengaturan Penugasan Kelas & Kunci Simulator</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Pilih kelas yang ditugaskan untuk Simulator Sistem Komputer (20 Level).
+                    </p>
+                  </div>
+                  <button
+                    disabled={assignmentSaving}
+                    onClick={saveTeacherAssignment}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-xl flex items-center gap-1.5 shadow transition disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{assignmentSaving ? 'Menyimpan...' : 'Simpan Penugasan'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                    <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-sky-400" />
+                      <span>Daftar Kelas yang Ditugaskan:</span>
+                    </span>
+                    {availableTeacherClasses.length === 0 ? (
+                      <p className="text-xs text-slate-500">Memuat opsi kelas...</p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 overflow-y-auto pr-1">
+                        {availableTeacherClasses.map((cls) => {
+                          const isChecked = assignedClassIds.includes(cls.id);
+                          return (
+                            <button
+                              key={cls.id}
+                              type="button"
+                              onClick={() => {
+                                setAssignedClassIds((prev) =>
+                                  isChecked ? prev.filter((id) => id !== cls.id) : [...prev, cls.id]
+                                );
+                              }}
+                              className={`p-2 rounded-lg border text-left flex items-center gap-2 transition ${
+                                isChecked
+                                  ? 'bg-sky-500/20 border-sky-400 text-white'
+                                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                              }`}
+                            >
+                              {isChecked ? <CheckSquare className="w-4 h-4 text-sky-400 shrink-0" /> : <Square className="w-4 h-4 shrink-0 text-slate-600" />}
+                              <span className="font-semibold text-xs truncate">{cls.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-slate-500 italic">
+                      *Jika belum ada kelas yang dipilih, simulator dapat diakses oleh semua kelas siswa.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                        {teacherIsLocked ? <Lock className="w-4 h-4 text-rose-400" /> : <Unlock className="w-4 h-4 text-emerald-400" />}
+                        <span>Status Kunci Simulator:</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setTeacherIsLocked(!teacherIsLocked)}
+                        className={`px-3 py-1 rounded-lg text-xs font-black transition ${
+                          teacherIsLocked ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-slate-950'
+                        }`}
+                      >
+                        {teacherIsLocked ? 'TERKUNCI' : 'DIBUKA'}
+                      </button>
+                    </div>
+
+                    {teacherIsLocked && (
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">Pesan Kunci untuk Siswa:</label>
+                        <input
+                          type="text"
+                          value={teacherLockMessage}
+                          onChange={(e) => setTeacherLockMessage(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-medium"
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">Target KKM Poin:</label>
+                        <input
+                          type="number"
+                          value={kkmScore}
+                          onChange={(e) => setKkmScore(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">Petunjuk Guru:</label>
+                        <input
+                          type="text"
+                          value={teacherInstructions}
+                          onChange={(e) => setTeacherInstructions(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: REKAP NILAI & RESET SISWA */}
+            {teacherActiveTab === 'recap' && (
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4 text-xs md:text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                      <Users className="w-4 h-4 text-sky-400" />
+                      <span>Rekapitulasi Siswa & Fitur Reset ke Level 1</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Pantau capaian 20 level dan reset progres per-kelas atau per-siswa secara langsung.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={selectedResetClass}
+                      onChange={(e) => {
+                        setSelectedResetClass(e.target.value);
+                        fetchTeacherStudentResults(e.target.value);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-bold"
+                    >
+                      <option value="ALL">Semua Kelas</option>
+                      {availableTeacherClasses.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+
+                    <button
+                      disabled={resettingClassLoading || selectedResetClass === 'ALL'}
+                      onClick={() => handleTeacherResetClass(selectedResetClass)}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow"
+                      title={selectedResetClass === 'ALL' ? 'Pilih kelas tertentu untuk mereset seluruh kelas' : `Reset seluruh siswa di ${selectedResetClass}`}
+                    >
+                      <RotateCcw className={`w-3.5 h-3.5 ${resettingClassLoading ? 'animate-spin' : ''}`} />
+                      <span>{resettingClassLoading ? 'Mereset...' : `Reset Kelas ${selectedResetClass !== 'ALL' ? selectedResetClass : ''}`}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-x-auto">
+                  {studentResults.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 text-xs">
+                      Belum ada data rekap siswa pada filter ini.
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <thead className="bg-slate-900 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
+                        <tr>
+                          <th className="py-2.5 px-3">Nama Siswa</th>
+                          <th className="py-2.5 px-3">Kelas</th>
+                          <th className="py-2.5 px-3 text-center">Level Terbuka</th>
+                          <th className="py-2.5 px-3 text-center">Total Skor</th>
+                          <th className="py-2.5 px-3 text-center">Lencana</th>
+                          <th className="py-2.5 px-3 text-center">Aksi Reset</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                        {studentResults.map((s) => (
+                          <tr key={s._id} className="hover:bg-slate-900/60 transition">
+                            <td className="py-2.5 px-3 font-bold text-white">{s.studentName}</td>
+                            <td className="py-2.5 px-3">{s.className}</td>
+                            <td className="py-2.5 px-3 text-center font-mono font-bold text-sky-400">
+                              Level {s.highestLevel || 1} / 20
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-mono font-bold text-amber-300">
+                              {s.totalScore || 0}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-mono text-emerald-400">
+                              {s.badges?.length || 0} / 20
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                disabled={resettingStudentId === s._id}
+                                onClick={() => handleTeacherResetStudent(s._id, s.studentName)}
+                                className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-white border border-rose-500/40 rounded-lg text-[11px] font-bold transition flex items-center gap-1 mx-auto"
+                              >
+                                <RotateCcw className={`w-3 h-3 ${resettingStudentId === s._id ? 'animate-spin' : ''}`} />
+                                <span>{resettingStudentId === s._id ? 'Mereset...' : 'Reset ke L1'}</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </header>
@@ -578,13 +1346,134 @@ export default function ComputerSystemSimulatorApp({ initialMode = 'STUDENT' }: 
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 py-5 md:px-6 md:py-8">
-        {screen === 'home' && <HomeScreen onStartAdventure={() => { sfx.click(); const nextPlayable = [1,2,3,4,5,6].find((id) => !levelProgress[id].completed && levelProgress[id].unlocked) || 1; handleSelectLevel(nextPlayable); }} onOpenMap={() => { sfx.click(); setScreen('map'); }} onOpenLab={() => { sfx.click(); setScreen('lab'); }} onOpenGuide={() => { sfx.click(); setScreen('guide'); }} onOpenResults={() => { sfx.click(); setScreen('results'); }} totalScore={totalScore} totalStars={totalStars} completedLevelsCount={completedLevelsCount} badges={badges} soundOn={soundOn} setSoundOn={setSoundOn} bgmOn={bgmOn} setBgmOn={setBgmOn} animSpeed={animSpeed} setAnimSpeed={setAnimSpeed} userMode={userMode} />}
-        {screen === 'map' && <LevelMapScreen levels={LEVEL_DATA} levelProgress={levelProgress} userMode={userMode} onSelectLevel={handleSelectLevel} onOpenLab={() => { sfx.click(); setScreen('lab'); }} onBackHome={() => { sfx.click(); setScreen('home'); }} />}
-        {screen === 'lab' && <SimulationLabScreen animSpeed={animSpeed} setAnimSpeed={setAnimSpeed} userMode={userMode} onBack={() => { sfx.click(); setScreen('home'); }} />}
-        {screen === 'flashcard' && <FlashcardScreen level={activeLevelObj} userMode={userMode} animSpeed={animSpeed} onFinishFlashcards={() => handleCompleteFlashcards(activeLevelObj.id)} onBackToMap={() => { sfx.click(); setScreen('map'); }} />}
-        {screen === 'level' && <LevelChallengeRouter level={activeLevelObj} userMode={userMode} animSpeed={animSpeed} onOpenFlashcards={() => { sfx.click(); setScreen('flashcard'); }} onCompleteLevel={(score: number, stars: number) => handleLevelSuccess(activeLevelObj.id, score, stars)} onNextLevel={() => { if (activeLevelObj.id < 6) { handleSelectLevel(activeLevelObj.id + 1); } else { setScreen('results'); } }} onBackToMap={() => { sfx.click(); setScreen('map'); }} />}
-        {screen === 'results' && <ResultsScreen levels={LEVEL_DATA} levelProgress={levelProgress} totalScore={totalScore} totalStars={totalStars} badges={badges} onSelectLevel={handleSelectLevel} onBackHome={() => { sfx.click(); setScreen('home'); }} />}
-        {screen === 'guide' && <GuideScreen onBackHome={() => { sfx.click(); setScreen('home'); }} onOpenLab={() => { sfx.click(); setScreen('lab'); }} />}
+        {/* LAYAR KUNCI / GATING PENUGASAN JIKA SISWA TIDAK DITUGASKAN ATAU SIMULATOR DIKUNCI */}
+        {userMode === 'student' && (!isClassAssigned || isSimulatorLocked) ? (
+          <div className="max-w-2xl mx-auto my-12 bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-8 text-center space-y-6 shadow-2xl">
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
+              <ShieldAlert className="w-10 h-10" />
+            </div>
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                {isSimulatorLocked ? 'SIMULATOR SEDANG DIKUNCI' : 'PENUGASAN KELAS'}
+              </span>
+              <h2 className="text-2xl md:text-3xl font-black text-white">
+                {isSimulatorLocked ? 'Akses Simulator Dinonaktifkan Sementara' : 'Kelas Belum Ditugaskan'}
+              </h2>
+              <p className="text-sm md:text-base text-slate-300 max-w-lg mx-auto">
+                {isSimulatorLocked
+                  ? lockMessage
+                  : assignedClassNames.length > 0
+                  ? `Simulator ini saat ini hanya ditugaskan untuk: ${assignedClassNames.join(', ')}. Kelas Anda terdeteksi sebagai ${studentClassName}.`
+                  : 'Guru belum membuka penugasan kelas untuk Simulator Sistem Komputer ini.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => { sfx.click(); fetchAssignmentSettings(); }}
+                className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs md:text-sm flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Periksa Ulang Status</span>
+              </button>
+              <a
+                href="/dashboard"
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs md:text-sm"
+              >
+                Kembali ke Dashboard
+              </a>
+            </div>
+          </div>
+        ) : (
+          <>
+            {screen === 'home' && (
+              <HomeScreen
+                onStartAdventure={() => {
+                  sfx.click();
+                  const nextPlayable = Array.from({ length: 20 }, (_, i) => i + 1).find(
+                    (id) => !levelProgress[id].completed && levelProgress[id].unlocked
+                  ) || 1;
+                  handleSelectLevel(nextPlayable);
+                }}
+                onOpenMap={() => { sfx.click(); setScreen('map'); }}
+                onOpenLab={() => { sfx.click(); setScreen('lab'); }}
+                onOpenGuide={() => { sfx.click(); setScreen('guide'); }}
+                onOpenResults={() => { sfx.click(); setScreen('results'); }}
+                totalScore={totalScore}
+                totalStars={totalStars}
+                completedLevelsCount={completedLevelsCount}
+                badges={badges}
+                soundOn={soundOn}
+                setSoundOn={setSoundOn}
+                bgmOn={bgmOn}
+                setBgmOn={setBgmOn}
+                animSpeed={animSpeed}
+                setAnimSpeed={setAnimSpeed}
+                userMode={userMode}
+              />
+            )}
+            {screen === 'map' && (
+              <LevelMapScreen
+                levels={LEVEL_DATA}
+                levelProgress={levelProgress}
+                userMode={userMode}
+                onSelectLevel={handleSelectLevel}
+                onOpenLab={() => { sfx.click(); setScreen('lab'); }}
+                onBackHome={() => { sfx.click(); setScreen('home'); }}
+              />
+            )}
+            {screen === 'lab' && (
+              <SimulationLabScreen
+                animSpeed={animSpeed}
+                setAnimSpeed={setAnimSpeed}
+                userMode={userMode}
+                onBack={() => { sfx.click(); setScreen('home'); }}
+              />
+            )}
+            {screen === 'flashcard' && (
+              <FlashcardScreen
+                level={activeLevelObj}
+                userMode={userMode}
+                animSpeed={animSpeed}
+                onFinishFlashcards={() => handleCompleteFlashcards(activeLevelObj.id)}
+                onBackToMap={() => { sfx.click(); setScreen('map'); }}
+              />
+            )}
+            {screen === 'level' && (
+              <LevelChallengeRouter
+                level={activeLevelObj}
+                userMode={userMode}
+                animSpeed={animSpeed}
+                onOpenFlashcards={() => { sfx.click(); setScreen('flashcard'); }}
+                onCompleteLevel={(score: number, stars: number) => handleLevelSuccess(activeLevelObj.id, score, stars)}
+                onNextLevel={() => {
+                  if (activeLevelObj.id < 20) {
+                    handleSelectLevel(activeLevelObj.id + 1);
+                  } else {
+                    setScreen('results');
+                  }
+                }}
+                onBackToMap={() => { sfx.click(); setScreen('map'); }}
+              />
+            )}
+            {screen === 'results' && (
+              <ResultsScreen
+                levels={LEVEL_DATA}
+                levelProgress={levelProgress}
+                totalScore={totalScore}
+                totalStars={totalStars}
+                badges={badges}
+                onSelectLevel={handleSelectLevel}
+                onBackHome={() => { sfx.click(); setScreen('home'); }}
+              />
+            )}
+            {screen === 'guide' && (
+              <GuideScreen
+                onBackHome={() => { sfx.click(); setScreen('home'); }}
+                onOpenLab={() => { sfx.click(); setScreen('lab'); }}
+              />
+            )}
+          </>
+        )}
       </main>
 
       <footer className="bg-slate-900/80 border-t border-slate-800 py-3 px-4 text-center text-xs text-slate-400">
@@ -610,7 +1499,7 @@ function HomeScreen({ onStartAdventure, onOpenMap, onOpenLab, onOpenGuide, onOpe
     return () => clearInterval(timer);
   }, [heroDemoActive, animSpeed]);
 
-  const progressPercentage = Math.round((completedLevelsCount / 6) * 100);
+  const progressPercentage = Math.round((completedLevelsCount / 20) * 100);
 
   return (
     <div className="space-y-8">
@@ -619,11 +1508,11 @@ function HomeScreen({ onStartAdventure, onOpenMap, onOpenLab, onOpenGuide, onOpe
           <div className="lg:col-span-7 space-y-5">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs md:text-sm font-bold"><Sparkles className="w-4 h-4" /><span>Simulasi Interaktif Informatika SMP & SMK</span></div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">COMPUTER SYSTEM{' '}<span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-400 bg-clip-text text-transparent">SIMULATOR</span></h1>
-            <p className="text-slate-300 text-base md:text-lg leading-relaxed max-w-2xl">Selamat datang, <strong>Teknisi Komputer Muda!</strong> Mari bertualang mengenal bagaimana <span className="text-sky-300 font-semibold">Input Device</span>, <span className="text-amber-300 font-semibold">Processing Device (CPU)</span>, <span className="text-purple-300 font-semibold">Output Device</span>, dan <span className="text-emerald-300 font-semibold">Storage Device</span> bekerja sama mengolah data.</p>
+            <p className="text-slate-300 text-base md:text-lg leading-relaxed max-w-2xl">Selamat datang, <strong>Teknisi Komputer Muda!</strong> Mari bertualang mengenal bagaimana <span className="text-sky-300 font-semibold">Input Device</span>, <span className="text-amber-300 font-semibold">Processing Device (CPU)</span>, <span className="text-purple-300 font-semibold">Output Device</span>, <span className="text-emerald-300 font-semibold">Storage Device</span>, serta <span className="text-cyan-300 font-semibold">Konversi Bilangan Biner, Oktal & Heksadesimal</span> bekerja sama mengolah data.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
               <button onClick={onStartAdventure} className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-base md:text-lg shadow-lg shadow-sky-500/25 transform hover:-translate-y-0.5 active:translate-y-0 transition-all"><Play className="w-6 h-6 fill-white" /><span>MULAI PETUALANGAN</span></button>
               <button onClick={onOpenLab} className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-base md:text-lg shadow-lg shadow-emerald-600/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all"><Zap className="w-6 h-6" /><span>LABORATORIUM ANIMASI</span></button>
-              <button onClick={onOpenMap} className="flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-100 font-bold border border-slate-700 transition-all"><Compass className="w-5 h-5 text-sky-400" /><span>PETA LEVEL (6 MISI)</span></button>
+              <button onClick={onOpenMap} className="flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-100 font-bold border border-slate-700 transition-all"><Compass className="w-5 h-5 text-sky-400" /><span>PETA LEVEL (20 MISI)</span></button>
               <button onClick={onOpenGuide} className="flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-100 font-bold border border-slate-700 transition-all"><BookOpen className="w-5 h-5 text-amber-400" /><span>PANDUAN BERMAIN</span></button>
             </div>
           </div>
@@ -659,7 +1548,7 @@ function HomeScreen({ onStartAdventure, onOpenMap, onOpenLab, onOpenGuide, onOpe
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between"><h2 className="font-bold text-lg text-white flex items-center gap-2"><Layers className="w-5 h-5 text-sky-400" /><span>Progres Petualangan</span></h2><span className="text-sm font-extrabold text-sky-400">{progressPercentage}%</span></div>
-          <div className="space-y-2"><div className="w-full h-3.5 bg-slate-800 rounded-full overflow-hidden p-0.5"><div className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full transition-all duration-500" style={{ width: `${Math.max(progressPercentage, 6)}%` }} /></div><p className="text-xs text-slate-400">{completedLevelsCount} dari 6 Level Tantangan telah diselesaikan.</p></div>
+          <div className="space-y-2"><div className="w-full h-3.5 bg-slate-800 rounded-full overflow-hidden p-0.5"><div className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full transition-all duration-500" style={{ width: `${Math.max(progressPercentage, 5)}%` }} /></div><p className="text-xs text-slate-400">{completedLevelsCount} dari 20 Level Tantangan telah diselesaikan.</p></div>
           <button onClick={onOpenResults} className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-bold text-xs md:text-sm border border-slate-700 transition-all flex items-center justify-center gap-2"><Award className="w-4 h-4" /><span>Lihat Rapor & Lencana Siswa</span></button>
         </div>
 
@@ -667,8 +1556,8 @@ function HomeScreen({ onStartAdventure, onOpenMap, onOpenLab, onOpenGuide, onOpe
           <div className="flex items-center justify-between"><h2 className="font-bold text-lg text-white flex items-center gap-2"><Award className="w-5 h-5 text-amber-400" /><span>Skor & Pencapaian</span></h2></div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5"><div className="text-xl font-black text-sky-400">{totalScore}</div><div className="text-[11px] text-slate-400">Total Skor</div></div>
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5"><div className="text-xl font-black text-amber-400">{totalStars} / 18</div><div className="text-[11px] text-slate-400">Bintang</div></div>
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5"><div className="text-xl font-black text-emerald-400">{badges.length} / 6</div><div className="text-[11px] text-slate-400">Lencana</div></div>
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5"><div className="text-xl font-black text-amber-400">{totalStars} / 60</div><div className="text-[11px] text-slate-400">Bintang</div></div>
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5"><div className="text-xl font-black text-emerald-400">{badges.length} / 20</div><div className="text-[11px] text-slate-400">Lencana</div></div>
           </div>
           <div className="text-xs text-slate-400 truncate">{badges.length > 0 ? `Lencana terbaru: ${badges[badges.length - 1]}` : 'Selesaikan level untuk membuka lencana!'}</div>
         </div>
@@ -1085,6 +1974,20 @@ function LevelChallengeRouter({ level, userMode, animSpeed, onOpenFlashcards, on
       {level.id === 4 && <Level4StorageMission onWin={triggerLevelWin} />}
       {level.id === 5 && <Level5Troubleshooting onWin={triggerLevelWin} />}
       {level.id === 6 && <Level6BuildPCSystem onWin={triggerLevelWin} />}
+      {level.id === 7 && <Level7BinaryBasics onWin={triggerLevelWin} />}
+      {level.id === 8 && <Level8BinaryToDecimal onWin={triggerLevelWin} />}
+      {level.id === 9 && <Level9DecimalToBinary onWin={triggerLevelWin} />}
+      {level.id === 10 && <Level10OctalToDecimal onWin={triggerLevelWin} />}
+      {level.id === 11 && <Level11BinaryToOctal onWin={triggerLevelWin} />}
+      {level.id === 12 && <Level12HexBasics onWin={triggerLevelWin} />}
+      {level.id === 13 && <Level13HexToDecimal onWin={triggerLevelWin} />}
+      {level.id === 14 && <Level14DecimalToHex onWin={triggerLevelWin} />}
+      {level.id === 15 && <Level15BinaryToHex onWin={triggerLevelWin} />}
+      {level.id === 16 && <Level16HexToBinary onWin={triggerLevelWin} />}
+      {level.id === 17 && <Level17HexToOctal onWin={triggerLevelWin} />}
+      {level.id === 18 && <Level18OctalToHex onWin={triggerLevelWin} />}
+      {level.id === 19 && <Level19HexColorAscii onWin={triggerLevelWin} />}
+      {level.id === 20 && <Level20GrandMasterMultiBase onWin={triggerLevelWin} />}
 
       {levelDoneModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -1098,7 +2001,7 @@ function LevelChallengeRouter({ level, userMode, animSpeed, onOpenFlashcards, on
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <button onClick={() => setLevelDoneModal(null)} className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs md:text-sm">Ulangi Level</button>
-              <button onClick={() => { setLevelDoneModal(null); onNextLevel(); }} className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs md:text-sm flex items-center gap-2 shadow-lg"><span>{level.id < 6 ? `LANJUT KE LEVEL ${level.id + 1}` : 'LIHAT HASIL BELAJAR'}</span><ArrowRight className="w-4 h-4" /></button>
+              <button onClick={() => { setLevelDoneModal(null); onNextLevel(); }} className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs md:text-sm flex items-center gap-2 shadow-lg"><span>{level.id < 20 ? `LANJUT KE LEVEL ${level.id + 1}` : 'LIHAT HASIL BELAJAR'}</span><ArrowRight className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
@@ -1431,8 +2334,8 @@ function ResultsScreen({ levels, levelProgress, totalScore, totalStars, badges, 
         <p className="text-slate-300 text-sm md:text-base max-w-2xl mx-auto">{allCompleted ? 'Selamat! Kamu telah lulus semua level!' : 'Terus selesaikan tantangan untuk meraih semua lencana!'}</p>
         <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto pt-2">
           <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3"><div className="text-2xl font-black text-sky-400">{totalScore}</div><div className="text-xs text-slate-400">Total Skor</div></div>
-          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3"><div className="text-2xl font-black text-amber-400">{totalStars} / 18</div><div className="text-xs text-slate-400">Bintang</div></div>
-          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3"><div className="text-2xl font-black text-emerald-400">{badges.length} / 6</div><div className="text-xs text-slate-400">Lencana</div></div>
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3"><div className="text-2xl font-black text-amber-400">{totalStars} / 60</div><div className="text-xs text-slate-400">Bintang</div></div>
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3"><div className="text-2xl font-black text-emerald-400">{badges.length} / 20</div><div className="text-xs text-slate-400">Lencana</div></div>
         </div>
       </div>
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
@@ -1466,10 +2369,10 @@ function GuideScreen({ onBackHome, onOpenLab }: any) {
         {[
           { title: '1. Mulai Petualangan', desc: 'Pilih "Mulai Petualangan" di halaman utama untuk memulai dari level pertama yang tersedia.' },
           { title: '2. Pelajari Flashcard', desc: 'Setiap level diawali 5 kartu flashcard interaktif. Balik kartu untuk melihat penjelasan mendalam. Pelajari semua kartu sebelum memulai tantangan.' },
-          { title: '3. Selesaikan Tantangan Level', desc: 'Setiap level memiliki tantangan unik: klasifikasi perangkat, menyusun alur, simulasi input/output, misi storage, troubleshooting, hingga merakit PC virtual!' },
-          { title: '4. Raih Bintang & Lencana', desc: 'Dapatkan 3 bintang dengan menjawab tanpa kesalahan. Setiap level yang diselesaikan membuka lencana unik.' },
+          { title: '3. Selesaikan 20 Tantangan Level', desc: 'Setiap level memiliki tantangan unik: klasifikasi perangkat, alur sistem, simulasi I/O, manajemen storage, troubleshooting, rakit PC virtual, serta konversi sistem bilangan Biner, Oktal, dan Heksadesimal hingga operasi ALU!' },
+          { title: '4. Raih Bintang & Lencana', desc: 'Dapatkan 3 bintang dengan menjawab tanpa kesalahan. Selesaikan seluruh 20 level untuk meraih lencana Grand Master Sistem Komputer!' },
           { title: '5. Laboratorium Animasi', desc: 'Buka Lab Animasi untuk bereksperimen bebas dengan perangkat Input, CPU, Output, Storage, dan melihat alur sistem komputer secara visual.' },
-          { title: '6. Mode Guru (IFP/Smartboard)', desc: 'Aktifkan Mode Guru untuk membuka semua level, mengontrol kecepatan animasi, dan menyembunyikan skor saat demonstrasi di depan kelas.' }
+          { title: '6. Mode Guru (IFP, Penugasan & Reset)', desc: 'Guru dapat melakukan penugasan ke kelas tertentu, membuka seluruh level untuk presentasi IFP, memantau rekap skor siswa, dan mereset permainan ke Level 1 per-kelas maupun per-siswa.' }
         ].map((item, idx) => (
           <div key={idx} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2">
             <h3 className="text-lg font-extrabold text-white">{item.title}</h3>

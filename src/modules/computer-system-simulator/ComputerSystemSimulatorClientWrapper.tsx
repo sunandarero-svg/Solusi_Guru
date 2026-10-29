@@ -37,6 +37,8 @@ export default function ComputerSystemSimulatorClientWrapper({
     <div className="w-full">
       <ComputerSystemSimulatorApp
         initialMode={isTeacher ? 'TEACHER' : 'STUDENT'}
+        userRole={userRole}
+        userName={userName}
       />
     </div>
   );
