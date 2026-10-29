@@ -659,9 +659,24 @@ export default function ComputerSystemSimulatorApp({
 }: AppProps) {
   const [screen, setScreen] = useState<string>('home');
   const [activeLevelId, setActiveLevelId] = useState(1);
-  const [userMode, setUserMode] = useState<'student' | 'teacher'>(
-    initialMode === 'TEACHER' ? 'teacher' : 'student'
+
+  // Verifikasi role pengguna: Hanya role TEACHER, ADMIN, atau PRINCIPAL yang berhak membuka Mode Guru
+  const initialIsTeacher = Boolean(
+    userRole === 'TEACHER' || userRole === 'ADMIN' || userRole === 'PRINCIPAL'
   );
+  const [isTeacherConfirmed, setIsTeacherConfirmed] = useState<boolean>(initialIsTeacher);
+
+  const [userMode, setUserMode] = useState<'student' | 'teacher'>(
+    initialIsTeacher && initialMode === 'TEACHER' ? 'teacher' : 'student'
+  );
+
+  // Pastikan akun siswa tidak pernah berada di dalam Mode Guru
+  useEffect(() => {
+    if (!isTeacherConfirmed && userMode !== 'student') {
+      setUserMode('student');
+    }
+  }, [isTeacherConfirmed, userMode]);
+
   const [hideScoreInTeacherMode, setHideScoreInTeacherMode] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [bgmOn, setBgmOn] = useState(false);
@@ -730,6 +745,7 @@ export default function ComputerSystemSimulatorApp({
       if (!data.success) return;
 
       if (data.isTeacher) {
+        setIsTeacherConfirmed(true);
         if (data.teacherClasses) setAvailableTeacherClasses(data.teacherClasses);
         if (data.config) {
           setAssignedClassIds(data.config.assignedClassIds || []);
@@ -740,7 +756,9 @@ export default function ComputerSystemSimulatorApp({
           if (data.config.lockMessage) setTeacherLockMessage(data.config.lockMessage);
         }
       } else {
-        // Mode Siswa
+        // Mode Siswa: Pastikan akun siswa tidak diizinkan membuka mode guru
+        setIsTeacherConfirmed(false);
+        setUserMode('student');
         setIsSimulatorLocked(Boolean(data.isLocked));
         setIsClassAssigned(Boolean(data.isAssigned));
         if (data.lockReason) setLockMessage(data.lockReason);
@@ -805,6 +823,7 @@ export default function ComputerSystemSimulatorApp({
   }, []);
 
   const fetchTeacherStudentResults = async (cls = selectedResetClass) => {
+    if (!isTeacherConfirmed) return;
     try {
       const url = cls && cls !== 'ALL' ? `/api/computer-system-simulator/results?className=${encodeURIComponent(cls)}` : '/api/computer-system-simulator/results';
       const res = await fetch(url);
@@ -818,6 +837,10 @@ export default function ComputerSystemSimulatorApp({
   };
 
   const saveTeacherAssignment = async () => {
+    if (!isTeacherConfirmed) {
+      showToast('Akses ditolak: Hanya Guru yang dapat menyimpan penugasan.', 'warn');
+      return;
+    }
     setAssignmentSaving(true);
     try {
       const res = await fetch('/api/computer-system-simulator/settings', {
@@ -848,6 +871,10 @@ export default function ComputerSystemSimulatorApp({
   };
 
   const handleTeacherResetClass = async (cls: string) => {
+    if (!isTeacherConfirmed) {
+      showToast('Akses ditolak: Hanya Guru yang dapat mereset kelas.', 'warn');
+      return;
+    }
     if (!cls || cls === 'ALL') {
       showToast('Pilih kelas spesifik untuk melakukan reset.', 'warn');
       return;
@@ -877,6 +904,10 @@ export default function ComputerSystemSimulatorApp({
   };
 
   const handleTeacherResetStudent = async (studentId: string, name: string) => {
+    if (!isTeacherConfirmed) {
+      showToast('Akses ditolak: Hanya Guru yang dapat mereset siswa.', 'warn');
+      return;
+    }
     if (typeof window !== 'undefined' && !window.confirm(`Reset progres siswa "${name}" kembali ke Level 1?`)) {
       return;
     }
@@ -902,6 +933,10 @@ export default function ComputerSystemSimulatorApp({
   };
 
   const handleResetCurrentGame = () => {
+    if (!isTeacherConfirmed) {
+      showToast('Akses ditolak: Fitur ini hanya untuk Guru.', 'warn');
+      return;
+    }
     if (typeof window !== 'undefined' && !window.confirm('Reset game ke Level 1? Seluruh progres akan kembali dari awal.')) {
       return;
     }
@@ -919,9 +954,14 @@ export default function ComputerSystemSimulatorApp({
 
   const handleSelectLevel = (lvlId: number, targetScreen: 'level' | 'flashcard' = 'level') => {
     sfx.click();
-    const isUnlocked = userMode === 'teacher' || levelProgress[lvlId]?.unlocked;
+    const isUnlocked = (isTeacherConfirmed && userMode === 'teacher') || levelProgress[lvlId]?.unlocked;
     if (!isUnlocked) {
-      showToast('Selesaikan level sebelumnya terlebih dahulu, atau aktifkan Mode Guru untuk demonstrasi.', 'warn');
+      showToast(
+        isTeacherConfirmed
+          ? 'Selesaikan level sebelumnya terlebih dahulu, atau aktifkan Mode Guru untuk demonstrasi.'
+          : 'Selesaikan level sebelumnya terlebih dahulu untuk membuka level ini.',
+        'warn'
+      );
       return;
     }
     setActiveLevelId(lvlId);
@@ -999,14 +1039,42 @@ export default function ComputerSystemSimulatorApp({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
-              <button onClick={() => { sfx.click(); setUserMode('student'); showToast('Mode Siswa aktif: Belajar mandiri dan raih lencana!', 'info'); }} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${userMode === 'student' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
-                <User className="w-3.5 h-3.5" /><span>Mode Siswa</span>
-              </button>
-              <button onClick={() => { sfx.click(); setUserMode('teacher'); showToast('Mode Guru (IFP/Smartboard) aktif: Semua level & kontrol demonstrasi terbuka.', 'info'); }} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${userMode === 'teacher' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'}`}>
-                <GraduationCap className="w-3.5 h-3.5" /><span>Mode Guru (IFP)</span>
-              </button>
-            </div>
+            {/* Pemilih Mode Guru / Siswa (Hanya untuk Akun Guru) */}
+            {isTeacherConfirmed ? (
+              <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button
+                  onClick={() => {
+                    sfx.click();
+                    setUserMode('student');
+                    showToast('Mode Siswa aktif: Belajar mandiri dan raih lencana!', 'info');
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    userMode === 'student' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Mode Siswa</span>
+                </button>
+                <button
+                  onClick={() => {
+                    sfx.click();
+                    setUserMode('teacher');
+                    showToast('Mode Guru (IFP/Smartboard) aktif: Semua level & kontrol demonstrasi terbuka.', 'info');
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    userMode === 'teacher' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Mode Guru (IFP)</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl text-sky-400 text-xs font-bold shadow-sm">
+                <User className="w-3.5 h-3.5" />
+                <span>Mode Siswa</span>
+              </div>
+            )}
 
             {!(userMode === 'teacher' && hideScoreInTeacherMode) && (
               <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl">
@@ -1031,7 +1099,7 @@ export default function ComputerSystemSimulatorApp({
         </div>
 
         {/* PANEL KHUSUS MODE GURU */}
-        {userMode === 'teacher' && (
+        {isTeacherConfirmed && userMode === 'teacher' && (
           <div className="max-w-7xl mx-auto mt-2 pt-2 border-t border-amber-500/30 space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2 bg-amber-500/10 px-3 py-2 rounded-xl">
               <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-amber-500/30">
@@ -1419,6 +1487,7 @@ export default function ComputerSystemSimulatorApp({
                 levels={LEVEL_DATA}
                 levelProgress={levelProgress}
                 userMode={userMode}
+                isTeacherUser={isTeacherConfirmed}
                 onSelectLevel={(lvlId: number, target: 'level' | 'flashcard' = 'level') => handleSelectLevel(lvlId, target)}
                 onOpenLab={() => { sfx.click(); setScreen('lab'); }}
                 onBackHome={() => { sfx.click(); setScreen('home'); }}
@@ -1581,7 +1650,7 @@ function HomeScreen({ onStartAdventure, onOpenMap, onOpenLab, onOpenGuide, onOpe
 // ============================================================================
 // LEVEL MAP SCREEN
 // ============================================================================
-function LevelMapScreen({ levels, levelProgress, userMode, onSelectLevel, onOpenLab, onBackHome }: any) {
+function LevelMapScreen({ levels, levelProgress, userMode, isTeacherUser, onSelectLevel, onOpenLab, onBackHome }: any) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl">
@@ -1597,7 +1666,7 @@ function LevelMapScreen({ levels, levelProgress, userMode, onSelectLevel, onOpen
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {levels.map((lvl: LevelData) => {
           const prog = levelProgress[lvl.id];
-          const isUnlocked = userMode === 'teacher' || prog?.unlocked;
+          const isUnlocked = (Boolean(isTeacherUser) && userMode === 'teacher') || prog?.unlocked;
           return (
             <div key={lvl.id} className={`rounded-2xl border p-6 flex flex-col justify-between transition-all ${isUnlocked ? 'bg-slate-900 border-slate-700 hover:border-sky-400 shadow-lg' : 'bg-slate-900/50 border-slate-800/80 opacity-65'}`}>
               <div className="space-y-3">
