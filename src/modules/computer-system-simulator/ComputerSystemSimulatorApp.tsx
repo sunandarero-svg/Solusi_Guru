@@ -917,12 +917,15 @@ export default function ComputerSystemSimulatorApp({
   const totalStars = useMemo(() => Object.values(levelProgress).reduce((acc, curr) => acc + curr.stars, 0), [levelProgress]);
   const completedLevelsCount = useMemo(() => Object.values(levelProgress).filter((l) => l.completed).length, [levelProgress]);
 
-  const handleSelectLevel = (lvlId: number) => {
+  const handleSelectLevel = (lvlId: number, targetScreen: 'level' | 'flashcard' = 'level') => {
     sfx.click();
     const isUnlocked = userMode === 'teacher' || levelProgress[lvlId]?.unlocked;
-    if (!isUnlocked) { showToast('Selesaikan level sebelumnya terlebih dahulu, atau aktifkan Mode Guru untuk demonstrasi.', 'warn'); return; }
+    if (!isUnlocked) {
+      showToast('Selesaikan level sebelumnya terlebih dahulu, atau aktifkan Mode Guru untuk demonstrasi.', 'warn');
+      return;
+    }
     setActiveLevelId(lvlId);
-    setScreen('flashcard');
+    setScreen(targetScreen);
   };
 
   const handleCompleteFlashcards = (lvlId: number) => {
@@ -1082,7 +1085,7 @@ export default function ComputerSystemSimulatorApp({
                     {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
                       <button
                         key={num}
-                        onClick={() => { sfx.click(); setActiveLevelId(num); setScreen('flashcard'); }}
+                        onClick={() => { sfx.click(); setActiveLevelId(num); setScreen('level'); }}
                         className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
                           activeLevelId === num && (screen === 'flashcard' || screen === 'level')
                             ? 'bg-amber-400 text-slate-950 shadow'
@@ -1392,7 +1395,7 @@ export default function ComputerSystemSimulatorApp({
                   const nextPlayable = Array.from({ length: 20 }, (_, i) => i + 1).find(
                     (id) => !levelProgress[id].completed && levelProgress[id].unlocked
                   ) || 1;
-                  handleSelectLevel(nextPlayable);
+                  handleSelectLevel(nextPlayable, 'level');
                 }}
                 onOpenMap={() => { sfx.click(); setScreen('map'); }}
                 onOpenLab={() => { sfx.click(); setScreen('lab'); }}
@@ -1416,7 +1419,7 @@ export default function ComputerSystemSimulatorApp({
                 levels={LEVEL_DATA}
                 levelProgress={levelProgress}
                 userMode={userMode}
-                onSelectLevel={handleSelectLevel}
+                onSelectLevel={(lvlId: number, target: 'level' | 'flashcard' = 'level') => handleSelectLevel(lvlId, target)}
                 onOpenLab={() => { sfx.click(); setScreen('lab'); }}
                 onBackHome={() => { sfx.click(); setScreen('home'); }}
               />
@@ -1447,7 +1450,7 @@ export default function ComputerSystemSimulatorApp({
                 onCompleteLevel={(score: number, stars: number) => handleLevelSuccess(activeLevelObj.id, score, stars)}
                 onNextLevel={() => {
                   if (activeLevelObj.id < 20) {
-                    handleSelectLevel(activeLevelObj.id + 1);
+                    handleSelectLevel(activeLevelObj.id + 1, 'level');
                   } else {
                     setScreen('results');
                   }
@@ -1462,7 +1465,7 @@ export default function ComputerSystemSimulatorApp({
                 totalScore={totalScore}
                 totalStars={totalStars}
                 badges={badges}
-                onSelectLevel={handleSelectLevel}
+                onSelectLevel={(lvlId: number) => handleSelectLevel(lvlId, 'level')}
                 onBackHome={() => { sfx.click(); setScreen('home'); }}
               />
             )}
@@ -1582,7 +1585,10 @@ function LevelMapScreen({ levels, levelProgress, userMode, onSelectLevel, onOpen
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-        <div><h1 className="text-2xl md:text-3xl font-black text-white">Peta Petualangan Sistem Komputer</h1><p className="text-slate-400 text-sm">Setiap level diawali dengan <strong>Flashcard Pembelajaran</strong> sebelum memulai tantangan interaktif.</p></div>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-white">Peta Petualangan Sistem Komputer</h1>
+          <p className="text-slate-400 text-sm">Pilih level untuk <strong>langsung bermain tantangan</strong> atau buka flashcard materi jika memerlukan referensi.</p>
+        </div>
         <div className="flex items-center gap-2">
           <button onClick={onOpenLab} className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs md:text-sm flex items-center gap-2"><Sparkles className="w-4 h-4" /><span>Buka Lab Animasi Perangkat</span></button>
           <button onClick={onBackHome} className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs md:text-sm flex items-center gap-2"><Home className="w-4 h-4" /><span>Beranda</span></button>
@@ -1604,10 +1610,39 @@ function LevelMapScreen({ levels, levelProgress, userMode, onSelectLevel, onOpen
                 <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{lvl.description}</p>
               </div>
               <div className="pt-5 mt-5 border-t border-slate-800 space-y-3">
-                <div className="flex items-center justify-between text-xs text-slate-400"><span>Skor Terbaik: <strong className="text-white">{prog.score}</strong></span><span>5 Kartu Flashcard</span></div>
-                <button onClick={() => onSelectLevel(lvl.id)} disabled={!isUnlocked} className={`w-full py-3 px-4 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all ${isUnlocked ? prog.completed ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}>
-                  {isUnlocked ? (<><BookOpen className="w-4 h-4" /><span>{prog.completed ? 'ULANGI LEVEL & FLASHCARD' : 'MULAI PELAJARI FLASHCARD'}</span></>) : (<span>SELESAIKAN LEVEL {lvl.id - 1} DAHULU</span>)}
-                </button>
+                <div className="flex items-center justify-between text-xs text-slate-400"><span>Skor Terbaik: <strong className="text-white">{prog.score}</strong></span><span>5 Flashcard (Opsional)</span></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => onSelectLevel(lvl.id, 'level')}
+                    disabled={!isUnlocked}
+                    className={`w-full py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-1.5 transition-all ${
+                      isUnlocked
+                        ? prog.completed
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                          : 'bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white shadow-md'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed sm:col-span-2'
+                    }`}
+                  >
+                    {isUnlocked ? (
+                      <>
+                        <Gamepad2 className="w-4 h-4" />
+                        <span>{prog.completed ? 'ULANGI GAME' : 'MAINKAN GAME'}</span>
+                      </>
+                    ) : (
+                      <span>SELESAIKAN LEVEL {lvl.id - 1} DAHULU</span>
+                    )}
+                  </button>
+                  {isUnlocked && (
+                    <button
+                      onClick={() => onSelectLevel(lvl.id, 'flashcard')}
+                      className="w-full py-2.5 px-3 rounded-xl font-bold text-xs md:text-sm flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all hover:text-white"
+                      title="Pelajari atau baca materi flashcard (opsional)"
+                    >
+                      <BookOpen className="w-4 h-4 text-sky-400" />
+                      <span>Materi (Opsional)</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -1629,14 +1664,27 @@ function FlashcardScreen({ level, userMode, animSpeed, onFinishFlashcards, onBac
 
   const currentCard = cards[currentIdx];
   const handleGoToCard = (newIdx: number) => { sfx.click(); setFlipped(false); setCurrentIdx(newIdx); setVisitedCards((prev) => ({ ...prev, [newIdx]: true })); };
-  const allCardsVisited = Object.keys(visitedCards).length >= cards.length;
-  const canStartChallenge = userMode === 'teacher' || allCardsVisited || currentIdx === cards.length - 1;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
-        <div><div className="flex items-center gap-2"><span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">MATERI LEVEL {level.id}</span><span className="text-xs text-slate-400">Kartu {currentIdx + 1} dari {cards.length}</span></div><h1 className="text-xl md:text-2xl font-black text-white mt-1">Flashcard Pembelajaran: {level.title}</h1></div>
-        <button onClick={onBackToMap} className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">← Peta Level</button>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">MATERI LEVEL {level.id} (OPSIONAL)</span>
+            <span className="text-xs text-slate-400">Kartu {currentIdx + 1} dari {cards.length}</span>
+          </div>
+          <h1 className="text-xl md:text-2xl font-black text-white mt-1">Flashcard Pembelajaran: {level.title}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onFinishFlashcards}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
+          >
+            <Gamepad2 className="w-4 h-4" />
+            <span>Lewati & Langsung Main Game →</span>
+          </button>
+          <button onClick={onBackToMap} className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">← Peta Level</button>
+        </div>
       </div>
       <div className="flex items-center justify-center gap-2">{cards.map((c: FlashcardData, idx: number) => (<button key={c.id} onClick={() => handleGoToCard(idx)} className={`h-3 rounded-full transition-all ${idx === currentIdx ? 'w-10 bg-sky-400' : visitedCards[idx] ? 'w-3 bg-emerald-400' : 'w-3 bg-slate-700'}`} title={`Kartu ${idx + 1}: ${c.title}`} />))}</div>
 
@@ -1673,7 +1721,7 @@ function FlashcardScreen({ level, userMode, animSpeed, onFinishFlashcards, onBac
           <div className="text-xs md:text-sm font-bold text-slate-300">Kartu <span className="text-sky-400">{currentIdx + 1}</span> dari {cards.length}</div>
           <div className="flex items-center gap-3">
             {currentIdx < cards.length - 1 && (<button onClick={() => handleGoToCard(currentIdx + 1)} className="px-6 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-sky-500/20"><span>BERIKUTNYA</span><ChevronRight className="w-5 h-5" /></button>)}
-            <button onClick={onFinishFlashcards} disabled={!canStartChallenge} className={`px-6 py-3 rounded-xl font-extrabold text-sm flex items-center gap-2 transition-all ${canStartChallenge ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/25' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}><Gamepad2 className="w-5 h-5" /><span>MULAI TANTANGAN LEVEL {level.id}</span></button>
+            <button onClick={onFinishFlashcards} className="px-6 py-3 rounded-xl font-extrabold text-sm flex items-center gap-2 transition-all bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/25"><Gamepad2 className="w-5 h-5" /><span>MULAI TANTANGAN LEVEL {level.id}</span></button>
           </div>
         </div>
       </div>
