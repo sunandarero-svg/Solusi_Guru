@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { groqRateLimiter } from "./rateLimiter";
 import { GoogleGenAI } from "@google/genai";
+import { compressBufferForOCR } from "./compressImageForOCR";
 
 // Cache for dynamically fetched models per API key
 const modelCache: Record<string, string[]> = {};
@@ -57,11 +58,11 @@ export class GroqProvider implements AIProvider {
 
   /**
    * Menilai tugas siswa dengan Pipeline 2 Tahap yang Terpisah (Decoupled):
-   * Tahap 1: Ekstraksi OCR Teks (Gemini dengan fallback Groq Qwen Vision)
-   * Tahap 2: Penilaian Teks Jawaban (MURNI menggunakan Groq Qwen Text)
+   * Tahap 1: Ekstraksi OCR Teks (Gemini -> Groq Qwen Vision -> Fallback OpenRouter Maverick)
+   * Tahap 2: Penilaian Teks Jawaban (Groq Qwen Text -> Fallback OpenRouter Llama Maverick)
    * 
-   * Keuntungan: Jika penilaian teks diulang (retry), Tahap 1 TIDAK PERNAH diulang,
-   * sehingga menghemat kuota token gambar (ITPM) 100%.
+   * Keuntungan: Jika penilaian teks diulang (retry) atau dialihkan ke OpenRouter,
+   * Tahap 1 TIDAK PERNAH diulang, sehingga menghemat kuota token gambar (ITPM) 100%.
    */
   async assessSubmission(
     pages: any[],
@@ -77,7 +78,7 @@ export class GroqProvider implements AIProvider {
     console.log(`[AI Assessment] Tahap 1 Selesai. Hasil ekstraksi: ${extractedText.length} karakter. Melanjutkan ke Tahap 2...`);
 
     // ----------------------------------------------------
-    // TAHAP 2: PENILAIAN TEKS JAWABAN (GROQ QWEN ONLY)
+    // TAHAP 2: PENILAIAN TEKS JAWABAN (GROQ QWEN -> FALLBACK OPENROUTER MAVERICK)
     // ----------------------------------------------------
     return await this._gradeExtractedText(extractedText, answerKey, questions);
   }
@@ -108,6 +109,29 @@ Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, 
 5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
 PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
 
+    // Persiapkan buffer gambar terkompresi terlebih dahulu
+    const compressedPages: { buffer: Buffer; base64: string; mimeType: string }[] = [];
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      let rawBuffer: Buffer;
+      if (page.storageKey.startsWith("http")) {
+        const res = await fetch(page.storageKey);
+        rawBuffer = Buffer.from(await res.arrayBuffer());
+      } else {
+        const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
+        rawBuffer = await readFile(filePath);
+      }
+      const rawMimeType = page.mimeType || "image/jpeg";
+      
+      // Kompresi gambar menjadi grayscale & max 1024px (hemat token 60-70%)
+      const { compressedBuffer, compressedBase64, compressedMimeType } = await compressBufferForOCR(rawBuffer, rawMimeType);
+      compressedPages.push({
+        buffer: compressedBuffer,
+        base64: compressedBase64,
+        mimeType: compressedMimeType
+      });
+    }
+
     // 1. Coba Gemini Vision terlebih dahulu (jika circuit breaker tidak aktif)
     const geminiKey = process.env.GEMINI_API_KEY;
     const isGeminiCoolingDown = Date.now() < geminiQuotaCooldownUntil;
@@ -118,21 +142,11 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
         const ai = new GoogleGenAI({ apiKey: geminiKey });
         const geminiContentParts: any[] = [visionPrompt];
 
-        for (let i = 0; i < pages.length; i++) {
-          const page = pages[i];
-          let buffer: Buffer;
-          if (page.storageKey.startsWith("http")) {
-            const res = await fetch(page.storageKey);
-            buffer = Buffer.from(await res.arrayBuffer());
-          } else {
-            const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
-            buffer = await readFile(filePath);
-          }
-          const mimeType = page.mimeType || "image/jpeg";
+        for (const cp of compressedPages) {
           geminiContentParts.push({
             inlineData: {
-              data: buffer.toString("base64"),
-              mimeType
+              data: cp.base64,
+              mimeType: cp.mimeType
             }
           });
         }
@@ -174,29 +188,19 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
         }
       }
     } else if (isGeminiCoolingDown) {
-      console.log(`[AI Vision] Gemini dalam masa cooldown kuota harian. Langsung menggunakan Groq Qwen Vision...`);
+      console.log(`[AI Vision] Gemini dalam masa cooldown kuota harian. Menggunakan Groq Qwen Vision...`);
     }
 
     // 2. Fallback ke Groq Vision (HANYA MODEL QWEN)
     console.log(`[Groq Fallback] Step 1: Mengekstrak teks menggunakan Groq Qwen Vision...`);
     
-    // Siapkan buffer gambar untuk Groq
+    // Siapkan payload gambar terkompresi untuk Groq
     const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i];
-      let buffer: Buffer;
-      if (page.storageKey.startsWith("http")) {
-        const res = await fetch(page.storageKey);
-        buffer = Buffer.from(await res.arrayBuffer());
-      } else {
-        const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
-        buffer = await readFile(filePath);
-      }
-      const mimeType = page.mimeType || "image/jpeg";
+    for (const cp of compressedPages) {
       visionContentParts.push({
         type: "image_url",
         image_url: {
-          url: `data:${mimeType};base64,${buffer.toString("base64")}`
+          url: `data:${cp.mimeType};base64,${cp.base64}`
         }
       });
     }
@@ -270,11 +274,31 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       }
     }
 
+    // 3. Fallback ke OpenRouter Vision (Llama Maverick) jika Gemini & Groq habis
+    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
+    if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
+      console.warn(`[AI Vision] Gemini & Groq Vision gagal. Mencoba Fallback ke OpenRouter Vision (Llama Maverick)...`);
+      try {
+        const { OpenRouterProvider } = await import("./OpenRouterProvider");
+        const openRouterProvider = new OpenRouterProvider();
+        // Menggunakan method internal OpenRouterProvider melalui assessSubmission atau extractVision
+        const orResult = await openRouterProvider.assessSubmission(pages, [], undefined, undefined);
+        // Jika OpenRouter assessSubmission berhasil langsung mengembalikan AIAssessmentResult,
+        // simpan teks sementara atau fallback langsung
+        console.log(`[AI Vision] Fallback OpenRouter Vision berhasil.`);
+        // Simpan hasil ekstraksi bila ada
+        return JSON.stringify(orResult);
+      } catch (orVisionErr: any) {
+        console.warn(`[AI Vision] OpenRouter Vision fallback gagal:`, orVisionErr?.message || orVisionErr);
+      }
+    }
+
     throw groqVisionError || new Error("Seluruh percobaan ekstraksi gambar (Vision OCR) gagal.");
   }
 
   /**
-   * Tahap 2: Menilai teks jawaban siswa menggunakan Groq MURNI DENGAN MODEL QWEN
+   * Tahap 2: Menilai teks jawaban siswa menggunakan Groq MURNI DENGAN MODEL QWEN.
+   * Jika Groq Qwen terkena rate limit (429) atau gagal, otomatis beralih ke Fallback OpenRouter (Llama Maverick).
    */
   private async _gradeExtractedText(
     extractedText: string,
@@ -365,8 +389,8 @@ Output WAJIB berupa JSON murni dengan struktur:
         const availableModels = await getDynamicModels(apiKey);
         // HANYA model Qwen untuk penilaian teks
         const qwenTextCandidates = [
-          "qwen/qwen3.8-27b",
           "qwen/qwen-2.5-72b",
+          "qwen/qwen3.8-27b",
           "qwen/qwen-2.5-32b",
           "qwen/qwen3.6-27b"
         ];
@@ -422,12 +446,32 @@ Output WAJIB berupa JSON murni dengan struktur:
       }
     }
 
-    throw lastGradingError || new Error("Seluruh percobaan penilaian teks dengan Groq Qwen gagal.");
+    // =========================================================================
+    // FALLBACK KE OPENROUTER (LLAMA MAVERICK):
+    // Jika seluruh model Groq Qwen rate-limited atau gagal, langsung gunakan
+    // OpenRouter untuk menilai teks yang sudah diekstrak tanpa mengulang OCR!
+    // =========================================================================
+    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
+    if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
+      console.warn(`[AI Grading] Groq Qwen gagal (${lastGradingError?.message || lastGradingError}). Mengalihkan ke Fallback OpenRouter (Llama Maverick)...`);
+      try {
+        const { OpenRouterProvider } = await import("./OpenRouterProvider");
+        const openRouterProvider = new OpenRouterProvider();
+        const fallbackResult = await openRouterProvider.gradeExtractedText(extractedText, answerKey, questions);
+        console.log(`[AI Grading] Fallback OpenRouter (Llama Maverick) BERHASIL! Total skor: ${fallbackResult.totalScore}`);
+        return fallbackResult;
+      } catch (openRouterErr: any) {
+        console.error(`[AI Grading] Fallback OpenRouter juga gagal:`, openRouterErr?.message || openRouterErr);
+      }
+    }
+
+    throw lastGradingError || new Error("Seluruh percobaan penilaian teks dengan Groq Qwen dan Fallback OpenRouter gagal.");
   }
 
   /**
    * Generate Kunci Jawaban dari dokumen/soal yang diunggah guru.
-   * KHUSUS: Menggunakan model Qwen murni pada Groq.
+   * Primary: Menggunakan model Qwen murni pada Groq.
+   * Fallback: Menggunakan OpenRouter jika Groq gagal.
    */
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
     let lastError: any = null;
@@ -466,9 +510,11 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
                 buffer = await readFile(filePath);
               }
               const mimeType = attachment.mimeType || "image/jpeg";
+              const { compressedBase64, compressedMimeType } = await compressBufferForOCR(buffer, mimeType);
+
               visionContentParts.push({
                 type: "image_url",
-                image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` },
+                image_url: { url: `data:${compressedMimeType};base64,${compressedBase64}` },
               });
             } catch (err) {
               console.warn(`[Groq] Gagal memuat attachment gambar: ${attachment.originalFileName}`, err);
@@ -500,8 +546,8 @@ Jangan ubah makna, jangan berikan jawaban. Cukup kembalikan hasil transkripsi te
 
         // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN QWEN TEXT
         const qwenTextCandidates = [
-          "qwen/qwen3.8-27b",
           "qwen/qwen-2.5-72b",
+          "qwen/qwen3.8-27b",
           "qwen/qwen-2.5-32b",
           "qwen/qwen3.6-27b"
         ];
@@ -626,6 +672,19 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
       }
     }
 
-    throw lastError || new Error("Gagal membuat kunci jawaban setelah mencoba seluruh kunci Groq.");
+    // Fallback ke OpenRouter jika Groq gagal membuat kunci jawaban
+    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
+    if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
+      console.warn(`[Groq] Gagal membuat kunci jawaban. Mencoba fallback ke OpenRouterProvider...`);
+      try {
+        const { OpenRouterProvider } = await import("./OpenRouterProvider");
+        const fallbackProvider = new OpenRouterProvider();
+        return await fallbackProvider.generateAnswerKey(taskText, rubrics, imageAttachments);
+      } catch (orErr) {
+        console.error(`[Groq] Fallback OpenRouter generateAnswerKey juga gagal:`, orErr);
+      }
+    }
+
+    throw lastError || new Error("Gagal membuat kunci jawaban setelah mencoba seluruh kunci Groq dan fallback OpenRouter.");
   }
 }

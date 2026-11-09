@@ -5,8 +5,9 @@ import { aiService } from "@/modules/ai/aiService";
  * Simple in-memory concurrency limiter.
  * Ensures at most MAX_CONCURRENT AI processing tasks run simultaneously.
  * Additional tasks are queued and processed in FIFO order.
+ * Set to 3 to prevent exhausting rate limits (ITPM/RPM) across AI providers.
  */
-const MAX_CONCURRENT = 100;
+const MAX_CONCURRENT = 3;
 let activeCount = 0;
 const waitQueue: Array<() => void> = [];
 

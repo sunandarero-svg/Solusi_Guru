@@ -1,7 +1,7 @@
 import sharp from "sharp";
 
 /**
- * Compress a base64 image for OCR to minimize AI token usage.
+ * Compress an image Buffer for OCR to minimize AI token usage.
  * 
  * Strategy:
  * - Resize to max 1024px (sufficient for OCR text recognition)
@@ -11,14 +11,12 @@ import sharp from "sharp";
  * Typical savings: 500KB+ image → ~50-80KB compressed
  * Token savings: ~60-70% fewer vision tokens
  */
-export async function compressImageForOCR(
-  base64Data: string, 
-  mimeType: string
-): Promise<{ compressedBase64: string; compressedMimeType: string; savings: string }> {
+export async function compressBufferForOCR(
+  inputBuffer: Buffer,
+  mimeType: string = "image/jpeg"
+): Promise<{ compressedBuffer: Buffer; compressedBase64: string; compressedMimeType: string; savings: string }> {
   try {
-    const inputBuffer = Buffer.from(base64Data, "base64");
     const originalSize = inputBuffer.length;
-
     const metadata = await sharp(inputBuffer).metadata();
     const originalWidth = metadata.width || 0;
     const originalHeight = metadata.height || 0;
@@ -56,17 +54,34 @@ export async function compressImageForOCR(
     console.log(`[OCR Compress] ${savings} | ${originalWidth}x${originalHeight} → max ${MAX_DIMENSION}px grayscale JPEG`);
 
     return {
+      compressedBuffer,
       compressedBase64,
       compressedMimeType: "image/jpeg",
       savings,
     };
   } catch (err) {
-    console.warn("[OCR Compress] Kompresi gagal, menggunakan gambar original:", err);
-    // Fallback: return original data unchanged
+    console.warn("[OCR Compress] Kompresi buffer gagal, menggunakan data original:", err);
     return {
-      compressedBase64: base64Data,
+      compressedBuffer: inputBuffer,
+      compressedBase64: inputBuffer.toString("base64"),
       compressedMimeType: mimeType,
       savings: "0% (fallback - kompresi gagal)",
     };
   }
+}
+
+/**
+ * Compress a base64 image for OCR to minimize AI token usage.
+ */
+export async function compressImageForOCR(
+  base64Data: string, 
+  mimeType: string
+): Promise<{ compressedBase64: string; compressedMimeType: string; savings: string }> {
+  const inputBuffer = Buffer.from(base64Data, "base64");
+  const res = await compressBufferForOCR(inputBuffer, mimeType);
+  return {
+    compressedBase64: res.compressedBase64,
+    compressedMimeType: res.compressedMimeType,
+    savings: res.savings,
+  };
 }

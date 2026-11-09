@@ -1,6 +1,7 @@
 import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
+import { compressBufferForOCR } from "./compressImageForOCR";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -41,11 +42,14 @@ export class OpenRouterProvider implements AIProvider {
         const filePath = path.join(process.cwd(), "public", page.storageKey.replace(/^\//, ""));
         buffer = await readFile(filePath);
       }
-      const mimeType = page.mimeType || "image/jpeg";
-      const base64Data = buffer.toString("base64");
+      const rawMimeType = page.mimeType || "image/jpeg";
+      
+      // Kompresi buffer agar menghemat token vision (60-70%)
+      const { compressedBase64, compressedMimeType } = await compressBufferForOCR(buffer, rawMimeType);
+
       visionContentParts.push({
         type: "image_url",
-        image_url: { url: `data:${mimeType};base64,${base64Data}` },
+        image_url: { url: `data:${compressedMimeType};base64,${compressedBase64}` },
       });
     }
 
@@ -78,7 +82,9 @@ export class OpenRouterProvider implements AIProvider {
 
   private async _executeTextWithFallback(apiKey: string, prompt: string, temperature: number, maxTokens: number): Promise<string> {
     const fallbackModels = [
+      "meta-llama/llama-4-maverick",
       "meta-llama/llama-4-scout",
+      "qwen/qwen-2.5-72b-instruct",
       "qwen/qwen3.8-27b:free",
       "google/gemma-4-31b-it:free",
       "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -135,41 +141,16 @@ export class OpenRouterProvider implements AIProvider {
     throw lastError || new Error("All fallback models failed.");
   }
 
-  async assessSubmission(
-    pages: any[],
-    rubrics: any[],
+  /**
+   * Menilai teks yang sudah diekstrak (Tahap 2) langsung dengan OpenRouter (Llama Maverick)
+   * tanpa perlu mengulang ekstraksi gambar Vision.
+   */
+  async gradeExtractedText(
+    extractedText: string,
     answerKey?: string,
     questions?: any[]
   ): Promise<AIAssessmentResult> {
     const apiKey = this.getApiKey();
-
-    // --- TAHAP 1: VISION (Ekstraksi Teks) ---
-    const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
-
-Patuhi aturan operasional ketat berikut:
-
-1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
-Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
-
-2. STRUKTUR & HIERARKI (MARKDOWN):
-Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:
-Gunakan huruf tebal (**teks**) untuk judul blok atau kategori (contoh: A. Pilihan Ganda, B. Isian).
-Gunakan penomoran (1, 2, 3) persis seperti urutan di dokumen.
-Jika ada teks yang diatur dalam dua kolom (seperti format nomor 1-5 di kiri dan 6-10 di kanan), susun agar tetap sejajar menggunakan spasi atau tabulasi yang rapi.
-
-3. TRANSKRIPSI VERBATIM (APA ADANYA):
-Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
-
-4. KELUARAN MURNI (TANPA BASA-BASI):
-Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, penjelasan, atau kalimat penutup.
-
-5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
-PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
-
-    const extractedText = await this._extractVision(visionPrompt, pages);
-
-    // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
-    // (Model selection is now handled by _executeTextWithFallback)
 
     let answerKeyInstruction = "";
     if (answerKey && answerKey.trim().length > 0) {
@@ -184,7 +165,7 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
           line += `, Kunci/Poin: ${q.correctAnswer}`;
         }
         return line;
-      }).join("\\n");
+      }).join("\n");
       questionsInstruction = `KONFIGURASI SOAL & BOBOT:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
     } else {
       questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
@@ -241,7 +222,7 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Scout] Step 2: Grading with fallback models...`);
+    console.log(`[OpenRouter Maverick] Step 2: Menilai teks tugas dengan OpenRouter...`);
     const responseText = await this._executeTextWithFallback(apiKey, textPrompt, 0.2, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -250,8 +231,43 @@ Output WAJIB berupa JSON murni dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Scout] Step 2 Complete. Assessment successful.`);
+    console.log(`[OpenRouter Maverick] Step 2 Selesai. Penilaian berhasil.`);
     return JSON.parse(cleanText) as AIAssessmentResult;
+  }
+
+  async assessSubmission(
+    pages: any[],
+    rubrics: any[],
+    answerKey?: string,
+    questions?: any[]
+  ): Promise<AIAssessmentResult> {
+    // --- TAHAP 1: VISION (Ekstraksi Teks) ---
+    const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
+
+Patuhi aturan operasional ketat berikut:
+
+1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
+Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
+
+2. STRUKTUR & HIERARKI (MARKDOWN):
+Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:
+Gunakan huruf tebal (**teks**) untuk judul blok atau kategori (contoh: A. Pilihan Ganda, B. Isian).
+Gunakan penomoran (1, 2, 3) persis seperti urutan di dokumen.
+Jika ada teks yang diatur dalam dua kolom (seperti format nomor 1-5 di kiri dan 6-10 di kanan), susun agar tetap sejajar menggunakan spasi atau tabulasi yang rapi.
+
+3. TRANSKRIPSI VERBATIM (APA ADANYA):
+Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
+
+4. KELUARAN MURNI (TANPA BASA-BASI):
+Hasilkan HANYA teks yang diekstrak. Dilarang keras menambahkan kalimat pembuka, penjelasan, atau kalimat penutup.
+
+5. WAJIB BAHASA INDONESIA PADA UMUMNYA:
+PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada umumnya. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.`;
+
+    const extractedText = await this._extractVision(visionPrompt, pages);
+
+    // --- TAHAP 2: TEXT ANALYSIS (Grading) ---
+    return await this.gradeExtractedText(extractedText, answerKey, questions);
   }
 
   async generateAnswerKey(taskText: string, rubrics: any[], imageAttachments?: any[]): Promise<any> {
@@ -288,8 +304,6 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
     }
 
     // TAHAP 2: GENERATE KUNCI JAWABAN DENGAN AI
-    // (Model selection is now handled by _executeTextWithFallback)
-    
     let combinedTaskText = taskText;
     if (extractedText) {
       combinedTaskText += `\n\n--- TEKS DARI LAMPIRAN GAMBAR ---\n${extractedText}`;
@@ -332,7 +346,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Scout] Step 2: Generating answer key with fallback models...`);
+    console.log(`[OpenRouter Maverick] Step 2: Generating answer key with fallback models...`);
     const responseText = await this._executeTextWithFallback(apiKey, prompt, 0.3, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -341,7 +355,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Scout] Step 2 Complete. Answer key generated successfully.`);
+    console.log(`[OpenRouter Maverick] Step 2 Selesai. Kunci jawaban berhasil dibuat.`);
     return JSON.parse(cleanText);
   }
 }
