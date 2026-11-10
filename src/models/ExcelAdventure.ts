@@ -9,6 +9,12 @@ export interface IExcelAdventureConfig extends Document {
   activeLevels: number[];
   instructions?: string;
   allowReplay: boolean;
+  // Fitur Penugasan Simulasi Ujian
+  isExamActive: boolean;
+  examAssignedClassIds: string[];
+  examAssignedClassNames: string[];
+  examDurationMinutes: number;
+  examKkm: number;
   updatedBy?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -27,6 +33,11 @@ const ExcelAdventureConfigSchema: Schema = new Schema(
     },
     instructions: { type: String, default: 'Selesaikan seluruh misi dan latihan spreadsheet sesuai petunjuk guru.' },
     allowReplay: { type: Boolean, default: true },
+    isExamActive: { type: Boolean, default: true },
+    examAssignedClassIds: { type: [String], default: [] },
+    examAssignedClassNames: { type: [String], default: [] },
+    examDurationMinutes: { type: Number, default: 90 },
+    examKkm: { type: Number, default: 75 },
     updatedBy: { type: String, default: 'Guru' }
   },
   {
@@ -48,6 +59,12 @@ export interface IExcelAdventureStudentResult extends Document {
   totalScore: number;
   badges: string[];
   lastResetAt?: Date;
+  examScore?: number;
+  examStars?: number;
+  examBadge?: string;
+  examPassed?: boolean;
+  examCompletedAt?: Date;
+  examDetails?: any;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,7 +79,13 @@ const ExcelAdventureStudentResultSchema: Schema = new Schema(
     levelScores: { type: Schema.Types.Mixed, default: {} },
     totalScore: { type: Number, default: 0 },
     badges: { type: [String], default: [] },
-    lastResetAt: { type: Date, default: null }
+    lastResetAt: { type: Date, default: null },
+    examScore: { type: Number },
+    examStars: { type: Number },
+    examBadge: { type: String },
+    examPassed: { type: Boolean },
+    examCompletedAt: { type: Date },
+    examDetails: { type: Schema.Types.Mixed }
   },
   {
     timestamps: true

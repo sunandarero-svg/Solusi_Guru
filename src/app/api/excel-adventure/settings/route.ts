@@ -149,6 +149,20 @@ export async function GET(req: NextRequest) {
           const isLocked = Boolean(config.isLocked);
           const isAssigned = isClassAssigned && !isLocked;
 
+          // Pengecekan Penugasan Simulasi Ujian
+          const examAssignedIds: string[] = config.examAssignedClassIds || [];
+          const examAssignedNames: string[] = (config.examAssignedClassNames || []).map((n: string) =>
+            n.toLowerCase().trim()
+          );
+          const isExamClassAssigned =
+            examAssignedIds.length === 0
+              ? isClassAssigned
+              : studentClassIds.some((id: string) => examAssignedIds.includes(id)) ||
+                studentClassNames.some((name: string) => examAssignedNames.includes(name.toLowerCase().trim()));
+
+          const isExamActive = config.isExamActive !== false && !isLocked;
+          const isExamAssigned = isExamClassAssigned && isExamActive;
+
           return NextResponse.json({
             success: true,
             isTeacher: false,
@@ -162,7 +176,13 @@ export async function GET(req: NextRequest) {
             activeLevels:
               config.activeLevels || [
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
-              ]
+              ],
+            // Pengaturan Simulasi Ujian untuk Siswa
+            isExamActive: config.isExamActive !== false,
+            isExamAssigned,
+            examAssignedClassNames: config.examAssignedClassNames || [],
+            examDurationMinutes: config.examDurationMinutes || 90,
+            examKkm: config.examKkm || 75
           });
         }
       }
@@ -234,6 +254,17 @@ export async function POST(req: NextRequest) {
     const assignedClasses = await Class.find({ _id: { $in: updatedAssignedIds } }).lean();
     const assignedClassNames = assignedClasses.map((c: any) => c.name);
 
+    // Ambil nama kelas penugasan ujian jika ada kelas ujian yang dipilih secara spesifik
+    const updatedExamAssignedIds: string[] =
+      body.examAssignedClassIds !== undefined
+        ? body.examAssignedClassIds
+        : (existingConfig?.examAssignedClassIds || []);
+    let examAssignedClassNames: string[] = [];
+    if (updatedExamAssignedIds.length > 0) {
+      const examClasses = await Class.find({ _id: { $in: updatedExamAssignedIds } }).lean();
+      examAssignedClassNames = examClasses.map((c: any) => c.name);
+    }
+
     const updatePayload = {
       isLocked: body.isLocked !== undefined ? Boolean(body.isLocked) : (existingConfig?.isLocked ?? false),
       lockMessage: body.lockMessage || existingConfig?.lockMessage || 'Game Simulasi Excel sedang dikunci oleh guru.',
@@ -250,6 +281,13 @@ export async function POST(req: NextRequest) {
           ? body.instructions
           : (existingConfig?.instructions || 'Selesaikan seluruh misi spreadsheet.'),
       allowReplay: body.allowReplay !== undefined ? Boolean(body.allowReplay) : true,
+      // Pengaturan Simulasi Ujian
+      isExamActive:
+        body.isExamActive !== undefined ? Boolean(body.isExamActive) : (existingConfig?.isExamActive ?? true),
+      examAssignedClassIds: updatedExamAssignedIds,
+      examAssignedClassNames: examAssignedClassNames,
+      examDurationMinutes: Number(body.examDurationMinutes) || existingConfig?.examDurationMinutes || 90,
+      examKkm: Number(body.examKkm) || existingConfig?.examKkm || 75,
       updatedBy: userName || 'Guru'
     };
 

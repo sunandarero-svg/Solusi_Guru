@@ -34,7 +34,9 @@ import {
   Save,
   Loader2,
   Maximize2,
-  Minimize2
+  Minimize2,
+  FileText,
+  CheckSquare
 } from 'lucide-react';
 
 import { LEVELS_DATA } from './data/levelsData';
@@ -57,6 +59,8 @@ import { ChartModal } from './components/Modals/ChartModal';
 import { ExportImportModal } from './components/Modals/ExportImportModal';
 import { SocraticTutorModal } from './components/Modals/SocraticTutorModal';
 import { ClassroomDuelModal } from './components/Modals/ClassroomDuelModal';
+import { ExamSimulationScreen } from './components/Exam/ExamSimulationScreen';
+import { ExamOverallResult } from './engine/examGrader';
 
 interface ExcelAdventureAppProps {
   initialMode?: 'STUDENT' | 'TEACHER';
@@ -85,6 +89,7 @@ export default function ExcelAdventureApp({
     | 'ACHIEVEMENTS'
     | 'TEACHER_DASHBOARD'
     | 'SETTINGS'
+    | 'EXAM'
   >('SPLASH');
 
   const [appMode, setAppMode] = useState<'STUDENT' | 'TEACHER'>(initialMode);
@@ -234,7 +239,7 @@ export default function ExcelAdventureApp({
   const [activeChart, setActiveChart] = useState<ChartConfig | null>(null);
 
   // State Khusus Mode Guru IFP
-  const [teacherTab, setTeacherTab] = useState<'DEMO' | 'FLASHCARD' | 'CHALLENGE' | 'RECAP' | 'ASSIGNMENT'>('DEMO');
+  const [teacherTab, setTeacherTab] = useState<'DEMO' | 'FLASHCARD' | 'CHALLENGE' | 'RECAP' | 'ASSIGNMENT' | 'EXAM'>('DEMO');
   const [classTimerSec, setClassTimerSec] = useState(60);
   const [classTimerRunning, setClassTimerRunning] = useState(false);
   const [revealAnswer, setRevealAnswer] = useState(false);
@@ -253,6 +258,14 @@ export default function ExcelAdventureApp({
   const [teacherInstructions, setTeacherInstructions] = useState('');
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [assignmentNotice, setAssignmentNotice] = useState<string | null>(null);
+
+  // State Simulasi Ujian Sumatif PT Nusantara Niaga
+  const [isExamActive, setIsExamActive] = useState(true);
+  const [isExamAssigned, setIsExamAssigned] = useState(true);
+  const [examAssignedClassIds, setExamAssignedClassIds] = useState<string[]>([]);
+  const [examAssignedClassNames, setExamAssignedClassNames] = useState<string[]>([]);
+  const [examDurationMinutes, setExamDurationMinutes] = useState(90);
+  const [examKkm, setExamKkm] = useState(75);
 
   // Rekap & Reset Siswa di Mode Guru
   const [excelStudentResults, setExcelStudentResults] = useState<any[]>([]);
@@ -293,6 +306,12 @@ export default function ExcelAdventureApp({
             if (data.config.instructions) setTeacherInstructions(data.config.instructions);
             setTeacherIsLocked(Boolean(data.config.isLocked));
             if (data.config.lockMessage) setLockMessage(data.config.lockMessage);
+            // Pengaturan Simulasi Ujian
+            if (data.config.isExamActive !== undefined) setIsExamActive(Boolean(data.config.isExamActive));
+            if (data.config.examAssignedClassIds) setExamAssignedClassIds(data.config.examAssignedClassIds);
+            if (data.config.examAssignedClassNames) setExamAssignedClassNames(data.config.examAssignedClassNames);
+            if (data.config.examDurationMinutes) setExamDurationMinutes(data.config.examDurationMinutes);
+            if (data.config.examKkm) setExamKkm(data.config.examKkm);
           }
           fetchTeacherStudentResults();
         } else {
@@ -304,6 +323,11 @@ export default function ExcelAdventureApp({
             setPlayerClass(data.studentClassName);
           }
           if (data.kkmScore) setKkmScore(data.kkmScore);
+          // Pengaturan Simulasi Ujian Siswa
+          if (data.isExamAssigned !== undefined) setIsExamAssigned(Boolean(data.isExamAssigned));
+          if (data.isExamActive !== undefined) setIsExamActive(Boolean(data.isExamActive));
+          if (data.examDurationMinutes) setExamDurationMinutes(data.examDurationMinutes);
+          if (data.examKkm) setExamKkm(data.examKkm);
 
           // Cek progres siswa di database dan deteksi apakah ada reset dari guru
           fetch('/api/excel-adventure/results')
@@ -367,6 +391,10 @@ export default function ExcelAdventureApp({
           lockMessage,
           kkmScore,
           instructions: teacherInstructions,
+          isExamActive,
+          examAssignedClassIds,
+          examDurationMinutes,
+          examKkm,
           userRole: isTeacherUser ? 'TEACHER' : userRole,
           userName: playerName
         })
@@ -384,6 +412,49 @@ export default function ExcelAdventureApp({
       alert('Terjadi kesalahan jaringan saat menyimpan penugasan.');
     } finally {
       setAssignmentSaving(false);
+    }
+  };
+
+  // Helper Penugasan Kelas Ujian
+  const handleToggleExamClass = (classId: string) => {
+    if (examAssignedClassIds.includes(classId)) {
+      setExamAssignedClassIds(examAssignedClassIds.filter((id) => id !== classId));
+    } else {
+      setExamAssignedClassIds([...examAssignedClassIds, classId]);
+    }
+  };
+
+  const handleSelectAllExamClasses = () => {
+    if (examAssignedClassIds.length === availableTeacherClasses.length) {
+      setExamAssignedClassIds([]);
+    } else {
+      setExamAssignedClassIds(availableTeacherClasses.map((c) => c.id));
+    }
+  };
+
+  // Handler Penyimpanan Hasil Simulasi Ujian Siswa
+  const handleSaveExamResult = async (res: ExamOverallResult) => {
+    try {
+      await fetch('/api/excel-adventure/results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerName,
+          className: playerClass,
+          examScore: res.totalScore,
+          examStars: res.stars,
+          examBadge: res.badgeName,
+          examPassed: res.isPassed,
+          examDetails: {
+            partIScore: res.pgScore,
+            partIIScore: res.tfScore,
+            partIIIScore: res.essayScore
+          }
+        })
+      });
+      fetchAssignmentSettings();
+    } catch (err) {
+      console.error('Failed to submit exam result to server', err);
     }
   };
 
@@ -1115,6 +1186,35 @@ export default function ExcelAdventureApp({
               <span className="hidden md:inline">Lencana</span>
             </button>
 
+            {/* Tombol Simulasi Ujian Sumatif */}
+            <button
+              type="button"
+              onClick={() => {
+                playSound('click', soundEnabled);
+                if (!isTeacherUser && (!isExamActive || !isExamAssigned)) {
+                  alert(
+                    !isExamActive
+                      ? '🔒 Simulasi Ujian sedang dinonaktifkan oleh guru pengampu.'
+                      : `🔒 Simulasi Ujian belum ditugaskan untuk kelas Anda (${studentAssignedClassName || playerClass}).\n\nSilakan hubungi guru Anda untuk membuka akses ujian.`
+                  );
+                  return;
+                }
+                setScreen('EXAM');
+              }}
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 transition border shadow-md ${
+                screen === 'EXAM'
+                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-indigo-400 shadow-indigo-500/20'
+                  : 'bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border-indigo-700/60'
+              }`}
+              title="Buka Simulasi Ujian Sumatif PT Nusantara Niaga (25 Soal)"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-indigo-300" />
+              <span>Simulasi Ujian</span>
+              <span className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] bg-indigo-500 text-white rounded-full font-bold">
+                25 Soal
+              </span>
+            </button>
+
             {/* Tombol Full Screen Lanskap */}
             <button
               type="button"
@@ -1407,12 +1507,99 @@ export default function ExcelAdventureApp({
                   )}
                 </div>
               </div>
+
+              {/* CARD UTAMA: SIMULASI UJIAN SUMATIF PT NUSANTARA NIAGA */}
+              <div className="mt-8 bg-gradient-to-r from-indigo-950/90 via-slate-900 to-purple-950/90 border-2 border-indigo-500/50 hover:border-indigo-400 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  <div className="space-y-3 max-w-2xl">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-black uppercase tracking-wider border border-indigo-500/40 flex items-center gap-1.5 shadow-sm">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-300" /> Evaluasi Sumatif Terapan
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 text-xs font-bold border border-slate-700">
+                        25 Soal • {examDurationMinutes} Menit • KKM {examKkm}
+                      </span>
+                      {!isTeacherUser && (
+                        !isExamActive ? (
+                          <span className="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/40 flex items-center gap-1">
+                            <Lock className="w-3.5 h-3.5" /> Dinonaktifkan Guru
+                          </span>
+                        ) : isExamAssigned ? (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/40 flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> Siap Dikerjakan
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/40 flex items-center gap-1">
+                            <Lock className="w-3.5 h-3.5" /> Belum Ditugaskan ke Kelas Anda
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+                        Simulasi Ujian: Junior Data Analyst PT Nusantara Niaga 🏆
+                      </h3>
+                      <p className="text-slate-300 text-xs sm:text-sm mt-1.5 leading-relaxed">
+                        Uji kompetensi analisis data Anda dalam menyelesaikan krisis data riil: 10 Soal Pilihan Ganda (20 poin), 10 Benar/Salah (20 poin), dan 5 Kasus Terapan Spreadsheet (60 poin) dengan tampilan Split-View Soal dan Live Table Interaktif!
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 pt-1">
+                      <span className="flex items-center gap-1 text-slate-300">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Split-View Soal & Live Table
+                      </span>
+                      <span className="flex items-center gap-1 text-slate-300">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Evaluator Rumus Cerdas & Kunci Jawaban
+                      </span>
+                      <span className="flex items-center gap-1 text-slate-300">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Review & Rekomendasi Belajar
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playSound('click', soundEnabled);
+                        if (!isTeacherUser && (!isExamActive || !isExamAssigned)) {
+                          alert(
+                            !isExamActive
+                              ? '🔒 Simulasi Ujian sedang dinonaktifkan oleh guru pengampu.'
+                              : `🔒 Simulasi Ujian belum ditugaskan untuk kelas Anda (${studentAssignedClassName || playerClass}).\n\nSilakan hubungi guru Anda.`
+                          );
+                          return;
+                        }
+                        setScreen('EXAM');
+                      }}
+                      className="min-h-[54px] px-8 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-400 hover:to-pink-500 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-xl shadow-indigo-600/30 transition transform hover:scale-[1.02] active:scale-95"
+                    >
+                      <Play className="w-5 h-5 fill-white" />
+                      <span>{isTeacherUser ? 'Mulai Simulasi / Demo IFP' : 'Mulai Simulasi Ujian'}</span>
+                    </button>
+                    {isTeacherUser && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playSound('click', soundEnabled);
+                          setAppMode('TEACHER');
+                          setTeacherTab('EXAM');
+                          setScreen('TEACHER_DASHBOARD');
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-bold border border-indigo-500/30 flex items-center justify-center gap-2 transition"
+                      >
+                        <Settings className="w-4 h-4" /> Kelola Penugasan Ujian
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* GATEKEEPER: TAMPILKAN LAYAR TERKUNCI JIKA SISWA BELUM DITUGASKAN OLEH GURU ATAU GAME DIKUNCI GURU */}
-        {!isTeacherUser && !assignmentLoading && (!isStudentAssigned || isGameLocked) && screen !== 'HOME' && (
+        {!isTeacherUser && !assignmentLoading && (!isStudentAssigned || isGameLocked) && screen !== 'HOME' && screen !== 'EXAM' && (
           <div className="max-w-xl mx-auto p-4 sm:p-8 text-center animate-in fade-in duration-300">
             <div className={`bg-slate-900 border-2 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-5 ${
               isGameLocked ? 'border-rose-500/50' : 'border-amber-500/50'
@@ -1624,6 +1811,64 @@ export default function ExcelAdventureApp({
                   </div>
                 );
               })}
+            </div>
+
+            {/* ARENA MISI AKHIR: SIMULASI UJIAN SUMATIF PT NUSANTARA NIAGA */}
+            <div className="mt-8 bg-gradient-to-r from-indigo-950/90 via-slate-900 to-purple-950/90 border-2 border-indigo-500/50 hover:border-indigo-400 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow">
+                      👑 MISI AKHIR: BOSS EVALUATION ARENA
+                    </span>
+                    <span className="text-xs px-2.5 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/40 font-bold">
+                      Evaluasi Sumatif 25 Soal
+                    </span>
+                    <span className="text-xs px-2.5 py-0.5 bg-slate-800 text-slate-300 rounded-full border border-slate-700 font-bold">
+                      ⏱️ {examDurationMinutes} Menit • KKM {examKkm}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-black text-white">
+                    Simulasi Ujian: Penyelamatan Data PT Nusantara Niaga
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
+                    Buktikan kepiawaian Anda mengolah data spreadsheet! Ujian terdiri dari 10 Pilihan Ganda (20 poin), 10 Benar/Salah (20 poin), dan 5 Studi Kasus Terapan (60 poin) langsung di Live Spreadsheet PT Nusantara Niaga.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
+                    <span className="flex items-center gap-1.5 text-slate-300">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" /> Tampilan Split-View Soal & Live Table
+                    </span>
+                    <span className="flex items-center gap-1.5 text-slate-300">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" /> Formula Tester Interaktif
+                    </span>
+                    <span className="flex items-center gap-1.5 text-slate-300">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" /> Rekomendasi Modul Pasca Ujian
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSound('click', soundEnabled);
+                    if (!isTeacherUser && (!isExamActive || !isExamAssigned)) {
+                      alert(
+                        !isExamActive
+                          ? '🔒 Simulasi Ujian sedang dinonaktifkan oleh guru pengampu.'
+                          : `🔒 Simulasi Ujian belum ditugaskan untuk kelas Anda (${studentAssignedClassName || playerClass}).\n\nSilakan hubungi guru Anda.`
+                      );
+                      return;
+                    }
+                    setScreen('EXAM');
+                  }}
+                  className="px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-400 hover:to-pink-500 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-indigo-600/30 shrink-0 transform hover:scale-105 active:scale-95 transition"
+                >
+                  <FileSpreadsheet className="w-5 h-5 text-indigo-100" />
+                  <span>{isTeacherUser ? 'Buka Simulasi / Demo IFP' : 'Masuk Arena Ujian'}</span>
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2055,7 +2300,7 @@ export default function ExcelAdventureApp({
               </div>
 
               {/* Sub-menu Guru */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mt-4 pt-4 border-t border-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mt-4 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setTeacherTab('DEMO')}
@@ -2093,13 +2338,24 @@ export default function ExcelAdventureApp({
                 <button
                   type="button"
                   onClick={() => setTeacherTab('ASSIGNMENT')}
-                  className={`min-h-[50px] px-3.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 col-span-2 sm:col-span-1 border ${
+                  className={`min-h-[50px] px-3.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 border ${
                     teacherTab === 'ASSIGNMENT'
                       ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md'
                       : 'bg-slate-800 text-amber-300 border-amber-500/30 hover:bg-slate-700'
                   }`}
                 >
-                  <Users className="w-4 h-4" /> E. 🎯 Penugasan Kelas
+                  <Users className="w-4 h-4" /> E. Penugasan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeacherTab('EXAM')}
+                  className={`min-h-[50px] px-3.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 border ${
+                    teacherTab === 'EXAM'
+                      ? 'bg-indigo-500 text-white border-indigo-400 shadow-md'
+                      : 'bg-slate-800 text-indigo-300 border-indigo-500/30 hover:bg-slate-700'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> F. Simulasi Ujian
                 </button>
               </div>
             </div>
@@ -2484,6 +2740,243 @@ export default function ExcelAdventureApp({
                 </div>
               </div>
             )}
+
+            {/* TAB F: SIMULASI UJIAN SUMATIF MODE GURU & IFP */}
+            {teacherTab === 'EXAM' && (
+              <div className="bg-slate-900 border-2 border-indigo-500/40 rounded-3xl p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                  <div>
+                    <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-black uppercase tracking-wider border border-indigo-500/30">
+                      Evaluasi Sumatif • PT Nusantara Niaga
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
+                      Pusat Kendali & Penugasan Simulasi Ujian
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                      Atur aktivasi ujian untuk siswa, tentukan kelas penerima penugasan, durasi waktu, KKM, serta jalankan demonstrasi langsung di Smartboard/IFP.
+                    </p>
+                  </div>
+
+                  {assignmentNotice && (
+                    <div className="px-4 py-2 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs font-bold animate-in fade-in">
+                      {assignmentNotice}
+                    </div>
+                  )}
+                </div>
+
+                {/* Banner Launch IFP Demo */}
+                <div className="bg-gradient-to-r from-indigo-950 via-slate-950 to-purple-950 border border-indigo-500/40 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-black text-white flex items-center gap-2">
+                      <Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                      Pratinjau Layar Penuh Simulasi Ujian (Mode Guru / IFP)
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1">
+                      Buka tampilan ujian siswa dengan Split-View lengkap (25 Soal + Live Table PT Nusantara Niaga) untuk demonstrasi kelas atau pembahasan bersama di SmartBoard.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playSound('click', soundEnabled);
+                      setScreen('EXAM');
+                    }}
+                    className="min-h-[48px] px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 shrink-0"
+                  >
+                    <Play className="w-4 h-4 fill-white" />
+                    <span>Buka Ujian di IFP Sekarang</span>
+                  </button>
+                </div>
+
+                {/* Pengaturan Status Ujian Siswa */}
+                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl border ${isExamActive ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'}`}>
+                        {isExamActive ? <CheckCircle className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-black text-white">Status Akses Simulasi Ujian Siswa</h4>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${
+                            isExamActive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          }`}>
+                            {isExamActive ? '✓ Ujian Aktif' : '🔒 Ujian Dinonaktifkan'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Aktifkan agar tombol ujian dapat dibuka oleh siswa pada kelas yang ditugaskan.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsExamActive(!isExamActive)}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 shadow ${
+                        isExamActive
+                          ? 'bg-rose-600 hover:bg-rose-500 text-white'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                      }`}
+                    >
+                      {isExamActive ? <Lock className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                      <span>{isExamActive ? 'Nonaktifkan Ujian' : 'Aktifkan Ujian'}</span>
+                    </button>
+                  </div>
+
+                  {/* Durasi & KKM */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                        ⏱️ Durasi Pengerjaan Ujian (Menit):
+                      </label>
+                      <input
+                        type="number"
+                        min={15}
+                        max={180}
+                        value={examDurationMinutes}
+                        onChange={(e) => setExamDurationMinutes(Number(e.target.value) || 90)}
+                        className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-bold focus:border-indigo-400 focus:outline-none"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Standar: 90 Menit untuk 25 soal. Timer otomatis menghitung mundur.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                        🎯 Standar KKM Kelulusan (Nilai):
+                      </label>
+                      <input
+                        type="number"
+                        min={50}
+                        max={100}
+                        value={examKkm}
+                        onChange={(e) => setExamKkm(Number(e.target.value) || 75)}
+                        className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-bold focus:border-indigo-400 focus:outline-none"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Siswa memperoleh lencana kelulusan jika nilai total &ge; KKM ini.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Penugasan Kelas Khusus Ujian */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-300">
+                        Pilih Kelas Khusus yang Ditugaskan Simulasi Ujian:
+                      </label>
+                      <p className="text-[11px] text-slate-400">
+                        {examAssignedClassIds.length === 0
+                          ? '(Otomatis berlaku untuk SEMUA kelas yang ditugaskan pada game)'
+                          : `(Ditugaskan khusus untuk ${examAssignedClassIds.length} kelas terpilih)`}
+                      </p>
+                    </div>
+                    {availableTeacherClasses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleSelectAllExamClasses}
+                        className="text-xs text-indigo-400 hover:text-indigo-300 font-bold"
+                      >
+                        Pilih / Batal Semua Kelas
+                      </button>
+                    )}
+                  </div>
+
+                  {availableTeacherClasses.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 text-center text-xs text-slate-400">
+                      Tidak ada kelas yang terhubung dengan akun guru Anda.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {availableTeacherClasses.map((cls) => {
+                        const isChecked = examAssignedClassIds.includes(cls.id);
+                        return (
+                          <button
+                            key={cls.id}
+                            type="button"
+                            onClick={() => handleToggleExamClass(cls.id)}
+                            className={`p-4 rounded-2xl border text-left text-xs font-bold transition flex items-center justify-between ${
+                              isChecked
+                                ? 'bg-indigo-950/70 border-indigo-400 text-indigo-200 shadow-md scale-[1.02]'
+                                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                            }`}
+                          >
+                            <span>{cls.name}</span>
+                            <span
+                              className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs font-black ${
+                                isChecked ? 'bg-indigo-500 text-white' : 'border border-slate-500'
+                              }`}
+                            >
+                              {isChecked ? '✓' : ''}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Struktur Kisi-Kisi Ujian */}
+                <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-400" /> Komposisi & Struktur 25 Soal Ujian
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                      <div className="text-indigo-400 font-black">Bagian I: Pilihan Ganda</div>
+                      <div className="text-white font-bold mt-1">10 Soal (Bobot: 20 Poin)</div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Konsep dasar data, COUNT vs COUNTA, SUMIFS, referensi absolut, VLOOKUP, INDEX-MATCH, Chart.
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                      <div className="text-cyan-400 font-black">Bagian II: Benar / Salah</div>
+                      <div className="text-white font-bold mt-1">10 Soal (Bobot: 20 Poin)</div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Evaluasi logika IF, urutan matematika, wildcard COUNTIF, pembagian kolom, pesan #REF! & #N/A.
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                      <div className="text-emerald-400 font-black">Bagian III: Studi Kasus Terapan</div>
+                      <div className="text-white font-bold mt-1">5 Soal Kasus (Bobot: 60 Poin)</div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Perhitungan omzet Bali Laptop, predikat realisasi target, VLOOKUP Bandung, COUNTIF, dan analisis bisnis.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tombol Simpan */}
+                <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                  <div className="text-xs text-slate-400">
+                    Pengaturan akan langsung tersinkronisasi ke seluruh akun siswa yang terhubung.
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={assignmentSaving}
+                    onClick={handleSaveTeacherAssignment}
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 disabled:opacity-50 text-white font-black text-xs flex items-center gap-2 shadow-lg transition transform active:scale-95"
+                  >
+                    {assignmentSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Menyimpan...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Simpan Pengaturan Ujian</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2530,6 +3023,21 @@ export default function ExcelAdventureApp({
               </div>
             </div>
           </div>
+        )}
+
+        {/* SIMULASI UJIAN SUMATIF PT NUSANTARA NIAGA */}
+        {screen === 'EXAM' && (
+          <ExamSimulationScreen
+            playerName={playerName}
+            playerClass={playerClass}
+            isTeacherUser={isTeacherUser}
+            kkmScore={examKkm}
+            onExit={() => {
+              playSound('click', soundEnabled);
+              setScreen(appMode === 'TEACHER' ? 'TEACHER_DASHBOARD' : 'MAP');
+            }}
+            onSaveResult={handleSaveExamResult}
+          />
         )}
       </main>
 

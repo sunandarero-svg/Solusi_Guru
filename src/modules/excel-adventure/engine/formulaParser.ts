@@ -1,7 +1,7 @@
 import { GridData, CellStyle } from '../types';
 
-export const COLS = ['A', 'B', 'C', 'D', 'E'];
-export const ROWS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+export const COLS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+export const ROWS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
 // Mengurai rentang sel seperti "B2:B6" atau "A1:C3" menjadi array sel ["B2", "B3", "B4", "B5", "B6"]
 export const expandRange = (rangeStr: string): string[] => {
@@ -63,11 +63,11 @@ export const evaluateSimpleArithmetic = (
   const cleanExpr = expr.replace(/\s+/g, '');
 
   // Validasi karakter ilegal
-  if (/[^A-E0-9.+\-*/()$^]/i.test(cleanExpr)) {
+  if (/[^A-L0-9.+\-*/()$^]/i.test(cleanExpr)) {
     return { error: '#NAME? (Periksa penulisan rumus)' };
   }
 
-  const tokenRegex = /(\$?[A-E]\$?(?:10|[1-9]))|(\d+(?:\.\d+)?)|([+\-*/()^])/gi;
+  const tokenRegex = /(\$?[A-L]\$?(?:[1-9]\d?))|(\d+(?:\.\d+)?)|([+\-*/()^])/gi;
   const tokens: { type: 'num' | 'op'; value: any }[] = [];
   let match: RegExpExecArray | null;
 
@@ -202,7 +202,7 @@ export const evaluateFormula = (
       }
 
       const condMatch = args[0].match(
-        /^(\$?[A-E]\$?(?:10|[1-9]))\s*(>=|<=|<>|>|<|=)\s*(\d+(?:\.\d+)?|".*?")$/i
+        /^(\$?[A-L]\$?(?:[1-9]\d?))\s*(>=|<=|<>|>|<|=)\s*(\d+(?:\.\d+)?|".*?")$/i
       );
       if (!condMatch) {
         return { error: '#ERROR! Syarat IF tidak valid (contoh: B2>=75)' };
@@ -363,7 +363,7 @@ export const evaluateFormula = (
       }
       const lookupValRaw = args[0].replace(/^["']|["']$/g, '');
       const lookupVal =
-        lookupValRaw.match(/^[A-E]\d+$/i)
+        lookupValRaw.match(/^[A-L]\d+$/i)
           ? String(getComputedCellValue(lookupValRaw, grid, new Set(visited)))
           : lookupValRaw;
 
@@ -398,12 +398,12 @@ export const evaluateFormula = (
       return { error: '#N/A! (Nilai tidak ditemukan)' };
     }
 
-    // 5. Fungsi Teks: CONCAT, UPPER, LOWER, LEFT, RIGHT
+    // 5. Fungsi Teks: CONCAT, UPPER, LOWER, LEFT, RIGHT, MID, VALUE
     if (funcName === 'CONCAT' || funcName === 'CONCATENATE') {
       const combined = args
         .map((a) => {
           const clean = a.replace(/^["']|["']$/g, '');
-          if (/^[A-E]\d+$/i.test(a)) {
+          if (/^[A-L]\d+$/i.test(a)) {
             return String(getComputedCellValue(a, grid, new Set(visited)));
           }
           return clean;
@@ -414,7 +414,7 @@ export const evaluateFormula = (
 
     if (funcName === 'UPPER') {
       const target = args[0] ? args[0].replace(/^["']|["']$/g, '') : '';
-      const val = /^[A-E]\d+$/i.test(target)
+      const val = /^[A-L]\d+$/i.test(target)
         ? String(getComputedCellValue(target, grid, new Set(visited)))
         : target;
       return { result: val.toUpperCase() };
@@ -422,7 +422,7 @@ export const evaluateFormula = (
 
     if (funcName === 'LOWER') {
       const target = args[0] ? args[0].replace(/^["']|["']$/g, '') : '';
-      const val = /^[A-E]\d+$/i.test(target)
+      const val = /^[A-L]\d+$/i.test(target)
         ? String(getComputedCellValue(target, grid, new Set(visited)))
         : target;
       return { result: val.toLowerCase() };
@@ -431,7 +431,7 @@ export const evaluateFormula = (
     if (funcName === 'LEFT') {
       const target = args[0] ? args[0].replace(/^["']|["']$/g, '') : '';
       const num = args[1] ? parseInt(args[1], 10) : 1;
-      const val = /^[A-E]\d+$/i.test(target)
+      const val = /^[A-L]\d+$/i.test(target)
         ? String(getComputedCellValue(target, grid, new Set(visited)))
         : target;
       return { result: val.slice(0, num) };
@@ -440,17 +440,37 @@ export const evaluateFormula = (
     if (funcName === 'RIGHT') {
       const target = args[0] ? args[0].replace(/^["']|["']$/g, '') : '';
       const num = args[1] ? parseInt(args[1], 10) : 1;
-      const val = /^[A-E]\d+$/i.test(target)
+      const val = /^[A-L]\d+$/i.test(target)
         ? String(getComputedCellValue(target, grid, new Set(visited)))
         : target;
       return { result: val.slice(-num) };
+    }
+
+    if (funcName === 'MID') {
+      const target = args[0] ? args[0].replace(/^["']|["']$/g, '') : '';
+      const start = args[1] ? parseInt(args[1], 10) : 1;
+      const num = args[2] ? parseInt(args[2], 10) : 1;
+      const val = /^[A-L]\d+$/i.test(target)
+        ? String(getComputedCellValue(target, grid, new Set(visited)))
+        : target;
+      return { result: val.substring(Math.max(0, start - 1), Math.max(0, start - 1) + num) };
+    }
+
+    if (funcName === 'VALUE') {
+      const target = args[0] ? args[0].replace(/^["']|["']$/g, '') : '';
+      const val = /^[A-L]\d+$/i.test(target)
+        ? String(getComputedCellValue(target, grid, new Set(visited)))
+        : target;
+      const num = Number(String(val).replace(/\s+/g, ''));
+      if (isNaN(num)) return { error: '#VALUE! Bukan angka numerik' };
+      return { result: num };
     }
 
     // 5b. Fungsi Matematika Presisi: ROUND, ROUNDUP, ROUNDDOWN, POWER
     if (funcName === 'ROUND' || funcName === 'ROUNDUP' || funcName === 'ROUNDDOWN') {
       if (args.length < 1) return { error: '#ERROR! Format: =ROUND(angka, [digit])' };
       const rawTarget = args[0].replace(/^["']|["']$/g, '');
-      const val = /^[A-E]\d+$/i.test(rawTarget)
+      const val = /^[A-L]\d+$/i.test(rawTarget)
         ? Number(getComputedCellValue(rawTarget, grid, new Set(visited)))
         : Number(rawTarget);
       const digits = args[1] ? parseInt(args[1], 10) : 0;
@@ -471,10 +491,10 @@ export const evaluateFormula = (
       if (args.length !== 2) return { error: '#ERROR! Format: =POWER(angka, pangkat)' };
       const baseRaw = args[0].replace(/^["']|["']$/g, '');
       const expRaw = args[1].replace(/^["']|["']$/g, '');
-      const baseVal = /^[A-E]\d+$/i.test(baseRaw)
+      const baseVal = /^[A-L]\d+$/i.test(baseRaw)
         ? Number(getComputedCellValue(baseRaw, grid, new Set(visited)))
         : Number(baseRaw);
-      const expVal = /^[A-E]\d+$/i.test(expRaw)
+      const expVal = /^[A-L]\d+$/i.test(expRaw)
         ? Number(getComputedCellValue(expRaw, grid, new Set(visited)))
         : Number(expRaw);
       if (isNaN(baseVal) || isNaN(expVal)) return { error: '#VALUE! Bukan angka' };

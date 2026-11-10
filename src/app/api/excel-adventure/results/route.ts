@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       ...(Array.isArray(body.unlockedLevels) ? body.unlockedLevels : [1])
     );
 
-    const updatePayload = {
+    const updatePayload: any = {
       studentId,
       studentName: studentName.trim(),
       className: className.trim(),
@@ -103,6 +103,21 @@ export async function POST(req: NextRequest) {
       totalScore: Number(body.totalScore) || 0,
       badges: body.badges || []
     };
+
+    // Jika mengirimkan hasil ujian evaluasi sumatif
+    if (body.examResult) {
+      updatePayload.examScore = Number(body.examResult.totalScore) || 0;
+      updatePayload.examStars = Number(body.examResult.stars) || 1;
+      updatePayload.examBadge = body.examResult.badgeName || 'Junior Data Analyst';
+      updatePayload.examPassed = Boolean(body.examResult.isPassed);
+      updatePayload.examCompletedAt = new Date();
+      updatePayload.examDetails = {
+        pgScore: body.examResult.pgScore,
+        tfScore: body.examResult.tfScore,
+        essayScore: body.examResult.essayScore,
+        evaluatedQuestionsCount: body.examResult.evaluatedQuestions?.length || 0
+      };
+    }
 
     const filter: any = studentId
       ? { $or: [{ studentId }, { studentName: studentName.trim(), className: className.trim() }] }
