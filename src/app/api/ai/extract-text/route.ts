@@ -122,13 +122,14 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
         console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Gemini fallback: ${fallbackModel1}`);
       } catch (geminiError: any) {
-        console.warn("[Extract Text API] Gemini juga gagal, mencoba fallback ke OpenRouter Llama 4 Maverick...", geminiError?.message || geminiError);
+        console.warn("[Extract Text API] Gemini juga gagal, mencoba fallback ke OpenRouter (Qwen 3.8 27B Free)...", geminiError?.message || geminiError);
 
-        // 3. FALLBACK 2: OpenRouter (Llama 4 Maverick)
+        // 3. FALLBACK 2: OpenRouter (qwen/qwen3.8-27b:free)
         const openRouterApiKey = process.env.OPENROUTER_API_KEY;
         if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
-        const fallbackModel2 = "meta-llama/llama-4-maverick";
+        const rawOrModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
+        const fallbackModel2 = rawOrModel.includes("/") ? rawOrModel : `qwen/${rawOrModel}`;
         console.log(`[Extract Text API] Memanggil model (Fallback 2 - OpenRouter): ${fallbackModel2}`);
 
         const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {

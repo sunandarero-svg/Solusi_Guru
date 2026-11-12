@@ -6,7 +6,7 @@ import { compressBufferForOCR } from "./compressImageForOCR";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export class OpenRouterProvider implements AIProvider {
-  readonly providerName = "OpenRouter-MaverickScout";
+  readonly providerName = "OpenRouter-Qwen3.8-27b";
 
   private getApiKey(): string {
     const key = process.env.OPENROUTER_API_KEY;
@@ -26,7 +26,8 @@ export class OpenRouterProvider implements AIProvider {
 
   private async _extractVision(visionPrompt: string, pages: any[]): Promise<string> {
     const apiKey = this.getApiKey();
-    const visionModel = "meta-llama/llama-4-maverick";
+    const rawVisionModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
+    const visionModel = rawVisionModel.includes("/") ? rawVisionModel : `qwen/${rawVisionModel}`;
     
     console.log(`[OpenRouter Vision] Step 1: Extracting text using (${visionModel})...`);
     
@@ -81,16 +82,9 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   private async _executeTextWithFallback(apiKey: string, prompt: string, temperature: number, maxTokens: number): Promise<string> {
-    const fallbackModels = [
-      "meta-llama/llama-4-maverick",
-      "meta-llama/llama-4-scout",
-      "qwen/qwen-2.5-72b-instruct",
-      "qwen/qwen3.8-27b:free",
-      "google/gemma-4-31b-it:free",
-      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-      "nex-agi/nex-n2.5-pro:free",
-      "google/gemma-4-26b-a4b-it:free"
-    ];
+    const rawModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
+    const targetModel = rawModel.includes("/") ? rawModel : `qwen/${rawModel}`;
+    const fallbackModels = [targetModel];
 
     let lastError: Error | null = null;
 
@@ -142,7 +136,7 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   /**
-   * Menilai teks yang sudah diekstrak (Tahap 2) langsung dengan OpenRouter (Llama Maverick)
+   * Menilai teks yang sudah diekstrak (Tahap 2) langsung dengan OpenRouter (Qwen 3.8 27B Free)
    * tanpa perlu mengulang ekstraksi gambar Vision.
    */
   async gradeExtractedText(
@@ -222,7 +216,7 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Maverick] Step 2: Menilai teks tugas dengan OpenRouter...`);
+    console.log(`[OpenRouter Qwen] Step 2: Menilai teks tugas dengan OpenRouter (Qwen 3.8 27B Free)...`);
     const responseText = await this._executeTextWithFallback(apiKey, textPrompt, 0.2, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -231,7 +225,7 @@ Output WAJIB berupa JSON murni dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Maverick] Step 2 Selesai. Penilaian berhasil.`);
+    console.log(`[OpenRouter Qwen] Step 2 Selesai. Penilaian berhasil.`);
     return JSON.parse(cleanText) as AIAssessmentResult;
   }
 
@@ -276,7 +270,7 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
     
     let extractedText = "";
 
-    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN MAVERICK
+    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN OPENROUTER QWEN 3.8 27B
     if (hasImages) {
       const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
 
@@ -346,7 +340,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Maverick] Step 2: Generating answer key with fallback models...`);
+    console.log(`[OpenRouter Qwen] Step 2: Generating answer key with OpenRouter (Qwen 3.8 27B Free)...`);
     const responseText = await this._executeTextWithFallback(apiKey, prompt, 0.3, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -355,7 +349,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Maverick] Step 2 Selesai. Kunci jawaban berhasil dibuat.`);
+    console.log(`[OpenRouter Qwen] Step 2 Selesai. Kunci jawaban berhasil dibuat.`);
     return JSON.parse(cleanText);
   }
 }
