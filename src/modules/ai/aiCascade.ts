@@ -12,9 +12,10 @@ export interface CascadeOptions {
 
 /**
  * Menjalankan pembuatan teks AI dengan urutan kaskade yang sama seperti penilaian tulisan tangan siswa:
- * 1. Primary: Groq (Kecepatan tinggi, batas kuota fleksibel)
- * 2. Fallback 1: Gemini (gemini-3.8-flash)
- * 3. Fallback 2: OpenRouter Nemotron 3.5 Super VL Free (nvidia/nemotron-3.5-super-vl:free)
+ * 1. Primary: OpenRouter Nemotron 3.5 Super VL Free (nvidia/nemotron-3.5-super-vl:free)
+ * 2. Secondary: Groq (Qwen models)
+ * 3. Fallback 1: Gemini Multi-Model (2.0/1.5/3.8 Flash)
+ * 4. Fallback 2: OpenRouter Gemma Free
  */
 export async function callAICascade(options: CascadeOptions): Promise<string> {
   const {
@@ -33,7 +34,47 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
   messages.push({ role: "user", content: prompt });
 
   // ==========================================
-  // 1. PRIMARY: GROQ (Sama seperti penilaian tugas siswa)
+  // 1. PRIMARY: OPENROUTER (NVIDIA Nemotron 3.5 Super VL)
+  // ==========================================
+  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
+  if (openRouterKey) {
+    const primaryNemotron = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl:free";
+    try {
+      console.log(`${logPrefix} Step 1 (Primary - OpenRouter): Memanggil ${primaryNemotron}...`);
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openRouterKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+          "X-Title": "Solusi Guru",
+        },
+        body: JSON.stringify({
+          model: primaryNemotron,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content && content.trim().length > 30) {
+          console.log(`${logPrefix} Berhasil menggunakan OpenRouter Primary (${primaryNemotron})! Panjang respon: ${content.length}`);
+          return content;
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`${logPrefix} OpenRouter Primary ${primaryNemotron} returned ${res.status}: ${errText}`);
+      }
+    } catch (orErr: any) {
+      console.warn(`${logPrefix} OpenRouter Primary ${primaryNemotron} exception:`, orErr?.message || orErr);
+    }
+  }
+
+  // ==========================================
+  // 2. SECONDARY: GROQ (Qwen Models)
   // ==========================================
   const groqKeysStr = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY;
   if (groqKeysStr) {
@@ -50,7 +91,7 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
 
       for (const groqModel of groqModels) {
         try {
-          console.log(`${logPrefix} Step 1 (Primary): Memanggil Groq (${groqModel})...`);
+          console.log(`${logPrefix} Step 2 (Secondary - Groq): Memanggil Groq (${groqModel})...`);
           const bodyPayload: any = {
             model: groqModel,
             messages,
@@ -89,12 +130,12 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
         }
       }
     } catch (groqErr: any) {
-      console.warn(`${logPrefix} Groq primary gagal:`, groqErr?.message || groqErr);
+      console.warn(`${logPrefix} Groq secondary gagal:`, groqErr?.message || groqErr);
     }
   }
 
   // ==========================================
-  // 2. FALLBACK 1: GEMINI (gemini-3.8-flash)
+  // 3. FALLBACK 1: GEMINI Multi-Model
   // ==========================================
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
@@ -107,7 +148,7 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
 
     for (const geminiModel of geminiModels) {
       try {
-        console.log(`${logPrefix} Step 2 (Fallback 1): Memanggil Gemini (${geminiModel})...`);
+        console.log(`${logPrefix} Step 3 (Fallback 1 - Gemini): Memanggil Gemini (${geminiModel})...`);
         const ai = new GoogleGenAI({ apiKey: geminiKey });
         const config: any = {
           temperature,
@@ -137,21 +178,17 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
   }
 
   // ==========================================
-  // 3. FALLBACK 2: OPENROUTER
+  // 4. FALLBACK 2: OPENROUTER Gemma Models
   // ==========================================
-  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (openRouterKey) {
-    const rawOpenRouterModels = [
-      process.env.OPENROUTER_MODEL,
-      "nvidia/nemotron-3.5-super-vl:free",
+    const fallbackOpenRouterModels = [
       "google/gemma-4-31b-it:free",
       "google/gemma-4-26b-a4b-it:free",
-    ].filter(Boolean) as string[];
-    const openRouterModels = rawOpenRouterModels.map(m => m.includes("/") ? m : `nvidia/${m}`);
+    ];
 
-    for (const orModel of openRouterModels) {
+    for (const orModel of fallbackOpenRouterModels) {
       try {
-        console.log(`${logPrefix} Step 3 (Fallback 2): Memanggil OpenRouter (${orModel})...`);
+        console.log(`${logPrefix} Step 4 (Fallback 2 - OpenRouter): Memanggil OpenRouter (${orModel})...`);
         const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -186,5 +223,5 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
     }
   }
 
-  throw new Error(`${logPrefix} Semua provider AI (Groq, Gemini, OpenRouter) gagal atau tidak tersedia.`);
+  throw new Error(`${logPrefix} Semua provider AI (OpenRouter Primary, Groq Secondary, Gemini, OpenRouter Gemma) gagal atau tidak tersedia.`);
 }

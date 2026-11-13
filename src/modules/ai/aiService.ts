@@ -9,7 +9,7 @@ import { gradeObjectiveQuestion, hasValidCorrectAnswer } from "@/modules/grading
 export class AIService {
   private provider: AIProvider;
 
-  constructor(provider: AIProvider = new GroqProvider()) {
+  constructor(provider: AIProvider = new OpenRouterProvider()) {
     this.provider = provider;
   }
 
@@ -63,9 +63,14 @@ export class AIService {
     const estimatedTokens = 1000 + (pages.length * 2000);
 
     let primaryProvider = this.provider;
+    let isOpenRouterForced = options?.forceProvider === "openrouter";
     let isGroqForced = options?.forceProvider === "groq";
 
-    if (isGroqForced) {
+    if (isOpenRouterForced) {
+      console.log(`[AI] Using OpenRouterProvider as primary...`);
+      const { OpenRouterProvider } = await import("./OpenRouterProvider");
+      primaryProvider = new OpenRouterProvider();
+    } else if (isGroqForced) {
       console.log(`[AI] Using GroqProvider as primary...`);
       const { GroqProvider } = await import("./GroqProvider");
       primaryProvider = new GroqProvider();
@@ -93,32 +98,32 @@ export class AIService {
       }
     }
 
-    // Fallback logic jika primary provider (GroqProvider) gagal
+    // Second Grading logic jika primary provider (OpenRouterProvider) gagal -> Fallback ke GroqProvider
     if (primaryFailed) {
-      console.warn(`[AI] Primary provider (${primaryProvider.providerName}) gagal. Memeriksa fallback yang tersedia...`);
+      console.warn(`[AI] Primary provider (${primaryProvider.providerName}) gagal. Mengalihkan ke Second Grading (GroqProvider)...`);
       let secondarySuccess = false;
 
-      // Cek apakah OpenRouter memiliki key yang valid
-      const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
-      if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
-        console.log(`[AI] Mencoba fallback ke OpenRouterProvider...`);
+      // Cek apakah Groq memiliki key yang valid
+      const groqKeysStr = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY;
+      if (groqKeysStr && groqKeysStr.trim().length > 5) {
+        console.log(`[AI] Mencoba second grading ke GroqProvider...`);
         try {
-          const { OpenRouterProvider } = await import("./OpenRouterProvider");
-          const fallbackProvider = new OpenRouterProvider();
+          const { GroqProvider } = await import("./GroqProvider");
+          const fallbackProvider = new GroqProvider();
           assessmentResult = await fallbackProvider.assessSubmission(
             pages as any,
             [],
             answerKey,
             questions
           );
-          console.log(`[AI] OpenRouterProvider fallback berhasil!`);
+          console.log(`[AI] GroqProvider second grading berhasil!`);
           Object.defineProperty(primaryProvider, "providerName", { value: fallbackProvider.providerName, configurable: true });
           secondarySuccess = true;
         } catch (fallbackError: any) {
-          console.warn(`[AI] OpenRouterProvider fallback juga gagal: ${fallbackError?.message || fallbackError}`);
+          console.warn(`[AI] GroqProvider second grading juga gagal: ${fallbackError?.message || fallbackError}`);
         }
       } else {
-        console.log(`[AI] Melewati fallback OpenRouter (OPENROUTER_API_KEY tidak dikonfigurasi atau tidak valid).`);
+        console.log(`[AI] Melewati second grading Groq (GROQ_API_KEYS tidak dikonfigurasi).`);
       }
 
       if (!secondarySuccess) {
