@@ -17,13 +17,13 @@ interface CompressedImage {
 /**
  * Compress a single base64 image for AI processing.
  */
-async function compressSingleImage(base64Image: string): Promise<CompressedImage> {
+async function compressSingleImage(base64Image: string, maxDimension: number = 1024): Promise<CompressedImage> {
   const rawBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
   const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
   const rawMimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
 
   const { compressedBase64, compressedMimeType, savings } =
-    await compressImageForOCR(rawBase64, rawMimeType);
+    await compressImageForOCR(rawBase64, rawMimeType, maxDimension);
   console.log(`[Grade BG] Kompresi gambar: ${savings}`);
 
   return { base64Data: compressedBase64, mimeType: compressedMimeType };
@@ -118,7 +118,7 @@ ${imageCount > 1 ? `Terdapat ${imageCount} gambar halaman jawaban siswa yang dil
 
 /**
  * Call AI with multi-image support using fallback chain.
- * Fallback chain: Groq Qwen (primary) → Gemini 3.8 Flash → OpenRouter Gemma 4 31B Multivision Free (google/gemma-4-31b-it:free)
+ * Fallback chain: Groq Qwen (primary) → Gemini Flash Multi-Model → OpenRouter Nemotron 3.5 Super VL Free (nvidia/nemotron-3.5-super-vl:free)
  */
 async function callUnifiedAI(
   prompt: string,
@@ -165,13 +165,20 @@ async function callUnifiedAI(
     console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Groq: ${primaryModel}`);
     return text;
   } catch (groqError: any) {
-    console.warn("[Grade BG] Groq unified gagal, mencoba fallback Gemini 3.8 Flash...", groqError?.message);
+    console.warn("[Grade BG] Groq unified gagal, mencoba fallback Gemini Multi-Model...", groqError?.message);
 
-    // 2. FALLBACK 1: Gemini 3.8 Flash
+    // 2. FALLBACK 1: Gemini Multi-Model Chain (2.0 Flash, 1.5 Flash, 3.8 Flash)
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const fallbackModel1 = "gemini-3.8-flash";
-      console.log(`[Grade BG] Memanggil model unified (Fallback 1 - Gemini): ${fallbackModel1}`);
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) throw new Error("GEMINI_API_KEY is not configured");
+
+      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+      const geminiCandidateModels = [
+        process.env.GEMINI_MODEL?.trim(),
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-3.8-flash",
+      ].filter(Boolean) as string[];
 
       const contents: any[] = [prompt];
       for (const img of compressedImages) {
@@ -183,23 +190,37 @@ async function callUnifiedAI(
         });
       }
 
-      const response = await ai.models.generateContent({
-        model: fallbackModel1,
-        contents,
-        config: {
-          temperature: 0.0,
-          maxOutputTokens: 16384,
+      let geminiText = "";
+      let lastGeminiError: any;
+
+      for (const gModel of geminiCandidateModels) {
+        try {
+          console.log(`[Grade BG] Memanggil model unified (Fallback 1 - Gemini): ${gModel}`);
+          const response = await ai.models.generateContent({
+            model: gModel,
+            contents,
+            config: {
+              temperature: 0.0,
+              maxOutputTokens: 16384,
+            }
+          });
+
+          geminiText = response.text || "";
+          if (geminiText.trim().length > 0) {
+            console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Gemini: ${gModel}`);
+            return geminiText;
+          }
+        } catch (gErr: any) {
+          lastGeminiError = gErr;
+          console.warn(`[Grade BG] Gemini ${gModel} gagal (${gErr?.message || gErr}). Mencoba model Gemini berikutnya...`);
         }
-      });
+      }
 
-      const text = response.text || "";
-      if (!text) throw new Error("Empty response from Gemini fallback");
-      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Gemini: ${fallbackModel1}`);
-      return text;
+      throw lastGeminiError || new Error("Semua model Gemini fallback gagal.");
     } catch (geminiError: any) {
-      console.warn("[Grade BG] Gemini unified juga gagal, mencoba fallback OpenRouter...", geminiError?.message);
+      console.warn("[Grade BG] Seluruh model Gemini juga gagal, mencoba fallback OpenRouter...", geminiError?.message);
 
-      // 3. FALLBACK 2: OpenRouter (Multivision Free Chain)
+      // 3. FALLBACK 2: OpenRouter (Multivision Free Chain - NVIDIA Nemotron #1)
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
       if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
@@ -213,11 +234,11 @@ async function callUnifiedAI(
 
       const rawOpenRouterModels = [
         process.env.OPENROUTER_MODEL,
+        "nvidia/nemotron-3.5-super-vl:free",
         "google/gemma-4-31b-it:free",
         "google/gemma-4-26b-a4b-it:free",
-        "nvidia/nemotron-3.5-super-vl:free",
       ].filter(Boolean) as string[];
-      const openRouterModels = rawOpenRouterModels.map(m => m.includes("/") ? m : `google/${m}`);
+      const openRouterModels = rawOpenRouterModels.map(m => m.includes("/") ? m : `nvidia/${m}`);
 
       let lastOrError: any;
 
@@ -277,11 +298,13 @@ async function processFullGradingInBackground(
     await dbConnect();
 
     // === STEP 1: Compress all images ===
-    console.log(`[Grade BG] Mulai kompresi ${base64Images.length} gambar untuk submission ${submissionId}`);
+    // Resolusi adaptif: jika gambar >= 3, gunakan 800px agar aman di bawah batas 7.000 ITPM Groq
+    const targetDimension = base64Images.length >= 3 ? 800 : (base64Images.length === 2 ? 900 : 1024);
+    console.log(`[Grade BG] Mulai kompresi ${base64Images.length} gambar (target max ${targetDimension}px) untuk submission ${submissionId}`);
     const compressedImages: CompressedImage[] = [];
     for (let i = 0; i < base64Images.length; i++) {
       try {
-        const compressed = await compressSingleImage(base64Images[i]);
+        const compressed = await compressSingleImage(base64Images[i], targetDimension);
         compressedImages.push(compressed);
         console.log(`[Grade BG] Halaman ${i + 1}/${base64Images.length} berhasil dikompres`);
       } catch (err: any) {

@@ -58,8 +58,8 @@ export class GroqProvider implements AIProvider {
 
   /**
    * Menilai tugas siswa dengan Pipeline 2 Tahap yang Terpisah (Decoupled):
-   * Tahap 1: Ekstraksi OCR Teks (Gemini -> Groq Qwen Vision -> Fallback OpenRouter Gemma 4 31B Free)
-   * Tahap 2: Penilaian Teks Jawaban (Groq Qwen Text -> Fallback OpenRouter Gemma 4 31B Free)
+   * Tahap 1: Ekstraksi OCR Teks (Gemini -> Groq Qwen Vision -> Fallback OpenRouter Nemotron 3.5 Super VL Free)
+   * Tahap 2: Penilaian Teks Jawaban (Groq Qwen Text -> Fallback OpenRouter Nemotron 3.5 Super VL Free)
    * 
    * Keuntungan: Jika penilaian teks diulang (retry) atau dialihkan ke OpenRouter,
    * Tahap 1 TIDAK PERNAH diulang, sehingga menghemat kuota token gambar (ITPM) 100%.
@@ -78,7 +78,7 @@ export class GroqProvider implements AIProvider {
     console.log(`[AI Assessment] Tahap 1 Selesai. Hasil ekstraksi: ${extractedText.length} karakter. Melanjutkan ke Tahap 2...`);
 
     // ----------------------------------------------------
-    // TAHAP 2: PENILAIAN TEKS JAWABAN (GROQ QWEN -> FALLBACK OPENROUTER GEMMA 4 31B FREE)
+    // TAHAP 2: PENILAIAN TEKS JAWABAN (GROQ QWEN -> FALLBACK OPENROUTER NEMOTRON 3.5 SUPER VL FREE)
     // ----------------------------------------------------
     return await this._gradeExtractedText(extractedText, answerKey, questions);
   }
@@ -123,8 +123,9 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       }
       const rawMimeType = page.mimeType || "image/jpeg";
       
-      // Kompresi gambar menjadi grayscale & max 1024px (hemat token 60-70%)
-      const { compressedBuffer, compressedBase64, compressedMimeType } = await compressBufferForOCR(rawBuffer, rawMimeType);
+      // Kompresi gambar menjadi grayscale & dimensi adaptif (800-1024px) agar hemat token
+      const targetDimension = pages.length >= 3 ? 800 : (pages.length === 2 ? 900 : 1024);
+      const { compressedBuffer, compressedBase64, compressedMimeType } = await compressBufferForOCR(rawBuffer, rawMimeType, targetDimension);
       compressedPages.push({
         buffer: compressedBuffer,
         base64: compressedBase64,
@@ -274,10 +275,10 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       }
     }
 
-    // 3. Fallback ke OpenRouter Vision (Gemma 4 31B Free) jika Gemini & Groq habis
+    // 3. Fallback ke OpenRouter Vision (Nemotron 3.5 Super VL Free) jika Gemini & Groq habis
     const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
     if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
-      console.warn(`[AI Vision] Gemini & Groq Vision gagal. Mencoba Fallback ke OpenRouter Vision (Gemma 4 31B Free)...`);
+      console.warn(`[AI Vision] Gemini & Groq Vision gagal. Mencoba Fallback ke OpenRouter Vision (Nemotron 3.5 Super VL Free)...`);
       try {
         const { OpenRouterProvider } = await import("./OpenRouterProvider");
         const openRouterProvider = new OpenRouterProvider();
@@ -298,7 +299,7 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
   /**
    * Tahap 2: Menilai teks jawaban siswa menggunakan Groq MURNI DENGAN MODEL QWEN.
-   * Jika Groq Qwen terkena rate limit (429) atau gagal, otomatis beralih ke Fallback OpenRouter (Gemma 4 31B Free).
+   * Jika Groq Qwen terkena rate limit (429) atau gagal, otomatis beralih ke Fallback OpenRouter (Nemotron 3.5 Super VL Free).
    */
   private async _gradeExtractedText(
     extractedText: string,
@@ -447,18 +448,18 @@ Output WAJIB berupa JSON murni dengan struktur:
     }
 
     // =========================================================================
-    // FALLBACK KE OPENROUTER (GEMMA 4 31B FREE):
+    // FALLBACK KE OPENROUTER (NEMOTRON 3.5 SUPER VL FREE):
     // Jika seluruh model Groq Qwen rate-limited atau gagal, langsung gunakan
     // OpenRouter untuk menilai teks yang sudah diekstrak tanpa mengulang OCR!
     // =========================================================================
     const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
     if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
-      console.warn(`[AI Grading] Groq Qwen gagal (${lastGradingError?.message || lastGradingError}). Mengalihkan ke Fallback OpenRouter (Gemma 4 31B Free)...`);
+      console.warn(`[AI Grading] Groq Qwen gagal (${lastGradingError?.message || lastGradingError}). Mengalihkan ke Fallback OpenRouter (Nemotron 3.5 Super VL Free)...`);
       try {
         const { OpenRouterProvider } = await import("./OpenRouterProvider");
         const openRouterProvider = new OpenRouterProvider();
         const fallbackResult = await openRouterProvider.gradeExtractedText(extractedText, answerKey, questions);
-        console.log(`[AI Grading] Fallback OpenRouter (Gemma 4 31B Free) BERHASIL! Total skor: ${fallbackResult.totalScore}`);
+        console.log(`[AI Grading] Fallback OpenRouter (Nemotron 3.5 Super VL Free) BERHASIL! Total skor: ${fallbackResult.totalScore}`);
         return fallbackResult;
       } catch (openRouterErr: any) {
         console.error(`[AI Grading] Fallback OpenRouter juga gagal:`, openRouterErr?.message || openRouterErr);

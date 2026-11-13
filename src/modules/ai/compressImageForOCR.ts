@@ -13,7 +13,8 @@ import sharp from "sharp";
  */
 export async function compressBufferForOCR(
   inputBuffer: Buffer,
-  mimeType: string = "image/jpeg"
+  mimeType: string = "image/jpeg",
+  maxDimension: number = 1024
 ): Promise<{ compressedBuffer: Buffer; compressedBase64: string; compressedMimeType: string; savings: string }> {
   try {
     const originalSize = inputBuffer.length;
@@ -23,8 +24,8 @@ export async function compressBufferForOCR(
 
     let pipeline = sharp(inputBuffer);
 
-    // Resize to max 1024px width/height — sweet spot for OCR readability vs token cost
-    const MAX_DIMENSION = 1024;
+    // Resize to maxDimension (default 1024px, or 800px for multi-image to fit Groq ITPM)
+    const MAX_DIMENSION = maxDimension;
     if (originalWidth > MAX_DIMENSION || originalHeight > MAX_DIMENSION) {
       pipeline = pipeline.resize({
         width: MAX_DIMENSION,
@@ -75,10 +76,11 @@ export async function compressBufferForOCR(
  */
 export async function compressImageForOCR(
   base64Data: string, 
-  mimeType: string
+  mimeType: string,
+  maxDimension: number = 1024
 ): Promise<{ compressedBase64: string; compressedMimeType: string; savings: string }> {
   const inputBuffer = Buffer.from(base64Data, "base64");
-  const res = await compressBufferForOCR(inputBuffer, mimeType);
+  const res = await compressBufferForOCR(inputBuffer, mimeType, maxDimension);
   return {
     compressedBase64: res.compressedBase64,
     compressedMimeType: res.compressedMimeType,

@@ -130,11 +130,11 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
         const rawCandidateModels = [
           process.env.OPENROUTER_MODEL,
+          "nvidia/nemotron-3.5-super-vl:free",
           "google/gemma-4-31b-it:free",
           "google/gemma-4-26b-a4b-it:free",
-          "nvidia/nemotron-3.5-super-vl:free",
         ].filter(Boolean) as string[];
-        const candidateModels = rawCandidateModels.map(m => m.includes("/") ? m : `google/${m}`);
+        const candidateModels = rawCandidateModels.map(m => m.includes("/") ? m : `nvidia/${m}`);
 
         let lastOrError: any;
         for (const modelId of candidateModels) {

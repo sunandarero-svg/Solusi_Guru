@@ -6,7 +6,7 @@ import { compressBufferForOCR } from "./compressImageForOCR";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export class OpenRouterProvider implements AIProvider {
-  readonly providerName = "OpenRouter-Gemma4-31b";
+  readonly providerName = "OpenRouter-Nemotron3.5-SuperVL";
 
   private getApiKey(): string {
     const key = process.env.OPENROUTER_API_KEY;
@@ -29,9 +29,9 @@ export class OpenRouterProvider implements AIProvider {
     
     const candidateVisionModels = [
       process.env.OPENROUTER_MODEL,
+      "nvidia/nemotron-3.5-super-vl:free",
       "google/gemma-4-31b-it:free",
       "google/gemma-4-26b-a4b-it:free",
-      "nvidia/nemotron-3.5-super-vl:free",
     ].filter(Boolean) as string[];
     
     const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
@@ -48,8 +48,9 @@ export class OpenRouterProvider implements AIProvider {
       }
       const rawMimeType = page.mimeType || "image/jpeg";
       
-      // Kompresi buffer agar menghemat token vision (60-70%)
-      const { compressedBase64, compressedMimeType } = await compressBufferForOCR(buffer, rawMimeType);
+      // Kompresi buffer adaptif agar menghemat token vision (60-70%)
+      const targetDimension = pages.length >= 3 ? 800 : (pages.length === 2 ? 900 : 1024);
+      const { compressedBase64, compressedMimeType } = await compressBufferForOCR(buffer, rawMimeType, targetDimension);
 
       visionContentParts.push({
         type: "image_url",
@@ -59,7 +60,7 @@ export class OpenRouterProvider implements AIProvider {
 
     let lastError: Error | null = null;
     for (const rawVisionModel of candidateVisionModels) {
-      const visionModel = rawVisionModel.includes("/") ? rawVisionModel : `google/${rawVisionModel}`;
+      const visionModel = rawVisionModel.includes("/") ? rawVisionModel : `nvidia/${rawVisionModel}`;
       console.log(`[OpenRouter Vision] Step 1: Extracting text using (${visionModel})...`);
 
       try {
@@ -104,11 +105,11 @@ export class OpenRouterProvider implements AIProvider {
   private async _executeTextWithFallback(apiKey: string, prompt: string, temperature: number, maxTokens: number): Promise<string> {
     const rawFallbackModels = [
       process.env.OPENROUTER_MODEL,
+      "nvidia/nemotron-3.5-super-vl:free",
       "google/gemma-4-31b-it:free",
       "google/gemma-4-26b-a4b-it:free",
-      "nvidia/nemotron-3.5-super-vl:free",
     ].filter(Boolean) as string[];
-    const fallbackModels = rawFallbackModels.map(m => m.includes("/") ? m : `google/${m}`);
+    const fallbackModels = rawFallbackModels.map(m => m.includes("/") ? m : `nvidia/${m}`);
 
     let lastError: Error | null = null;
 
@@ -240,7 +241,7 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Gemma] Step 2: Menilai teks tugas dengan OpenRouter (Gemma 4 31B Free)...`);
+    console.log(`[OpenRouter Nemotron] Step 2: Menilai teks tugas dengan OpenRouter (Nemotron 3.5 Super VL)...`);
     const responseText = await this._executeTextWithFallback(apiKey, textPrompt, 0.2, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -249,7 +250,7 @@ Output WAJIB berupa JSON murni dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Gemma] Step 2 Selesai. Penilaian berhasil.`);
+    console.log(`[OpenRouter Nemotron] Step 2 Selesai. Penilaian berhasil.`);
     return JSON.parse(cleanText) as AIAssessmentResult;
   }
 
@@ -294,7 +295,7 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
     
     let extractedText = "";
 
-    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN OPENROUTER MULTIVISION (GEMMA 4 31B FREE)
+    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN OPENROUTER MULTIVISION (NEMOTRON 3.5 SUPER VL FREE)
     if (hasImages) {
       const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
 
@@ -364,7 +365,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Gemma] Step 2: Generating answer key with OpenRouter (Gemma 4 31B Free)...`);
+    console.log(`[OpenRouter Nemotron] Step 2: Generating answer key with OpenRouter (Nemotron 3.5 Super VL)...`);
     const responseText = await this._executeTextWithFallback(apiKey, prompt, 0.3, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -373,7 +374,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Gemma] Step 2 Selesai. Kunci jawaban berhasil dibuat.`);
+    console.log(`[OpenRouter Nemotron] Step 2 Selesai. Kunci jawaban berhasil dibuat.`);
     return JSON.parse(cleanText);
   }
 }
