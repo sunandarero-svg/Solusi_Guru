@@ -122,51 +122,75 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
         console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Gemini fallback: ${fallbackModel1}`);
       } catch (geminiError: any) {
-        console.warn("[Extract Text API] Gemini juga gagal, mencoba fallback ke OpenRouter (Qwen 3.8 27B Free)...", geminiError?.message || geminiError);
+        console.warn("[Extract Text API] Gemini juga gagal, mencoba fallback ke OpenRouter Multivision Free...", geminiError?.message || geminiError);
 
-        // 3. FALLBACK 2: OpenRouter (qwen/qwen3.8-27b:free)
+        // 3. FALLBACK 2: OpenRouter (Multivision Free Chain)
         const openRouterApiKey = process.env.OPENROUTER_API_KEY;
         if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
-        const rawOrModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
-        const fallbackModel2 = rawOrModel.includes("/") ? rawOrModel : `qwen/${rawOrModel}`;
-        console.log(`[Extract Text API] Memanggil model (Fallback 2 - OpenRouter): ${fallbackModel2}`);
+        const rawCandidateModels = [
+          process.env.OPENROUTER_MODEL,
+          "google/gemma-4-31b-it:free",
+          "google/gemma-4-26b-a4b-it:free",
+          "nvidia/nemotron-3.5-super-vl:free",
+        ].filter(Boolean) as string[];
+        const candidateModels = rawCandidateModels.map(m => m.includes("/") ? m : `google/${m}`);
 
-        const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openRouterApiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-            "X-Title": "Solusi Guru",
-          },
-          body: JSON.stringify({
-            model: fallbackModel2,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-                ]
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 2048,
-          }),
-        });
+        let lastOrError: any;
+        for (const modelId of candidateModels) {
+          try {
+            console.log(`[Extract Text API] Memanggil model (Fallback 2 - OpenRouter): ${modelId}`);
 
-        if (!orResponse.ok) {
-          const errBody = await orResponse.text();
-          console.error("[Extract Text API] OpenRouter Fallback Error:", errBody);
-          throw new Error(`OpenRouter API returned ${orResponse.status}`);
+            const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${openRouterApiKey}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+                "X-Title": "Solusi Guru",
+              },
+              body: JSON.stringify({
+                model: modelId,
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: prompt },
+                      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                    ]
+                  }
+                ],
+                temperature: 0.1,
+                max_tokens: 2048,
+              }),
+            });
+
+            if (!orResponse.ok) {
+              const errBody = await orResponse.text();
+              console.warn(`[Extract Text API] OpenRouter Fallback Error (${modelId}):`, errBody);
+              lastOrError = new Error(`OpenRouter API returned ${orResponse.status}: ${errBody}`);
+              continue;
+            }
+
+            const orData = await orResponse.json();
+            extractedText = orData.choices?.[0]?.message?.content || "";
+            if (!extractedText) {
+              console.warn(`[Extract Text API] Empty response from OpenRouter fallback (${modelId})`);
+              lastOrError = new Error("Empty response from OpenRouter fallback");
+              continue;
+            }
+
+            console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model OpenRouter: ${modelId}`);
+            break;
+          } catch (modelErr: any) {
+            lastOrError = modelErr;
+            console.warn(`[Extract Text API] Exception on model ${modelId}:`, modelErr?.message || modelErr);
+          }
         }
 
-        const orData = await orResponse.json();
-        extractedText = orData.choices?.[0]?.message?.content || "";
-        if (!extractedText) throw new Error("Empty response from OpenRouter fallback");
-
-        console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model OpenRouter: ${fallbackModel2}`);
+        if (!extractedText) {
+          throw lastOrError || new Error("Semua fallback model OpenRouter gagal.");
+        }
       }
     }
 

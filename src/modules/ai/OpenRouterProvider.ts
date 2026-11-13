@@ -6,7 +6,7 @@ import { compressBufferForOCR } from "./compressImageForOCR";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export class OpenRouterProvider implements AIProvider {
-  readonly providerName = "OpenRouter-Qwen3.8-27b";
+  readonly providerName = "OpenRouter-Gemma4-31b";
 
   private getApiKey(): string {
     const key = process.env.OPENROUTER_API_KEY;
@@ -26,10 +26,13 @@ export class OpenRouterProvider implements AIProvider {
 
   private async _extractVision(visionPrompt: string, pages: any[]): Promise<string> {
     const apiKey = this.getApiKey();
-    const rawVisionModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
-    const visionModel = rawVisionModel.includes("/") ? rawVisionModel : `qwen/${rawVisionModel}`;
     
-    console.log(`[OpenRouter Vision] Step 1: Extracting text using (${visionModel})...`);
+    const candidateVisionModels = [
+      process.env.OPENROUTER_MODEL,
+      "google/gemma-4-31b-it:free",
+      "google/gemma-4-26b-a4b-it:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+    ].filter(Boolean) as string[];
     
     const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
     for (let i = 0; i < pages.length; i++) {
@@ -54,37 +57,58 @@ export class OpenRouterProvider implements AIProvider {
       });
     }
 
-    const response = await fetch(OPENROUTER_BASE_URL, {
-      method: "POST",
-      headers: this.getHeaders(apiKey),
-      body: JSON.stringify({
-        model: visionModel,
-        messages: [{ role: "user", content: visionContentParts }],
-        temperature: 0.1,
-        max_tokens: 8192,
-      }),
-    });
+    let lastError: Error | null = null;
+    for (const rawVisionModel of candidateVisionModels) {
+      const visionModel = rawVisionModel.includes("/") ? rawVisionModel : `google/${rawVisionModel}`;
+      console.log(`[OpenRouter Vision] Step 1: Extracting text using (${visionModel})...`);
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`OpenRouter Vision API returned ${response.status}: ${errBody}`);
+      try {
+        const response = await fetch(OPENROUTER_BASE_URL, {
+          method: "POST",
+          headers: this.getHeaders(apiKey),
+          body: JSON.stringify({
+            model: visionModel,
+            messages: [{ role: "user", content: visionContentParts }],
+            temperature: 0.1,
+            max_tokens: 8192,
+          }),
+        });
+
+        if (!response.ok) {
+          const errBody = await response.text();
+          console.warn(`[OpenRouter Vision] Model ${visionModel} returned ${response.status}: ${errBody}`);
+          lastError = new Error(`OpenRouter Vision API returned ${response.status}: ${errBody}`);
+          continue;
+        }
+
+        const data = await response.json();
+        const extractedText = data.choices?.[0]?.message?.content;
+        
+        if (!extractedText) {
+          console.warn(`[OpenRouter Vision] Model ${visionModel} returned empty response.`);
+          lastError = new Error("OpenRouter Vision API returned empty response.");
+          continue;
+        }
+        
+        console.log(`[OpenRouter Vision] Step 1 Complete with (${visionModel}). Extracted Text Length: ${extractedText.length}`);
+        return extractedText;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[OpenRouter Vision] Exception with ${visionModel}:`, err?.message || err);
+      }
     }
 
-    const data = await response.json();
-    const extractedText = data.choices?.[0]?.message?.content;
-    
-    if (!extractedText) {
-      throw new Error("OpenRouter Vision API returned empty response.");
-    }
-    
-    console.log(`[OpenRouter Vision] Step 1 Complete. Extracted Text Length: ${extractedText.length}`);
-    return extractedText;
+    throw lastError || new Error("All candidate OpenRouter vision models failed.");
   }
 
   private async _executeTextWithFallback(apiKey: string, prompt: string, temperature: number, maxTokens: number): Promise<string> {
-    const rawModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
-    const targetModel = rawModel.includes("/") ? rawModel : `qwen/${rawModel}`;
-    const fallbackModels = [targetModel];
+    const rawFallbackModels = [
+      process.env.OPENROUTER_MODEL,
+      "google/gemma-4-31b-it:free",
+      "google/gemma-4-26b-a4b-it:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+    ].filter(Boolean) as string[];
+    const fallbackModels = rawFallbackModels.map(m => m.includes("/") ? m : `google/${m}`);
 
     let lastError: Error | null = null;
 
@@ -216,7 +240,7 @@ Output WAJIB berupa JSON murni dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Qwen] Step 2: Menilai teks tugas dengan OpenRouter (Qwen 3.8 27B Free)...`);
+    console.log(`[OpenRouter Gemma] Step 2: Menilai teks tugas dengan OpenRouter (Gemma 4 31B Free)...`);
     const responseText = await this._executeTextWithFallback(apiKey, textPrompt, 0.2, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -225,7 +249,7 @@ Output WAJIB berupa JSON murni dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Qwen] Step 2 Selesai. Penilaian berhasil.`);
+    console.log(`[OpenRouter Gemma] Step 2 Selesai. Penilaian berhasil.`);
     return JSON.parse(cleanText) as AIAssessmentResult;
   }
 
@@ -270,7 +294,7 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
     
     let extractedText = "";
 
-    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN OPENROUTER QWEN 3.8 27B
+    // TAHAP 1: EKSTRAKSI GAMBAR DENGAN OPENROUTER MULTIVISION (GEMMA 4 31B FREE)
     if (hasImages) {
       const visionPrompt = `Kamu adalah sistem AI ahli dalam Optical Character Recognition (OCR) dan analisis tata letak dokumen, khususnya untuk membaca dan mendigitalkan catatan tulisan tangan. Tugasmu adalah mengekstrak teks dari gambar yang diberikan secara akurat, rapi, dan terstruktur.
 
@@ -340,7 +364,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
   ]
 }`;
 
-    console.log(`[OpenRouter Qwen] Step 2: Generating answer key with OpenRouter (Qwen 3.8 27B Free)...`);
+    console.log(`[OpenRouter Gemma] Step 2: Generating answer key with OpenRouter (Gemma 4 31B Free)...`);
     const responseText = await this._executeTextWithFallback(apiKey, prompt, 0.3, 8192);
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -349,7 +373,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
     }
 
     const cleanText = jsonMatch[0].trim();
-    console.log(`[OpenRouter Qwen] Step 2 Selesai. Kunci jawaban berhasil dibuat.`);
+    console.log(`[OpenRouter Gemma] Step 2 Selesai. Kunci jawaban berhasil dibuat.`);
     return JSON.parse(cleanText);
   }
 }

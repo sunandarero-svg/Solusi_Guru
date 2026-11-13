@@ -118,7 +118,7 @@ ${imageCount > 1 ? `Terdapat ${imageCount} gambar halaman jawaban siswa yang dil
 
 /**
  * Call AI with multi-image support using fallback chain.
- * Fallback chain: Groq Qwen (primary) → Gemini 3.8 Flash → OpenRouter Qwen 3.8 27B Free (qwen/qwen3.8-27b:free)
+ * Fallback chain: Groq Qwen (primary) → Gemini 3.8 Flash → OpenRouter Gemma 4 31B Multivision Free (google/gemma-4-31b-it:free)
  */
 async function callUnifiedAI(
   prompt: string,
@@ -199,7 +199,7 @@ async function callUnifiedAI(
     } catch (geminiError: any) {
       console.warn("[Grade BG] Gemini unified juga gagal, mencoba fallback OpenRouter...", geminiError?.message);
 
-      // 3. FALLBACK 2: OpenRouter (qwen/qwen3.8-27b:free)
+      // 3. FALLBACK 2: OpenRouter (Multivision Free Chain)
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
       if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
@@ -211,9 +211,13 @@ async function callUnifiedAI(
         });
       }
 
-      const rawOrModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
-      const targetOrModel = rawOrModel.includes("/") ? rawOrModel : `qwen/${rawOrModel}`;
-      const openRouterModels = [targetOrModel];
+      const rawOpenRouterModels = [
+        process.env.OPENROUTER_MODEL,
+        "google/gemma-4-31b-it:free",
+        "google/gemma-4-26b-a4b-it:free",
+        "nvidia/nemotron-3.5-super-vl:free",
+      ].filter(Boolean) as string[];
+      const openRouterModels = rawOpenRouterModels.map(m => m.includes("/") ? m : `google/${m}`);
 
       let lastOrError: any;
 

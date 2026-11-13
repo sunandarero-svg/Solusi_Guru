@@ -14,7 +14,7 @@ export interface CascadeOptions {
  * Menjalankan pembuatan teks AI dengan urutan kaskade yang sama seperti penilaian tulisan tangan siswa:
  * 1. Primary: Groq (Kecepatan tinggi, batas kuota fleksibel)
  * 2. Fallback 1: Gemini (gemini-3.8-flash)
- * 3. Fallback 2: OpenRouter (qwen/qwen3.8-27b:free)
+ * 3. Fallback 2: OpenRouter Gemma 4 31B Multivision Free (google/gemma-4-31b-it:free)
  */
 export async function callAICascade(options: CascadeOptions): Promise<string> {
   const {
@@ -139,9 +139,13 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
   // ==========================================
   const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (openRouterKey) {
-    const rawOrModel = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
-    const targetOrModel = rawOrModel.includes("/") ? rawOrModel : `qwen/${rawOrModel}`;
-    const openRouterModels = [targetOrModel];
+    const rawOpenRouterModels = [
+      process.env.OPENROUTER_MODEL,
+      "google/gemma-4-31b-it:free",
+      "google/gemma-4-26b-a4b-it:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+    ].filter(Boolean) as string[];
+    const openRouterModels = rawOpenRouterModels.map(m => m.includes("/") ? m : `google/${m}`);
 
     for (const orModel of openRouterModels) {
       try {
