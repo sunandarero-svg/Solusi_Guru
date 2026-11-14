@@ -2,7 +2,6 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
 import { compressBufferForOCR } from "./compressImageForOCR";
-import { openRouterQueue } from "./openRouterQueue";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -31,7 +30,6 @@ export class OpenRouterProvider implements AIProvider {
     const candidateVisionModels = [
       process.env.OPENROUTER_MODEL,
       "nvidia/nemotron-3.5-super-vl:free",
-      "nvidia/nemotron-3.5-super-vl", // Alternatif kedua setelah :free
       "google/gemma-4-31b-it:free",
       "google/gemma-4-26b-a4b-it:free",
     ].filter(Boolean) as string[];
@@ -66,18 +64,16 @@ export class OpenRouterProvider implements AIProvider {
       console.log(`[OpenRouter Vision] Step 1: Extracting text using (${visionModel})...`);
 
       try {
-        const response = await openRouterQueue.executeRequest(visionModel, () =>
-          fetch(OPENROUTER_BASE_URL, {
-            method: "POST",
-            headers: this.getHeaders(apiKey),
-            body: JSON.stringify({
-              model: visionModel,
-              messages: [{ role: "user", content: visionContentParts }],
-              temperature: 0.1,
-              max_tokens: 8192,
-            }),
-          })
-        );
+        const response = await fetch(OPENROUTER_BASE_URL, {
+          method: "POST",
+          headers: this.getHeaders(apiKey),
+          body: JSON.stringify({
+            model: visionModel,
+            messages: [{ role: "user", content: visionContentParts }],
+            temperature: 0.1,
+            max_tokens: 8192,
+          }),
+        });
 
         if (!response.ok) {
           const errBody = await response.text();
@@ -110,7 +106,6 @@ export class OpenRouterProvider implements AIProvider {
     const rawFallbackModels = [
       process.env.OPENROUTER_MODEL,
       "nvidia/nemotron-3.5-super-vl:free",
-      "nvidia/nemotron-3.5-super-vl", // Alternatif kedua setelah :free
       "google/gemma-4-31b-it:free",
       "google/gemma-4-26b-a4b-it:free",
     ].filter(Boolean) as string[];
@@ -121,18 +116,16 @@ export class OpenRouterProvider implements AIProvider {
     for (const model of fallbackModels) {
       console.log(`[OpenRouter] Trying text model: ${model}...`);
       try {
-        const response = await openRouterQueue.executeRequest(model, () =>
-          fetch(OPENROUTER_BASE_URL, {
-            method: "POST",
-            headers: this.getHeaders(apiKey),
-            body: JSON.stringify({
-              model: model,
-              messages: [{ role: "user", content: prompt }],
-              temperature: temperature,
-              max_tokens: maxTokens,
-            }),
-          })
-        );
+        const response = await fetch(OPENROUTER_BASE_URL, {
+          method: "POST",
+          headers: this.getHeaders(apiKey),
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: "user", content: prompt }],
+            temperature: temperature,
+            max_tokens: maxTokens,
+          }),
+        });
 
         if (!response.ok) {
           const errBody = await response.text();

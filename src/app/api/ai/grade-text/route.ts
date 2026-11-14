@@ -8,7 +8,6 @@ import { GoogleGenAI } from "@google/genai";
 import { attachmentService } from "@/modules/attachment/attachmentService";
 import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
 import { gradeObjectiveQuestion, hasValidCorrectAnswer } from "@/modules/grading/systemGrader";
-import { openRouterQueue } from "@/modules/ai/openRouterQueue";
 
 interface CompressedImage {
   base64Data: string;
@@ -121,10 +120,9 @@ ${imageCount > 1 ? `Terdapat ${imageCount} gambar halaman jawaban siswa yang dil
  * Call AI with multi-image support using fallback chain.
  * Hierarchy:
  * 1. PRIMARY: OpenRouter NVIDIA Nemotron 3.5 Super VL Free (nvidia/nemotron-3.5-super-vl:free)
- * 2. ALTERNATIF KEDUA: OpenRouter NVIDIA Nemotron 3.5 Super VL (nvidia/nemotron-3.5-super-vl)
- * 3. SECONDARY: Groq (Qwen - qwen/qwen3.8-27b)
- * 4. FALLBACK 1: Gemini Multi-Model (gemini-2.0-flash, gemini-1.5-flash, gemini-3.8-flash)
- * 5. FALLBACK 2: OpenRouter Gemma Free (google/gemma-4-31b-it:free, google/gemma-4-26b-a4b-it:free)
+ * 2. SECONDARY: Groq (Qwen - qwen/qwen3.8-27b)
+ * 3. FALLBACK 1: Gemini Multi-Model (gemini-2.0-flash, gemini-1.5-flash, gemini-3.8-flash)
+ * 4. FALLBACK 2: OpenRouter Gemma Free (google/gemma-4-31b-it:free, google/gemma-4-26b-a4b-it:free)
  */
 async function callUnifiedAI(
   prompt: string,
@@ -143,25 +141,23 @@ async function callUnifiedAI(
   if (openRouterApiKey) {
     try {
       const primaryNemotronModel = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl:free";
-      console.log(`[Grade BG] Memanggil model unified (Primary - OpenRouter Free): ${primaryNemotronModel}`);
+      console.log(`[Grade BG] Memanggil model unified (Primary - OpenRouter): ${primaryNemotronModel}`);
 
-      const orResponse = await openRouterQueue.executeRequest(primaryNemotronModel, () =>
-        fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openRouterApiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-            "X-Title": "Solusi Guru",
-          },
-          body: JSON.stringify({
-            model: primaryNemotronModel,
-            messages: [{ role: "user", content: contentParts }],
-            temperature: 0.0,
-            max_tokens: 16384,
-          }),
-        })
-      );
+      const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openRouterApiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+          "X-Title": "Solusi Guru",
+        },
+        body: JSON.stringify({
+          model: primaryNemotronModel,
+          messages: [{ role: "user", content: contentParts }],
+          temperature: 0.0,
+          max_tokens: 16384,
+        }),
+      });
 
       if (!orResponse.ok) {
         const errBody = await orResponse.text();
@@ -176,46 +172,7 @@ async function callUnifiedAI(
       console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter Primary: ${primaryNemotronModel}`);
       return text;
     } catch (openRouterPrimaryErr: any) {
-      console.warn("[Grade BG] OpenRouter Primary (Nemotron Free) gagal, mencoba Alternatif Kedua (Nemotron non-free)...", openRouterPrimaryErr?.message);
-    }
-
-    // 1b. ALTERNATIF KEDUA: OpenRouter NVIDIA Nemotron 3.5 Super VL (Non-free)
-    try {
-      const altNemotronModel = "nvidia/nemotron-3.5-super-vl";
-      console.log(`[Grade BG] Memanggil model unified (Alternatif Kedua - OpenRouter): ${altNemotronModel}`);
-
-      const orResponse = await openRouterQueue.executeRequest(altNemotronModel, () =>
-        fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openRouterApiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-            "X-Title": "Solusi Guru",
-          },
-          body: JSON.stringify({
-            model: altNemotronModel,
-            messages: [{ role: "user", content: contentParts }],
-            temperature: 0.0,
-            max_tokens: 16384,
-          }),
-        })
-      );
-
-      if (!orResponse.ok) {
-        const errBody = await orResponse.text();
-        console.error(`[Grade BG] OpenRouter Alternatif Kedua Error (${altNemotronModel}):`, errBody);
-        throw new Error(`OpenRouter API returned ${orResponse.status} - ${errBody}`);
-      }
-
-      const orData = await orResponse.json();
-      const text = orData.choices?.[0]?.message?.content || "";
-      if (!text) throw new Error("Empty response from OpenRouter Alternatif Kedua");
-
-      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter Alternatif Kedua: ${altNemotronModel}`);
-      return text;
-    } catch (openRouterAltErr: any) {
-      console.warn("[Grade BG] OpenRouter Alternatif Kedua (Nemotron non-free) gagal, mencoba Second Grading (Groq)...", openRouterAltErr?.message);
+      console.warn("[Grade BG] OpenRouter Primary (Nemotron) gagal, mencoba Second Grading (Groq)...", openRouterPrimaryErr?.message);
     }
   }
 
@@ -318,23 +275,21 @@ async function callUnifiedAI(
     for (const orModel of alternativeOrModels) {
       try {
         console.log(`[Grade BG] Memanggil model unified (Fallback 2 - OpenRouter): ${orModel}`);
-        const orResponse = await openRouterQueue.executeRequest(orModel, () =>
-          fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${openRouterApiKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-              "X-Title": "Solusi Guru",
-            },
-            body: JSON.stringify({
-              model: orModel,
-              messages: [{ role: "user", content: contentParts }],
-              temperature: 0.0,
-              max_tokens: 16384,
-            }),
-          })
-        );
+        const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openRouterApiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+            "X-Title": "Solusi Guru",
+          },
+          body: JSON.stringify({
+            model: orModel,
+            messages: [{ role: "user", content: contentParts }],
+            temperature: 0.0,
+            max_tokens: 16384,
+          }),
+        });
 
         if (!orResponse.ok) {
           const errBody = await orResponse.text();
