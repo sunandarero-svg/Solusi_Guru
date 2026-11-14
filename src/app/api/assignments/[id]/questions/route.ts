@@ -86,11 +86,11 @@ export async function PUT(
     if (questions.length > 0) {
       const questionsToInsert = questions.map((q: any) => ({
         assignmentId: resolvedParams.id,
-        order: q.order,
+        order: Number(q.order) || 0,
         questionType: q.questionType,
-        maxScore: q.maxScore,
+        maxScore: Number(q.maxScore) || 0,
         correctAnswer: q.correctAnswer || undefined
-      }));
+      })).sort((a: any, b: any) => a.order - b.order);
       await AssignmentQuestion.insertMany(questionsToInsert);
     }
 

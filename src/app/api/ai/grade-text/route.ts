@@ -43,13 +43,18 @@ function buildUnifiedPrompt(
 
   let questionsInstruction = "";
   if (questions && questions.length > 0) {
-    const qList = questions.map((q: any) => {
+    const sortedQuestions = [...questions].sort((a: any, b: any) => {
+      const aNum = typeof a.order === 'number' ? a.order : (parseInt(String(a.order).replace(/\D/g, '')) || 0);
+      const bNum = typeof b.order === 'number' ? b.order : (parseInt(String(b.order).replace(/\D/g, '')) || 0);
+      return aNum - bNum;
+    });
+    const qList = sortedQuestions.map((q: any) => {
       let line = `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`;
       if (q.correctAnswer && (q.questionType === 'ISIAN_SINGKAT' || q.questionType === 'ESSAY')) {
         line += `, Kunci/Poin: ${q.correctAnswer}`;
       }
       return line;
-    }).join("\\n");
+    }).join("\n");
     questionsInstruction = `KONFIGURASI SOAL & BOBOT:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
   } else {
     questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
@@ -63,15 +68,16 @@ ${questionsInstruction}
 
 === INSTRUKSI PENILAIAN & ALOKASI SKOR ===
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
-1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
+1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar. Pastikan nomor soal 1 sampai akhir terisi lengkap dan berurutan.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
 3. KRITERIA PILIHAN GANDA:
    - Ambil HANYA huruf pilihan (A, B, C, D, E) ke dalam 'studentAnswer'.
    - Jika siswa menulis dua huruf seperti "A B" (koreksi jawaban) atau terdapat coretan, ambil huruf KEDUA / huruf yang TIDAK DICORET.
-3b. KRITERIA BENAR / SALAH (SANGAT PENTING):
-   - Jika terdapat tulisan "Benar/Salah", "Benar dan salah", "B/S", "B / S", "Pernyataan Benar/Salah", atau kedua pilihan sekaligus: Tulisan tersebut TIDAK DIANGGAP SEBAGAI BAGIAN DARI SOAL, DILEWATI, dan TIDAK DIBERIKAN SKOR (skor 0, status UNREADABLE).
-   - DILARANG KERAS menganggap teks judul/petunjuk seperti "Benar/Salah", "Pernyataan (Benar/Salah)", atau "B/S" sebagai nomor soal atau jawaban! Teks tersebut harus DILEWATI sepenuhnya.
-   - Jika ada dua tulisan berurutan seperti "Benar Salah" atau "Salah Benar" (misal karena siswa mengganti jawaban atau mencoret), ambil HANYA kata KEDUA, atau kata yang TIDAK ADA CORETAN sebagai jawaban akhir siswa di 'studentAnswer'.
+3b. KRITERIA BENAR / SALAH (SANGAT PENTING - OCR TINGKAT TINGGI):
+   - PENTING: Perhatikan baik-baik tulisan siswa pada soal Benar/Salah (misal nomor 11-15). Bedakan secara akurat antara huruf 'B' (Benar) dan 'S' (Salah) atau kata "Benar" dan "Salah".
+   - PENGABAIAN JUDUL / PETUNJUK: Jika terdapat tulisan "Benar/Salah", "Benar dan salah", "B/S", "B / S", "Pernyataan Benar/Salah", atau opsi ganda petunjuk: Tulisan tersebut BUKAN BAGIAN SOAL, HARUS DILEWATI sepenuhnya, dan JANGAN menggeser penomoran soal siswa.
+   - PENANGANAN KOREKSI / CORETAN: Jika siswa mencoret jawaban pertama lalu menuliskan jawaban baru (misal mencoret 'Benar' lalu menulis 'Salah', atau menulis dua kata berurutan 'Benar Salah' / 'Salah Benar'), AMBIL HANYA JAWABAN KEDUA / KATA YANG TIDAK DICORET sebagai jawaban akhir siswa di 'studentAnswer'.
+   - JIKA RAGU: Transkripsikan apa adanya (misal "Benar Salah") agar sistem pemeriksa otomatis dapat mengambil kata perbaikan terakhir.
 3c. KRITERIA PILIHAN GANDA KOMPLEKS / BERTINGKAT:
    - Ekstrak seluruh huruf pilihan yang dipilih siswa (misal: "A, C, E").
 *CATATAN INTEGRITAS PENILAIAN: Seluruh soal Pilihan Ganda, Benar/Salah, dan Pilihan Ganda Kompleks/Bertingkat dinilai secara mutlak oleh Aplikasi Sistem (System Grader). AI bertugas membaca dan mentranskripsikan jawaban siswa (OCR) dengan setepat mungkin ke dalam 'studentAnswer'.*
@@ -262,6 +268,9 @@ async function callUnifiedAI(
   throw new Error("Semua provider AI (NVIDIA Primary, OpenRouter Fallback 1, Groq Fallback 2) gagal.");
 }
 
+// In-flight tracking to prevent concurrent double-grading on the same submission
+const inFlightGradings = new Set<string>();
+
 /**
  * Background function: Unified Extract + Grade in ONE AI call per student, then save results.
  * Runs after HTTP response has been sent.
@@ -271,21 +280,27 @@ async function processFullGradingInBackground(
   assignmentId: string,
   submissionId: string
 ) {
+  if (inFlightGradings.has(submissionId)) {
+    console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Penilaian sedang berjalan untuk submission ini. Mengabaikan panggilan duplikat.`);
+    return;
+  }
+  inFlightGradings.add(submissionId);
+
   try {
     await dbConnect();
 
     // === STEP 1: Compress all images ===
     // Resolusi adaptif: jika gambar >= 3, gunakan 800px agar aman di bawah batas 7.000 ITPM Groq
     const targetDimension = base64Images.length >= 3 ? 800 : (base64Images.length === 2 ? 900 : 1024);
-    console.log(`[Grade BG] Mulai kompresi ${base64Images.length} gambar (target max ${targetDimension}px) untuk submission ${submissionId}`);
+    console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Mulai kompresi ${base64Images.length} gambar (target max ${targetDimension}px)`);
     const compressedImages: CompressedImage[] = [];
     for (let i = 0; i < base64Images.length; i++) {
       try {
         const compressed = await compressSingleImage(base64Images[i], targetDimension);
         compressedImages.push(compressed);
-        console.log(`[Grade BG] Halaman ${i + 1}/${base64Images.length} berhasil dikompres`);
+        console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Halaman ${i + 1}/${base64Images.length} berhasil dikompres`);
       } catch (err: any) {
-        console.error(`[Grade BG] Gagal kompresi halaman ${i + 1}:`, err.message);
+        console.error(`[Grade BG][Sub ${submissionId.slice(-6)}] Gagal kompresi halaman ${i + 1}:`, err.message);
         // Skip gambar yang gagal dikompres
       }
     }
@@ -295,7 +310,7 @@ async function processFullGradingInBackground(
     }
 
     // === STEP 2: Fetch assignment data (parallel) ===
-    console.log(`[Grade BG] Mengambil data tugas untuk assignment ${assignmentId}`);
+    console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Mengambil data tugas untuk assignment ${assignmentId}`);
     const [assignment, existingAnswerKey, questions] = await Promise.all([
       Assignment.findById(assignmentId).lean(),
       attachmentService.getAnswerKey(assignmentId),
@@ -311,10 +326,10 @@ async function processFullGradingInBackground(
     // === STEP 3: Build unified prompt & call AI (1 panggilan untuk OCR + Grade) ===
     const unifiedPrompt = buildUnifiedPrompt(answerKey, questions, compressedImages.length);
 
-    console.log(`[Grade BG] Memanggil AI unified (OCR+Grade) untuk submission ${submissionId} dengan ${compressedImages.length} gambar`);
+    console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Memanggil AI unified (OCR+Grade) dengan ${compressedImages.length} gambar`);
     const responseText = await callUnifiedAI(unifiedPrompt, compressedImages);
 
-    console.log(`[Grade BG] Respons AI diterima. Parsing JSON...`);
+    console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Respons AI diterima. Parsing JSON...`);
 
     // === STEP 4: Parse JSON response ===
     let jsonString = responseText;
@@ -332,8 +347,15 @@ async function processFullGradingInBackground(
     const answerKeyMap = parseAnswerKeyMap(answerKey);
 
     if (questions && questions.length > 0) {
-      for (const q of questions) {
-        const aiAnalysis = assessmentResult.analysis.find((a: any) => {
+      // WAJIB URUTKAN SOAL SECARA NUMERIK (1, 2, 3, ... N) SEBELUM DINILAI
+      const sortedQuestions = [...questions].sort((a: any, b: any) => {
+        const aNum = typeof a.order === 'number' ? a.order : (parseInt(String(a.order).replace(/\D/g, '')) || 0);
+        const bNum = typeof b.order === 'number' ? b.order : (parseInt(String(b.order).replace(/\D/g, '')) || 0);
+        return aNum - bNum;
+      });
+
+      for (const q of sortedQuestions) {
+        const aiAnalysis = assessmentResult.analysis?.find((a: any) => {
           const qn = parseInt(String(a.questionNumber).replace(/\D/g, '')) || 0;
           return qn === q.order;
         });
@@ -370,13 +392,13 @@ async function processFullGradingInBackground(
               analysisText = systemResult.analysisText;
               studentAnswer = systemResult.studentAnswer;
               validStatus = systemResult.status;
-              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
+              console.log(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
             } else {
               finalScore = 0;
               reasoning = `Kunci jawaban untuk soal ${q.questionType} tidak ditemukan.`;
               analysisText = `⚠️ Kunci jawaban belum dikonfigurasi.`;
               validStatus = "OK";
-              console.warn(`[System Grader] Soal ${q.order} (${q.questionType}): Kunci jawaban tidak ditemukan.`);
+              console.warn(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): Kunci jawaban tidak ditemukan.`);
             }
           } else if (hasValidCorrectAnswer({ questionType: q.questionType, correctAnswer: effectiveCorrectAnswer })) {
             // Soal Isian Singkat dengan kunci jawaban
@@ -393,7 +415,7 @@ async function processFullGradingInBackground(
               analysisText = systemResult.analysisText;
               studentAnswer = systemResult.studentAnswer;
               validStatus = systemResult.status;
-              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
+              console.log(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
             } else {
               // Similarity rendah pada ISIAN_SINGKAT → evaluasi kontekstual AI
               finalScore = Number(aiAnalysis.score) || 0;
@@ -402,7 +424,7 @@ async function processFullGradingInBackground(
               reasoning = aiAnalysis.reasoning || "";
               analysisText = aiAnalysis.analysisText || "";
               validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
-              console.log(`[AI Fallback] Soal ${q.order} (${q.questionType}): Evaluasi kontekstual AI: ${finalScore}/${maxScore}`);
+              console.log(`[AI Fallback][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): Evaluasi kontekstual AI: ${finalScore}/${maxScore}`);
             }
           } else {
             // Soal Non-Objektif (ESSAY atau tanpa kunci jawaban)
@@ -429,12 +451,19 @@ async function processFullGradingInBackground(
       }
     } else {
       // Fallback jika tidak ada konfigurasi structured questions:
-      // Cocokkan dengan answerKeyMap jika soal objektif terdeteksi
-      assessmentResult.analysis.forEach((analysis: any) => {
+      // WAJIB URUTKAN ANALISIS AI SECARA NUMERIK (1, 2, 3, ... N)
+      const rawAnalysis = Array.isArray(assessmentResult.analysis) ? assessmentResult.analysis : [];
+      const sortedAnalysis = [...rawAnalysis].sort((a: any, b: any) => {
+        const aNum = parseInt(String(a.questionNumber).replace(/\D/g, '')) || 0;
+        const bNum = parseInt(String(b.questionNumber).replace(/\D/g, '')) || 0;
+        return aNum - bNum;
+      });
+
+      sortedAnalysis.forEach((analysis: any) => {
         const qOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
         // Jika nomor soal tidak valid atau merupakan judul petunjuk "Benar/Salah", lewati sepenuhnya!
         if (qOrder === 0 || isAmbiguousBSAnswer(String(analysis.questionNumber))) {
-          console.log(`[Grade BG] Mengabaikan teks petunjuk/judul bukan soal: "${analysis.questionNumber}"`);
+          console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Mengabaikan teks petunjuk/judul bukan soal: "${analysis.questionNumber}"`);
           return;
         }
         let maxScore = Number(analysis.maxScore) || 10;
@@ -459,7 +488,7 @@ async function processFullGradingInBackground(
             analysisText = systemResult.analysisText;
             studentAnswer = systemResult.studentAnswer;
             validStatus = systemResult.status;
-            console.log(`[System Grader Auto] Soal ${qOrder} (${keyInfo.detectedType}): "${studentAnswer}" vs "${keyInfo.key}" → ${finalScore}/${maxScore}`);
+            console.log(`[System Grader Auto][Sub ${submissionId.slice(-6)}] Soal ${qOrder} (${keyInfo.detectedType}): "${studentAnswer}" vs "${keyInfo.key}" → ${finalScore}/${maxScore}`);
           }
         }
 
@@ -518,7 +547,11 @@ async function processFullGradingInBackground(
       submittedAt: new Date()
     });
 
-    console.log(`[Grade BG] ✅ Submission ${submissionId} berhasil dinilai (unified OCR+Grade). Skor: ${actualTotalScore}`);
+    console.log(`\n============================================================`);
+    console.log(`[Grade BG] ✅ SELESAI PENILAIAN SUBMISSION: ${submissionId}`);
+    console.log(`[Grade BG] Total Soal Diperiksa: ${normalizedAnalyses.length} butir (Berurutan Soal 1 s/d ${normalizedAnalyses.length})`);
+    console.log(`[Grade BG] 🏆 TOTAL SKOR AKHIR: ${actualTotalScore}`);
+    console.log(`============================================================\n`);
 
   } catch (error: any) {
     console.error(`[Grade BG] ❌ Gagal memproses submission ${submissionId}:`, error);
@@ -528,6 +561,8 @@ async function processFullGradingInBackground(
     } catch (updateErr) {
       console.error("[Grade BG] Gagal mengupdate status ke FAILED:", updateErr);
     }
+  } finally {
+    inFlightGradings.delete(submissionId);
   }
 }
 

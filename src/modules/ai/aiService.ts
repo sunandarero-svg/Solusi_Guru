@@ -141,8 +141,15 @@ export class AIService {
     const answerKeyMap = parseAnswerKeyMap(answerKey || "");
     
     if (questions && questions.length > 0) {
-      for (const q of questions) {
-        const aiAnalysis = assessmentResult.analysis.find((a: any) => {
+      // WAJIB URUTKAN SOAL SECARA NUMERIK (1, 2, 3, ... N) SEBELUM DINILAI
+      const sortedQuestions = [...questions].sort((a: any, b: any) => {
+        const aNum = typeof a.order === 'number' ? a.order : (parseInt(String(a.order).replace(/\D/g, '')) || 0);
+        const bNum = typeof b.order === 'number' ? b.order : (parseInt(String(b.order).replace(/\D/g, '')) || 0);
+        return aNum - bNum;
+      });
+
+      for (const q of sortedQuestions) {
+        const aiAnalysis = assessmentResult.analysis?.find((a: any) => {
           const qn = parseInt(String(a.questionNumber).replace(/\D/g, '')) || 0;
           return qn === q.order;
         });
@@ -238,8 +245,15 @@ export class AIService {
       }
     } else {
       // Fallback jika tidak ada konfigurasi structured questions:
-      // Cocokkan dengan answerKeyMap jika soal objektif terdeteksi
-      assessmentResult.analysis.forEach((analysis: any) => {
+      // WAJIB URUTKAN ANALISIS AI SECARA NUMERIK (1, 2, 3, ... N)
+      const rawAnalysis = Array.isArray(assessmentResult.analysis) ? assessmentResult.analysis : [];
+      const sortedAnalysis = [...rawAnalysis].sort((a: any, b: any) => {
+        const aNum = parseInt(String(a.questionNumber).replace(/\D/g, '')) || 0;
+        const bNum = parseInt(String(b.questionNumber).replace(/\D/g, '')) || 0;
+        return aNum - bNum;
+      });
+
+      sortedAnalysis.forEach((analysis: any) => {
         const qOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
         // Jika nomor soal tidak valid atau merupakan judul petunjuk "Benar/Salah", lewati sepenuhnya!
         if (qOrder === 0 || isAmbiguousBSAnswer(String(analysis.questionNumber))) {
