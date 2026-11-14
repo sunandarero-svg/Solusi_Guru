@@ -6,7 +6,7 @@ import { Assignment, AssignmentAttachment, AssignmentQuestion } from "@/models/A
 import { AIAssessment, StudentAnswerAnalysis, Submission } from "@/models/Submission";
 import { attachmentService } from "@/modules/attachment/attachmentService";
 import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
-import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap } from "@/modules/grading/systemGrader";
+import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap, isAmbiguousBSAnswer } from "@/modules/grading/systemGrader";
 
 interface CompressedImage {
   base64Data: string;
@@ -69,7 +69,8 @@ ${questionsInstruction}
    - Ambil HANYA huruf pilihan (A, B, C, D, E) ke dalam 'studentAnswer'.
    - Jika siswa menulis dua huruf seperti "A B" (koreksi jawaban) atau terdapat coretan, ambil huruf KEDUA / huruf yang TIDAK DICORET.
 3b. KRITERIA BENAR / SALAH (SANGAT PENTING):
-   - Jika siswa menuliskan "Benar/Salah", "Benar dan salah", "B/S", "B / S", atau kedua pilihan sekaligus dengan garis miring/kata sambung, tuliskan persis apa adanya di 'studentAnswer' dan BERIKAN SKOR 0 (JANGAN DINILAI).
+   - Jika terdapat tulisan "Benar/Salah", "Benar dan salah", "B/S", "B / S", "Pernyataan Benar/Salah", atau kedua pilihan sekaligus: Tulisan tersebut TIDAK DIANGGAP SEBAGAI BAGIAN DARI SOAL, DILEWATI, dan TIDAK DIBERIKAN SKOR (skor 0, status UNREADABLE).
+   - DILARANG KERAS menganggap teks judul/petunjuk seperti "Benar/Salah", "Pernyataan (Benar/Salah)", atau "B/S" sebagai nomor soal atau jawaban! Teks tersebut harus DILEWATI sepenuhnya.
    - Jika ada dua tulisan berurutan seperti "Benar Salah" atau "Salah Benar" (misal karena siswa mengganti jawaban atau mencoret), ambil HANYA kata KEDUA, atau kata yang TIDAK ADA CORETAN sebagai jawaban akhir siswa di 'studentAnswer'.
 3c. KRITERIA PILIHAN GANDA KOMPLEKS / BERTINGKAT:
    - Ekstrak seluruh huruf pilihan yang dipilih siswa (misal: "A, C, E").
@@ -431,6 +432,11 @@ async function processFullGradingInBackground(
       // Cocokkan dengan answerKeyMap jika soal objektif terdeteksi
       assessmentResult.analysis.forEach((analysis: any) => {
         const qOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
+        // Jika nomor soal tidak valid atau merupakan judul petunjuk "Benar/Salah", lewati sepenuhnya!
+        if (qOrder === 0 || isAmbiguousBSAnswer(String(analysis.questionNumber))) {
+          console.log(`[Grade BG] Mengabaikan teks petunjuk/judul bukan soal: "${analysis.questionNumber}"`);
+          return;
+        }
         let maxScore = Number(analysis.maxScore) || 10;
         let finalScore = Number(analysis.score) || 0;
         let reasoning = analysis.reasoning || "";

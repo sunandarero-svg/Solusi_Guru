@@ -87,8 +87,8 @@ function normalizePGAnswer(answer: string): string {
 
 /**
  * Deteksi apakah siswa menuliskan opsi Benar dan Salah secara bersamaan / ambigu:
- * Contoh: "Benar/Salah", "Benar / Salah", "Benar dan salah", "B/S", "B / S", "B & S", "Benar atau Salah", "Salah/Benar"
- * Sesuai aturan: jika ada tulisan tersebut, JANGAN DINILAI (skor 0).
+ * Contoh: "Benar/Salah", "Benar / Salah", "Benar dan salah", "B/S", "B / S", "B & S", "Benar atau Salah", "Salah/Benar", "Pernyataan Benar/Salah"
+ * Sesuai aturan: tulisan tersebut TIDAK DIANGGAP BAGIAN DARI SOAL, DILEWATI, dan TIDAK DIBERIKAN SKOR (skor 0).
  */
 export function isAmbiguousBSAnswer(raw: string): boolean {
   if (!raw) return false;
@@ -104,6 +104,11 @@ export function isAmbiguousBSAnswer(raw: string): boolean {
 
   // Pola murni singkat: b/s, s/b, b\s, s\b, b & s
   if (/^[bs]\s*[\/\\&\-]\s*[bs]$/i.test(cleaned)) {
+    return true;
+  }
+
+  // Deteksi teks judul / petunjuk "pernyataan ... benar/salah"
+  if (/pernyataan.*(?:benar|salah|b\/s)/i.test(cleaned)) {
     return true;
   }
 
@@ -335,7 +340,8 @@ function gradePilihanGanda(
 
 /**
  * Menilai soal Benar/Salah:
- * - Jika ada tulisan "Benar/Salah", "Benar dan salah", "B/S", dst -> JANGAN DINILAI (skor 0).
+ * - Jika ada tulisan "Benar/Salah", "Benar dan salah", "B/S", "Pernyataan Benar/Salah", dst:
+ *   -> TIDAK DIANGGAP BAGIAN DARI SOAL, DILEWATI, dan TIDAK DIBERIKAN SKOR (skor 0, status UNREADABLE).
  * - Jika ada dua kata "Benar Salah" atau "Salah Benar" -> ambil kata kedua (atau yang tidak dicoret).
  * - Cocokkan dengan kunci jawaban -> skor maxScore jika cocok, 0 jika salah.
  */
@@ -345,16 +351,17 @@ function gradeBenarSalah(
   correctAnswer: string,
   maxScore: number
 ): SystemGradingResult {
-  // 1. Cek jika jawaban ambigu (Benar/Salah, Benar dan salah, B/S, dll) -> JANGAN DINILAI (skor 0)
+  // 1. Cek jika jawaban berupa "Benar/Salah", "Benar dan salah", "B/S", dsb:
+  // Sesuai aturan: tidak dianggap bagian dari soal, dilewati dan tidak diberikan skor (skor 0).
   if (isAmbiguousBSAnswer(studentAnswer)) {
     return {
       questionNumber,
-      studentAnswer,
+      studentAnswer: `${studentAnswer} [Dilewati]`,
       score: 0,
       maxScore,
-      analysisText: `❌ Jawaban tidak dinilai karena menulis dua opsi sekaligus ("${studentAnswer}"). Skor: 0`,
-      reasoning: `Jawaban siswa mengandung "Benar/Salah" atau "B/S" secara bersamaan (tidak memilih salah satu). Sesuai aturan, jawaban tidak dinilai.`,
-      status: "OK",
+      analysisText: `⚠️ Dilewati: Tulisan "${studentAnswer}" tidak dianggap sebagai bagian dari soal dan tidak diberikan skor (Skor: 0).`,
+      reasoning: `Tulisan "${studentAnswer}" tidak dianggap sebagai bagian dari soal, dilewati dan tidak diberikan skor.`,
+      status: "UNREADABLE",
       gradedBy: "SYSTEM"
     };
   }

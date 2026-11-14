@@ -4,7 +4,7 @@ import { Assignment, Rubric, RubricCriterion, AssignmentAttachment, AssignmentQu
 import { AIProvider } from "./AIProvider";
 import { GroqProvider } from "./GroqProvider";
 import { OpenRouterProvider } from "./OpenRouterProvider";
-import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap } from "@/modules/grading/systemGrader";
+import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap, isAmbiguousBSAnswer } from "@/modules/grading/systemGrader";
 
 export class AIService {
   private provider: AIProvider;
@@ -241,6 +241,11 @@ export class AIService {
       // Cocokkan dengan answerKeyMap jika soal objektif terdeteksi
       assessmentResult.analysis.forEach((analysis: any) => {
         const qOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
+        // Jika nomor soal tidak valid atau merupakan judul petunjuk "Benar/Salah", lewati sepenuhnya!
+        if (qOrder === 0 || isAmbiguousBSAnswer(String(analysis.questionNumber))) {
+          console.log(`[AI Service] Mengabaikan teks petunjuk/judul bukan soal: "${analysis.questionNumber}"`);
+          return;
+        }
         let maxScore = Number(analysis.maxScore) || 10;
         let finalScore = Number(analysis.score) || 0;
         let reasoning = analysis.reasoning || "";
