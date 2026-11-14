@@ -4,13 +4,26 @@ import path from "path";
 import { compressBufferForOCR } from "./compressImageForOCR";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
+const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 export class OpenRouterProvider implements AIProvider {
   readonly providerName = "OpenRouter-Nemotron3.5-SuperVL";
 
   private getApiKey(): string {
+    const key = process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || process.env.NVIDIA_KEY;
+    if (!key) throw new Error("API key (OPENROUTER_API_KEY or NVIDIA_API_KEY) is not configured.");
+    return key.trim().replace(/^["']|["']$/g, "");
+  }
+
+  private getNvidiaApiKey(): string | null {
+    const key = process.env.NVIDIA_API_KEY || process.env.NVIDIA_KEY;
+    if (!key) return null;
+    return key.trim().replace(/^["']|["']$/g, "");
+  }
+
+  private getOpenRouterApiKey(): string | null {
     const key = process.env.OPENROUTER_API_KEY;
-    if (!key) throw new Error("OPENROUTER_API_KEY is not configured.");
+    if (!key) return null;
     return key.trim().replace(/^["']|["']$/g, "");
   }
 
@@ -25,15 +38,6 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   private async _extractVision(visionPrompt: string, pages: any[]): Promise<string> {
-    const apiKey = this.getApiKey();
-    
-    const candidateVisionModels = [
-      process.env.OPENROUTER_MODEL,
-      "nvidia/nemotron-3.5-super-vl:free",
-      "google/gemma-4-31b-it:free",
-      "google/gemma-4-26b-a4b-it:free",
-    ].filter(Boolean) as string[];
-    
     const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
@@ -58,106 +62,195 @@ export class OpenRouterProvider implements AIProvider {
       });
     }
 
-    let lastError: Error | null = null;
-    for (const rawVisionModel of candidateVisionModels) {
-      const visionModel = rawVisionModel.includes("/") ? rawVisionModel : `nvidia/${rawVisionModel}`;
-      console.log(`[OpenRouter Vision] Step 1: Extracting text using (${visionModel})...`);
-
+    // 1. PRIMARY: NVIDIA Direct API (nvidia/nemotron-3.5-super-vl-120b-a12b)
+    const nvidiaKey = this.getNvidiaApiKey();
+    if (nvidiaKey) {
+      const nvidiaModel = process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b";
       try {
-        const response = await fetch(OPENROUTER_BASE_URL, {
+        console.log(`[Vision OCR] Step 1 (Primary - NVIDIA): Extracting text using (${nvidiaModel})...`);
+        const response = await fetch(NVIDIA_BASE_URL, {
           method: "POST",
-          headers: this.getHeaders(apiKey),
+          headers: {
+            Authorization: `Bearer ${nvidiaKey}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
-            model: visionModel,
+            model: nvidiaModel,
             messages: [{ role: "user", content: visionContentParts }],
             temperature: 0.1,
             max_tokens: 8192,
           }),
         });
 
-        if (!response.ok) {
+        if (response.ok) {
+          const data = await response.json();
+          const extractedText = data.choices?.[0]?.message?.content;
+          if (extractedText && extractedText.trim().length > 0) {
+            console.log(`[Vision OCR] Primary NVIDIA berhasil! Panjang teks: ${extractedText.length}`);
+            return extractedText;
+          }
+        } else {
           const errBody = await response.text();
-          console.warn(`[OpenRouter Vision] Model ${visionModel} returned ${response.status}: ${errBody}`);
-          lastError = new Error(`OpenRouter Vision API returned ${response.status}: ${errBody}`);
-          continue;
+          console.warn(`[Vision OCR] NVIDIA Primary returned ${response.status}: ${errBody}`);
         }
-
-        const data = await response.json();
-        const extractedText = data.choices?.[0]?.message?.content;
-        
-        if (!extractedText) {
-          console.warn(`[OpenRouter Vision] Model ${visionModel} returned empty response.`);
-          lastError = new Error("OpenRouter Vision API returned empty response.");
-          continue;
-        }
-        
-        console.log(`[OpenRouter Vision] Step 1 Complete with (${visionModel}). Extracted Text Length: ${extractedText.length}`);
-        return extractedText;
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[OpenRouter Vision] Exception with ${visionModel}:`, err?.message || err);
+      } catch (nvErr: any) {
+        console.warn(`[Vision OCR] NVIDIA Primary exception:`, nvErr?.message || nvErr);
       }
     }
 
-    throw lastError || new Error("All candidate OpenRouter vision models failed.");
+    // 2. FALLBACK 1: OpenRouter (nvidia/nemotron-3.5-super-vl)
+    const openRouterKey = this.getOpenRouterApiKey();
+    if (openRouterKey) {
+      const candidateVisionModels = [
+        process.env.OPENROUTER_MODEL,
+        "nvidia/nemotron-3.5-super-vl",
+        "nvidia/nemotron-3.5-super-vl:free",
+      ].filter(Boolean) as string[];
+
+      let lastError: Error | null = null;
+      for (const rawVisionModel of candidateVisionModels) {
+        const visionModel = rawVisionModel.includes("/") ? rawVisionModel : `nvidia/${rawVisionModel}`;
+        console.log(`[OpenRouter Vision] Step 1 (Fallback): Extracting text using (${visionModel})...`);
+
+        try {
+          const response = await fetch(OPENROUTER_BASE_URL, {
+            method: "POST",
+            headers: this.getHeaders(openRouterKey),
+            body: JSON.stringify({
+              model: visionModel,
+              messages: [{ role: "user", content: visionContentParts }],
+              temperature: 0.1,
+              max_tokens: 8192,
+            }),
+          });
+
+          if (!response.ok) {
+            const errBody = await response.text();
+            console.warn(`[OpenRouter Vision] Model ${visionModel} returned ${response.status}: ${errBody}`);
+            lastError = new Error(`OpenRouter Vision API returned ${response.status}: ${errBody}`);
+            continue;
+          }
+
+          const data = await response.json();
+          const extractedText = data.choices?.[0]?.message?.content;
+          
+          if (!extractedText) {
+            console.warn(`[OpenRouter Vision] Model ${visionModel} returned empty response.`);
+            lastError = new Error("OpenRouter Vision API returned empty response.");
+            continue;
+          }
+          
+          console.log(`[OpenRouter Vision] Complete with (${visionModel}). Extracted Text Length: ${extractedText.length}`);
+          return extractedText;
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`[OpenRouter Vision] Exception with ${visionModel}:`, err?.message || err);
+        }
+      }
+
+      if (lastError) throw lastError;
+    }
+
+    throw new Error("Semua provider vision OCR (NVIDIA Primary & OpenRouter Fallback) gagal atau API key tidak tersedia.");
   }
 
   private async _executeTextWithFallback(apiKey: string, prompt: string, temperature: number, maxTokens: number): Promise<string> {
-    const rawFallbackModels = [
-      process.env.OPENROUTER_MODEL,
-      "nvidia/nemotron-3.5-super-vl:free",
-      "google/gemma-4-31b-it:free",
-      "google/gemma-4-26b-a4b-it:free",
-    ].filter(Boolean) as string[];
-    const fallbackModels = rawFallbackModels.map(m => m.includes("/") ? m : `nvidia/${m}`);
-
-    let lastError: Error | null = null;
-
-    for (const model of fallbackModels) {
-      console.log(`[OpenRouter] Trying text model: ${model}...`);
+    // 1. PRIMARY: NVIDIA Direct API
+    const nvidiaKey = this.getNvidiaApiKey();
+    if (nvidiaKey) {
+      const nvidiaModel = process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b";
       try {
-        const response = await fetch(OPENROUTER_BASE_URL, {
+        console.log(`[AI Text] Trying NVIDIA Direct (${nvidiaModel})...`);
+        const response = await fetch(NVIDIA_BASE_URL, {
           method: "POST",
-          headers: this.getHeaders(apiKey),
+          headers: {
+            Authorization: `Bearer ${nvidiaKey}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
-            model: model,
+            model: nvidiaModel,
             messages: [{ role: "user", content: prompt }],
             temperature: temperature,
             max_tokens: maxTokens,
           }),
         });
 
-        if (!response.ok) {
-          const errBody = await response.text();
-          if (response.status === 429 || response.status === 529 || response.status === 404) {
-            console.warn(`[OpenRouter] Model ${model} returned ${response.status}. Trying next...`);
-            lastError = new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
-            continue;
+        if (response.ok) {
+          const data = await response.json();
+          const responseText = data.choices?.[0]?.message?.content;
+          if (responseText && responseText.trim().length > 0) {
+            console.log(`[AI Text] Successfully got response from NVIDIA Direct (${nvidiaModel})`);
+            return responseText;
           }
-          throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
+        } else {
+          const errBody = await response.text();
+          console.warn(`[AI Text] NVIDIA Direct returned ${response.status}: ${errBody}`);
         }
-
-        const data = await response.json();
-        const responseText = data.choices?.[0]?.message?.content;
-        
-        if (!responseText) {
-           console.warn(`[OpenRouter] Model ${model} returned empty response. Trying next...`);
-           lastError = new Error("OpenRouter Text API returned empty response.");
-           continue;
-        }
-
-        console.log(`[OpenRouter] Successfully got response from ${model}`);
-        return responseText;
-      } catch (err: any) {
-        lastError = err;
-        if (err.message.includes("429") || err.message.includes("529") || err.message.includes("empty response") || err.message.includes("404")) {
-          continue;
-        }
-        throw err;
+      } catch (nvErr: any) {
+        console.warn(`[AI Text] NVIDIA Direct exception:`, nvErr?.message || nvErr);
       }
     }
 
-    throw lastError || new Error("All fallback models failed.");
+    // 2. FALLBACK 1: OpenRouter (nvidia/nemotron-3.5-super-vl)
+    const openRouterKey = this.getOpenRouterApiKey();
+    if (openRouterKey) {
+      const rawFallbackModels = [
+        process.env.OPENROUTER_MODEL,
+        "nvidia/nemotron-3.5-super-vl",
+        "nvidia/nemotron-3.5-super-vl:free",
+      ].filter(Boolean) as string[];
+      const fallbackModels = rawFallbackModels.map(m => m.includes("/") ? m : `nvidia/${m}`);
+
+      let lastError: Error | null = null;
+
+      for (const model of fallbackModels) {
+        console.log(`[OpenRouter] Trying text model: ${model}...`);
+        try {
+          const response = await fetch(OPENROUTER_BASE_URL, {
+            method: "POST",
+            headers: this.getHeaders(openRouterKey),
+            body: JSON.stringify({
+              model: model,
+              messages: [{ role: "user", content: prompt }],
+              temperature: temperature,
+              max_tokens: maxTokens,
+            }),
+          });
+
+          if (!response.ok) {
+            const errBody = await response.text();
+            if (response.status === 429 || response.status === 529 || response.status === 404) {
+              console.warn(`[OpenRouter] Model ${model} returned ${response.status}. Trying next...`);
+              lastError = new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
+              continue;
+            }
+            throw new Error(`OpenRouter API returned ${response.status}: ${errBody}`);
+          }
+
+          const data = await response.json();
+          const responseText = data.choices?.[0]?.message?.content;
+          
+          if (!responseText) {
+             console.warn(`[OpenRouter] Model ${model} returned empty response. Trying next...`);
+             lastError = new Error("OpenRouter Text API returned empty response.");
+             continue;
+          }
+
+          console.log(`[OpenRouter] Successfully got response from ${model}`);
+          return responseText;
+        } catch (err: any) {
+          lastError = err;
+          if (err.message.includes("429") || err.message.includes("529") || err.message.includes("empty response") || err.message.includes("404")) {
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (lastError) throw lastError;
+    }
+
+    throw new Error("Semua model teks (NVIDIA Primary & OpenRouter Fallback) gagal.");
   }
 
   /**

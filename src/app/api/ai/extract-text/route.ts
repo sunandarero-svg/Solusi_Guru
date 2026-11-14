@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { groqRateLimiter } from "@/modules/ai/rateLimiter";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { GoogleGenAI } from "@google/genai";
 import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
 
 export async function POST(req: NextRequest) {
@@ -53,12 +52,58 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
 
     let extractedText = "";
 
-    // 1. PRIMARY: OpenRouter NVIDIA Nemotron 3.5 Super VL Free
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
-    if (openRouterApiKey) {
+    // 1. PRIMARY: NVIDIA Direct API (nvidia/nemotron-3.5-super-vl-120b-a12b)
+    const nvidiaApiKey = (process.env.NVIDIA_API_KEY || process.env.NVIDIA_KEY)?.trim().replace(/^["']|["']$/g, "");
+    if (nvidiaApiKey) {
       try {
-        const primaryModel = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl:free";
-        console.log(`[Extract Text API] Memanggil model (Primary - OpenRouter): ${primaryModel}`);
+        const nvidiaModel = process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b";
+        console.log(`[Extract Text API] Memanggil model (Primary - NVIDIA): ${nvidiaModel}`);
+
+        const nvResponse = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${nvidiaApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: nvidiaModel,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                ]
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 2048,
+          }),
+        });
+
+        if (nvResponse.ok) {
+          const nvData = await nvResponse.json();
+          extractedText = nvData.choices?.[0]?.message?.content || "";
+          if (extractedText.trim().length > 0) {
+            console.log(`[Extract Text API] Ekstraksi berhasil menggunakan NVIDIA Primary: ${nvidiaModel}`);
+          }
+        } else {
+          const errBody = await nvResponse.text();
+          console.warn("[Extract Text API] NVIDIA Primary Error:", errBody);
+        }
+      } catch (nvErr: any) {
+        console.warn("[Extract Text API] NVIDIA Primary gagal, mencoba Fallback 1 OpenRouter...", nvErr?.message);
+      }
+    } else {
+      console.warn("[Extract Text API] NVIDIA_API_KEY tidak ditemukan, melanjutkan ke Fallback 1 OpenRouter...");
+    }
+
+    // 2. FALLBACK 1: OpenRouter (nvidia/nemotron-3.5-super-vl - Berbayar)
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
+    if (!extractedText && openRouterApiKey) {
+      try {
+        const orModel = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl";
+        console.log(`[Extract Text API] Memanggil model (Fallback 1 - OpenRouter): ${orModel}`);
 
         const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
@@ -69,7 +114,7 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
             "X-Title": "Solusi Guru",
           },
           body: JSON.stringify({
-            model: primaryModel,
+            model: orModel,
             messages: [
               {
                 role: "user",
@@ -88,23 +133,23 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
           const orData = await orResponse.json();
           extractedText = orData.choices?.[0]?.message?.content || "";
           if (extractedText.trim().length > 0) {
-            console.log(`[Extract Text API] Ekstraksi berhasil menggunakan OpenRouter Primary: ${primaryModel}`);
+            console.log(`[Extract Text API] Ekstraksi berhasil menggunakan OpenRouter Fallback 1: ${orModel}`);
           }
         } else {
           const errBody = await orResponse.text();
-          console.warn("[Extract Text API] OpenRouter Primary Error:", errBody);
+          console.warn("[Extract Text API] OpenRouter Fallback 1 Error:", errBody);
         }
       } catch (orErr: any) {
-        console.warn("[Extract Text API] OpenRouter Primary gagal, mencoba Secondary Groq...", orErr?.message);
+        console.warn("[Extract Text API] OpenRouter Fallback 1 gagal, mencoba Fallback 2 Groq...", orErr?.message);
       }
     }
 
-    // 2. SECONDARY: Groq (Qwen)
+    // 3. FALLBACK 2: Groq (Qwen)
     if (!extractedText) {
       try {
         const { key } = await groqRateLimiter.waitForKey(30000);
         const secondaryModel = "qwen/qwen3.8-27b";
-        console.log(`[Extract Text API] Memanggil model (Secondary - Groq): ${secondaryModel}`);
+        console.log(`[Extract Text API] Memanggil model (Fallback 2 - Groq): ${secondaryModel}`);
 
         const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
@@ -136,108 +181,15 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
           }
         } else {
           const errBody = await groqResponse.text();
-          console.warn("[Extract Text API] Groq Secondary Error:", errBody);
+          console.warn("[Extract Text API] Groq Fallback 2 Error:", errBody);
         }
       } catch (groqError: any) {
-        console.warn("[Extract Text API] Groq gagal, mencoba fallback ke Gemini...", groqError?.message || groqError);
-      }
-    }
-
-    // 3. FALLBACK 1: Gemini Multi-Model Chain (2.0 Flash, 1.5 Flash, 3.8 Flash)
-    if (!extractedText && process.env.GEMINI_API_KEY) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const geminiCandidateModels = [
-          process.env.GEMINI_MODEL?.trim(),
-          "gemini-2.0-flash",
-          "gemini-1.5-flash",
-          "gemini-3.8-flash",
-        ].filter(Boolean) as string[];
-
-        for (const gModel of geminiCandidateModels) {
-          try {
-            console.log(`[Extract Text API] Memanggil model (Fallback 1 - Gemini): ${gModel}`);
-            const response = await ai.models.generateContent({
-              model: gModel,
-              contents: [
-                prompt,
-                {
-                  inlineData: {
-                    data: base64Data,
-                    mimeType: mimeType
-                  }
-                }
-              ],
-              config: {
-                temperature: 0.1,
-              }
-            });
-
-            extractedText = response.text || "";
-            if (extractedText.trim().length > 0) {
-              console.log(`[Extract Text API] Ekstraksi berhasil menggunakan model Gemini: ${gModel}`);
-              break;
-            }
-          } catch (gErr: any) {
-            console.warn(`[Extract Text API] Gemini ${gModel} gagal (${gErr?.message || gErr}). Mencoba model berikutnya...`);
-          }
-        }
-      } catch (geminiError: any) {
-        console.warn("[Extract Text API] Gemini multi-model gagal, mencoba fallback OpenRouter Gemma...", geminiError?.message || geminiError);
-      }
-    }
-
-    // 4. FALLBACK 2: OpenRouter Gemma Models (Gemma 4 31B & 26B)
-    if (!extractedText && openRouterApiKey) {
-      const fallbackOrModels = [
-        "google/gemma-4-31b-it:free",
-        "google/gemma-4-26b-a4b-it:free",
-      ];
-
-      for (const modelId of fallbackOrModels) {
-        try {
-          console.log(`[Extract Text API] Memanggil model (Fallback 2 - OpenRouter): ${modelId}`);
-
-          const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${openRouterApiKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-              "X-Title": "Solusi Guru",
-            },
-            body: JSON.stringify({
-              model: modelId,
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    { type: "text", text: prompt },
-                    { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-                  ]
-                }
-              ],
-              temperature: 0.1,
-              max_tokens: 2048,
-            }),
-          });
-
-          if (orResponse.ok) {
-            const orData = await orResponse.json();
-            extractedText = orData.choices?.[0]?.message?.content || "";
-            if (extractedText.trim().length > 0) {
-              console.log(`[Extract Text API] Ekstraksi berhasil menggunakan OpenRouter Fallback: ${modelId}`);
-              break;
-            }
-          }
-        } catch (modelErr: any) {
-          console.warn(`[Extract Text API] Exception on model ${modelId}:`, modelErr?.message || modelErr);
-        }
+        console.error("[Extract Text API] Groq Fallback 2 gagal:", groqError?.message || groqError);
       }
     }
 
     if (!extractedText) {
-      throw new Error("Semua provider AI (OpenRouter Primary, Groq Secondary, Gemini Fallback) gagal mengekstrak teks.");
+      throw new Error("Semua provider AI (NVIDIA Primary, OpenRouter Fallback 1, Groq Fallback 2) gagal mengekstrak teks.");
     }
 
     return NextResponse.json({ text: extractedText });

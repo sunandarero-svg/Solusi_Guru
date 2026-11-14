@@ -2,14 +2,10 @@ import { AIProvider, AIAssessmentResult } from "./AIProvider";
 import { readFile } from "fs/promises";
 import path from "path";
 import { groqRateLimiter } from "./rateLimiter";
-import { GoogleGenAI } from "@google/genai";
 import { compressBufferForOCR } from "./compressImageForOCR";
 
 // Cache for dynamically fetched models per API key
 const modelCache: Record<string, string[]> = {};
-
-// Circuit breaker untuk Gemini jika kuota harian habis (429 RESOURCE_EXHAUSTED)
-let geminiQuotaCooldownUntil = 0;
 
 /**
  * Mengambil daftar model Groq yang tersedia untuk API key tertentu.
@@ -58,8 +54,8 @@ export class GroqProvider implements AIProvider {
 
   /**
    * Menilai tugas siswa dengan Pipeline 2 Tahap yang Terpisah (Decoupled):
-   * Tahap 1: Ekstraksi OCR Teks (Gemini -> Groq Qwen Vision -> Fallback OpenRouter Nemotron 3.5 Super VL Free)
-   * Tahap 2: Penilaian Teks Jawaban (Groq Qwen Text -> Fallback OpenRouter Nemotron 3.5 Super VL Free)
+   * Tahap 1: Ekstraksi OCR Teks (Groq Qwen Vision -> Fallback OpenRouter Nemotron 3.5 Super VL)
+   * Tahap 2: Penilaian Teks Jawaban (Groq Qwen Text -> Fallback OpenRouter Nemotron 3.5 Super VL)
    * 
    * Keuntungan: Jika penilaian teks diulang (retry) atau dialihkan ke OpenRouter,
    * Tahap 1 TIDAK PERNAH diulang, sehingga menghemat kuota token gambar (ITPM) 100%.
@@ -133,67 +129,8 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       });
     }
 
-    // 1. Coba Gemini Vision terlebih dahulu (jika circuit breaker tidak aktif)
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const isGeminiCoolingDown = Date.now() < geminiQuotaCooldownUntil;
-
-    if (geminiKey && !isGeminiCoolingDown) {
-      try {
-        console.log(`[AI Vision] Step 1: Mengekstrak teks menggunakan Gemini Primary...`);
-        const ai = new GoogleGenAI({ apiKey: geminiKey });
-        const geminiContentParts: any[] = [visionPrompt];
-
-        for (const cp of compressedPages) {
-          geminiContentParts.push({
-            inlineData: {
-              data: cp.base64,
-              mimeType: cp.mimeType
-            }
-          });
-        }
-
-        const geminiModels = [
-          process.env.GEMINI_MODEL?.trim(),
-          "gemini-2.0-flash",
-          "gemini-1.5-flash",
-          "gemini-3.8-flash"
-        ].filter(Boolean) as string[];
-
-        let geminiText = "";
-        for (const gModel of geminiModels) {
-          try {
-            const response = await ai.models.generateContent({
-              model: gModel,
-              contents: geminiContentParts,
-              config: { temperature: 0.1 }
-            });
-            geminiText = response.text || "";
-            if (geminiText.trim().length > 0) break;
-          } catch (modelErr: any) {
-            if (modelErr?.message?.includes("429") || modelErr?.message?.includes("RESOURCE_EXHAUSTED") || modelErr?.message?.includes("quota")) {
-              throw modelErr; // Langsung trigger circuit breaker
-            }
-          }
-        }
-
-        if (geminiText.trim().length > 0) {
-          console.log(`[AI Vision] Step 1 Berhasil via Gemini (${geminiText.length} karakter).`);
-          return geminiText;
-        }
-      } catch (geminiError: any) {
-        const errMsg = geminiError?.message || String(geminiError);
-        console.warn(`[AI Vision] Gemini gagal:`, errMsg);
-        if (errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("quota")) {
-          geminiQuotaCooldownUntil = Date.now() + 60 * 60 * 1000; // 60 menit cooldown
-          console.warn(`[AI Vision] Kuota harian Gemini habis. Circuit breaker aktif selama 60 menit.`);
-        }
-      }
-    } else if (isGeminiCoolingDown) {
-      console.log(`[AI Vision] Gemini dalam masa cooldown kuota harian. Menggunakan Groq Qwen Vision...`);
-    }
-
-    // 2. Fallback ke Groq Vision (HANYA MODEL QWEN)
-    console.log(`[Groq Fallback] Step 1: Mengekstrak teks menggunakan Groq Qwen Vision...`);
+    // Ekstraksi Teks Vision menggunakan Groq Qwen Vision
+    console.log(`[Groq Vision] Step 1: Mengekstrak teks menggunakan Groq Qwen Vision...`);
     
     // Siapkan payload gambar terkompresi untuk Groq
     const visionContentParts: any[] = [{ type: "text", text: visionPrompt }];
@@ -275,10 +212,10 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
       }
     }
 
-    // 3. Fallback ke OpenRouter Vision (Nemotron 3.5 Super VL Free) jika Gemini & Groq habis
+    // 2. Fallback ke OpenRouter Vision (Nemotron 3.5 Super VL) jika Groq habis
     const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
     if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
-      console.warn(`[AI Vision] Gemini & Groq Vision gagal. Mencoba Fallback ke OpenRouter Vision (Nemotron 3.5 Super VL Free)...`);
+      console.warn(`[AI Vision] Groq Vision gagal. Mencoba Fallback ke OpenRouter Vision (Nemotron 3.5 Super VL)...`);
       try {
         const { OpenRouterProvider } = await import("./OpenRouterProvider");
         const openRouterProvider = new OpenRouterProvider();

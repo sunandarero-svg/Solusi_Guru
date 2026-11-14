@@ -365,7 +365,7 @@ export class AIService {
   }
 }
 
-// Instantiate with GroqProvider
-export const aiService = new AIService(new GroqProvider());
+// Instantiate with OpenRouterProvider (NVIDIA Primary -> OpenRouter Fallback 1 -> Groq Fallback 2)
+export const aiService = new AIService(new OpenRouterProvider());
 
 
