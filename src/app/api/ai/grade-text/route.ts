@@ -6,7 +6,7 @@ import { Assignment, AssignmentAttachment, AssignmentQuestion } from "@/models/A
 import { AIAssessment, StudentAnswerAnalysis, Submission } from "@/models/Submission";
 import { attachmentService } from "@/modules/attachment/attachmentService";
 import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
-import { gradeObjectiveQuestion, hasValidCorrectAnswer } from "@/modules/grading/systemGrader";
+import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap } from "@/modules/grading/systemGrader";
 
 interface CompressedImage {
   base64Data: string;
@@ -65,7 +65,15 @@ ${questionsInstruction}
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
-3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
+3. KRITERIA PILIHAN GANDA:
+   - Ambil HANYA huruf pilihan (A, B, C, D, E) ke dalam 'studentAnswer'.
+   - Jika siswa menulis dua huruf seperti "A B" (koreksi jawaban) atau terdapat coretan, ambil huruf KEDUA / huruf yang TIDAK DICORET.
+3b. KRITERIA BENAR / SALAH (SANGAT PENTING):
+   - Jika siswa menuliskan "Benar/Salah", "Benar dan salah", "B/S", "B / S", atau kedua pilihan sekaligus dengan garis miring/kata sambung, tuliskan persis apa adanya di 'studentAnswer' dan BERIKAN SKOR 0 (JANGAN DINILAI).
+   - Jika ada dua tulisan berurutan seperti "Benar Salah" atau "Salah Benar" (misal karena siswa mengganti jawaban atau mencoret), ambil HANYA kata KEDUA, atau kata yang TIDAK ADA CORETAN sebagai jawaban akhir siswa di 'studentAnswer'.
+3c. KRITERIA PILIHAN GANDA KOMPLEKS / BERTINGKAT:
+   - Ekstrak seluruh huruf pilihan yang dipilih siswa (misal: "A, C, E").
+*CATATAN INTEGRITAS PENILAIAN: Seluruh soal Pilihan Ganda, Benar/Salah, dan Pilihan Ganda Kompleks/Bertingkat dinilai secara mutlak oleh Aplikasi Sistem (System Grader). AI bertugas membaca dan mentranskripsikan jawaban siswa (OCR) dengan setepat mungkin ke dalam 'studentAnswer'.*
 4. KRITERIA ISIAN SINGKAT (SKOR PARSIAL - SANGAT PENTING):
    Penilaian ISIAN SINGKAT harus FLEKSIBEL. Jawaban TIDAK harus exact match. Berikan skor GRADUAL berdasarkan kecocokan makna/konsep:
    - 100% maxScore: Jawaban identik, sinonim sempurna, atau hanya typo minor (cth: "fotosintesa" ≈ "fotosintesis", "Jkt" ≈ "Jakarta")
@@ -320,6 +328,7 @@ async function processFullGradingInBackground(
     // === STEP 5: Normalize and enforce scores ===
     let actualTotalScore = 0;
     const normalizedAnalyses: any[] = [];
+    const answerKeyMap = parseAnswerKeyMap(answerKey);
 
     if (questions && questions.length > 0) {
       for (const q of questions) {
@@ -338,13 +347,43 @@ async function processFullGradingInBackground(
         if (aiAnalysis) {
           studentAnswer = aiAnalysis.studentAnswer || "[Kosong]";
 
-          // === SYSTEM GRADING: Soal objektif dengan kunci jawaban ===
-          if (hasValidCorrectAnswer(q)) {
+          // Kunci jawaban efektif: prioritas q.correctAnswer, fallback ke answerKeyMap
+          const fallbackKey = answerKeyMap.get(q.order)?.key;
+          const effectiveCorrectAnswer = (q.correctAnswer && q.correctAnswer.trim().length > 0)
+            ? q.correctAnswer
+            : (fallbackKey || "");
+
+          // === ATURAN: Soal Objektif Murni (PILIHAN_GANDA, BENAR_SALAH, PILIHAN_GANDA_BERTINGKAT/KOMPLEKS) HANYA DINILAI OLEH APLIKASI ===
+          if (isPureObjectiveType(q.questionType)) {
             const systemResult = gradeObjectiveQuestion({
               questionNumber: String(q.order),
               questionType: q.questionType,
               studentAnswer,
-              correctAnswer: q.correctAnswer!,
+              correctAnswer: effectiveCorrectAnswer,
+              maxScore
+            });
+
+            if (systemResult !== null) {
+              finalScore = systemResult.score;
+              reasoning = systemResult.reasoning;
+              analysisText = systemResult.analysisText;
+              studentAnswer = systemResult.studentAnswer;
+              validStatus = systemResult.status;
+              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
+            } else {
+              finalScore = 0;
+              reasoning = `Kunci jawaban untuk soal ${q.questionType} tidak ditemukan.`;
+              analysisText = `⚠️ Kunci jawaban belum dikonfigurasi.`;
+              validStatus = "OK";
+              console.warn(`[System Grader] Soal ${q.order} (${q.questionType}): Kunci jawaban tidak ditemukan.`);
+            }
+          } else if (hasValidCorrectAnswer({ questionType: q.questionType, correctAnswer: effectiveCorrectAnswer })) {
+            // Soal Isian Singkat dengan kunci jawaban
+            const systemResult = gradeObjectiveQuestion({
+              questionNumber: String(q.order),
+              questionType: q.questionType,
+              studentAnswer,
+              correctAnswer: effectiveCorrectAnswer,
               maxScore
             });
             if (systemResult !== null) {
@@ -353,33 +392,25 @@ async function processFullGradingInBackground(
               analysisText = systemResult.analysisText;
               studentAnswer = systemResult.studentAnswer;
               validStatus = systemResult.status;
-              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${q.correctAnswer}" \u2192 ${finalScore}/${maxScore}`);
+              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
             } else {
-              // System grader tidak yakin (ISIAN_SINGKAT similarity rendah) → fallback ke AI
+              // Similarity rendah pada ISIAN_SINGKAT → evaluasi kontekstual AI
               finalScore = Number(aiAnalysis.score) || 0;
               if (finalScore > maxScore) finalScore = maxScore;
               if (finalScore < 0) finalScore = 0;
               reasoning = aiAnalysis.reasoning || "";
               analysisText = aiAnalysis.analysisText || "";
-              if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
-                validStatus = aiAnalysis.status;
-              } else {
-                validStatus = "OK";
-              }
-              console.log(`[AI Fallback] Soal ${q.order} (${q.questionType}): System grader tidak yakin, skor AI: ${finalScore}/${maxScore}`);
+              validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
+              console.log(`[AI Fallback] Soal ${q.order} (${q.questionType}): Evaluasi kontekstual AI: ${finalScore}/${maxScore}`);
             }
           } else {
-            // === AI GRADING: Soal non-objektif atau tanpa kunci ===
+            // Soal Non-Objektif (ESSAY atau tanpa kunci jawaban)
             finalScore = Number(aiAnalysis.score) || 0;
             if (finalScore > maxScore) finalScore = maxScore;
             if (finalScore < 0) finalScore = 0;
             reasoning = aiAnalysis.reasoning || "";
             analysisText = aiAnalysis.analysisText || "";
-            if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
-              validStatus = aiAnalysis.status;
-            } else {
-              validStatus = "OK";
-            }
+            validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
           }
         }
 
@@ -396,25 +427,49 @@ async function processFullGradingInBackground(
         });
       }
     } else {
-      // Fallback if there are no structured questions
+      // Fallback jika tidak ada konfigurasi structured questions:
+      // Cocokkan dengan answerKeyMap jika soal objektif terdeteksi
       assessmentResult.analysis.forEach((analysis: any) => {
+        const qOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
         let maxScore = Number(analysis.maxScore) || 10;
         let finalScore = Number(analysis.score) || 0;
+        let reasoning = analysis.reasoning || "";
+        let analysisText = analysis.analysisText || "";
+        let studentAnswer = analysis.studentAnswer || "[Kosong]";
+        let validStatus = (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") ? analysis.status : "OK";
+
+        const keyInfo = answerKeyMap.get(qOrder);
+        if (keyInfo && keyInfo.detectedType && isPureObjectiveType(keyInfo.detectedType)) {
+          const systemResult = gradeObjectiveQuestion({
+            questionNumber: String(qOrder),
+            questionType: keyInfo.detectedType,
+            studentAnswer,
+            correctAnswer: keyInfo.key,
+            maxScore
+          });
+          if (systemResult !== null) {
+            finalScore = systemResult.score;
+            reasoning = systemResult.reasoning;
+            analysisText = systemResult.analysisText;
+            studentAnswer = systemResult.studentAnswer;
+            validStatus = systemResult.status;
+            console.log(`[System Grader Auto] Soal ${qOrder} (${keyInfo.detectedType}): "${studentAnswer}" vs "${keyInfo.key}" → ${finalScore}/${maxScore}`);
+          }
+        }
+
         if (finalScore > maxScore) finalScore = maxScore;
         if (finalScore < 0) finalScore = 0;
 
         actualTotalScore += finalScore;
 
-        let validStatus = "OK";
-        if (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") {
-          validStatus = analysis.status;
-        }
-
         normalizedAnalyses.push({
           ...analysis,
           questionNumber: String(analysis.questionNumber),
+          studentAnswer,
           score: finalScore,
           maxScore,
+          reasoning,
+          analysisText,
           status: validStatus
         });
       });

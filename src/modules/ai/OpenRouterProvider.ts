@@ -298,7 +298,15 @@ INSTRUKSI PENILAIAN & ALOKASI SKOR:
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
-3. KRITERIA PILIHAN GANDA: Ambil HANYA huruf pilihan. Abaikan teks setelahnya. Huruf cocok = BENAR 100% (maxScore).
+3. KRITERIA PILIHAN GANDA:
+   - Ambil HANYA huruf pilihan (A, B, C, D, E) ke dalam 'studentAnswer'.
+   - Jika siswa menulis dua huruf seperti "A B" (koreksi jawaban) atau ada coretan, ambil huruf KEDUA / huruf yang TIDAK DICORET.
+3b. KRITERIA BENAR / SALAH (SANGAT PENTING):
+   - Jika siswa menuliskan "Benar/Salah", "Benar dan salah", "B/S", "B / S", atau kedua pilihan sekaligus dengan garis miring/kata sambung, tuliskan persis apa adanya di 'studentAnswer' dan BERIKAN SKOR 0 (JANGAN DINILAI).
+   - Jika ada dua tulisan berurutan seperti "Benar Salah" atau "Salah Benar" (misal karena siswa mengganti jawaban atau mencoret), ambil HANYA kata KEDUA, atau kata yang TIDAK ADA CORETAN sebagai jawaban akhir siswa di 'studentAnswer'.
+3c. KRITERIA PILIHAN GANDA KOMPLEKS / BERTINGKAT:
+   - Ekstrak seluruh huruf pilihan yang dipilih siswa (misal: "A, C, E").
+*CATATAN INTEGRITAS PENILAIAN: Seluruh soal Pilihan Ganda, Benar/Salah, dan Pilihan Ganda Kompleks/Bertingkat diverifikasi dan dinilai secara mutlak oleh Aplikasi Sistem (System Grader). AI bertugas membaca transkripsi jawaban siswa (OCR) dengan setepat mungkin ke dalam 'studentAnswer'.*
 4. KRITERIA ISIAN SINGKAT (SKOR PARSIAL - SANGAT PENTING):
    Penilaian ISIAN SINGKAT harus FLEKSIBEL. Jawaban TIDAK harus exact match. Berikan skor GRADUAL berdasarkan kecocokan makna/konsep:
    - 100% maxScore: Jawaban identik, sinonim sempurna, atau hanya typo minor (cth: "fotosintesa" ≈ "fotosintesis", "Jkt" ≈ "Jakarta")
@@ -360,6 +368,7 @@ Patuhi aturan operasional ketat berikut:
 
 1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
 Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
+Jika terdapat dua kata pilihan berurutan (misal: "Benar Salah" atau "Salah Benar") atau huruf pilihan (misal: "A B"), ambil kata/huruf KEDUA atau kata/huruf yang TIDAK ADA CORETAN. Jika tertulis "Benar/Salah" atau "B/S", transkripsikan apa adanya.
 
 2. STRUKTUR & HIERARKI (MARKDOWN):
 Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:
@@ -396,6 +405,7 @@ Patuhi aturan operasional ketat berikut:
 
 1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
 Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
+Jika terdapat dua kata pilihan berurutan (misal: "Benar Salah" atau "Salah Benar") atau huruf pilihan (misal: "A B"), ambil kata/huruf KEDUA atau kata/huruf yang TIDAK ADA CORETAN. Jika tertulis "Benar/Salah" atau "B/S", transkripsikan apa adanya.
 
 2. STRUKTUR & HIERARKI (MARKDOWN):
 Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:

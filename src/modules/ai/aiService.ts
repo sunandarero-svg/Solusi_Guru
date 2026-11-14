@@ -4,7 +4,7 @@ import { Assignment, Rubric, RubricCriterion, AssignmentAttachment, AssignmentQu
 import { AIProvider } from "./AIProvider";
 import { GroqProvider } from "./GroqProvider";
 import { OpenRouterProvider } from "./OpenRouterProvider";
-import { gradeObjectiveQuestion, hasValidCorrectAnswer } from "@/modules/grading/systemGrader";
+import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap } from "@/modules/grading/systemGrader";
 
 export class AIService {
   private provider: AIProvider;
@@ -138,6 +138,7 @@ export class AIService {
     // Normalize and strictly enforce scores based on teacher's config
     let actualTotalScore = 0;
     const normalizedAnalyses: any[] = [];
+    const answerKeyMap = parseAnswerKeyMap(answerKey || "");
     
     if (questions && questions.length > 0) {
       for (const q of questions) {
@@ -156,13 +157,43 @@ export class AIService {
         if (aiAnalysis) {
           studentAnswer = aiAnalysis.studentAnswer || "[Kosong]";
 
-          // === SYSTEM GRADING: Soal objektif dengan kunci jawaban ===
-          if (hasValidCorrectAnswer(q)) {
+          // Kunci jawaban efektif: prioritas q.correctAnswer, fallback ke answerKeyMap
+          const fallbackKey = answerKeyMap.get(q.order)?.key;
+          const effectiveCorrectAnswer = (q.correctAnswer && q.correctAnswer.trim().length > 0)
+            ? q.correctAnswer
+            : (fallbackKey || "");
+
+          // === ATURAN: Soal Objektif Murni (PILIHAN_GANDA, BENAR_SALAH, PILIHAN_GANDA_BERTINGKAT/KOMPLEKS) HANYA DINILAI OLEH APLIKASI ===
+          if (isPureObjectiveType(q.questionType)) {
             const systemResult = gradeObjectiveQuestion({
               questionNumber: String(q.order),
               questionType: q.questionType,
               studentAnswer,
-              correctAnswer: q.correctAnswer!,
+              correctAnswer: effectiveCorrectAnswer,
+              maxScore
+            });
+
+            if (systemResult !== null) {
+              finalScore = systemResult.score;
+              reasoning = systemResult.reasoning;
+              analysisText = systemResult.analysisText;
+              studentAnswer = systemResult.studentAnswer;
+              validStatus = systemResult.status;
+              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
+            } else {
+              finalScore = 0;
+              reasoning = `Kunci jawaban untuk soal ${q.questionType} tidak ditemukan.`;
+              analysisText = `⚠️ Kunci jawaban belum dikonfigurasi.`;
+              validStatus = "OK";
+              console.warn(`[System Grader] Soal ${q.order} (${q.questionType}): Kunci jawaban tidak ditemukan.`);
+            }
+          } else if (hasValidCorrectAnswer({ questionType: q.questionType, correctAnswer: effectiveCorrectAnswer })) {
+            // Soal Isian Singkat dengan kunci jawaban
+            const systemResult = gradeObjectiveQuestion({
+              questionNumber: String(q.order),
+              questionType: q.questionType,
+              studentAnswer,
+              correctAnswer: effectiveCorrectAnswer,
               maxScore
             });
             if (systemResult !== null) {
@@ -171,33 +202,25 @@ export class AIService {
               analysisText = systemResult.analysisText;
               studentAnswer = systemResult.studentAnswer;
               validStatus = systemResult.status;
-              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${q.correctAnswer}" → ${finalScore}/${maxScore}`);
+              console.log(`[System Grader] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
             } else {
-              // System grader tidak yakin (ISIAN_SINGKAT similarity rendah) → fallback ke AI
+              // Similarity rendah pada ISIAN_SINGKAT → evaluasi kontekstual AI
               finalScore = Number(aiAnalysis.score) || 0;
               if (finalScore > maxScore) finalScore = maxScore;
               if (finalScore < 0) finalScore = 0;
               reasoning = aiAnalysis.reasoning || "";
               analysisText = aiAnalysis.analysisText || "";
-              if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
-                validStatus = aiAnalysis.status;
-              } else {
-                validStatus = "OK";
-              }
-              console.log(`[AI Fallback] Soal ${q.order} (${q.questionType}): System grader tidak yakin, skor AI: ${finalScore}/${maxScore}`);
+              validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
+              console.log(`[AI Fallback] Soal ${q.order} (${q.questionType}): Evaluasi kontekstual AI: ${finalScore}/${maxScore}`);
             }
           } else {
-            // === AI GRADING: Soal non-objektif atau tanpa kunci ===
+            // Soal Non-Objektif (ESSAY atau tanpa kunci jawaban)
             finalScore = Number(aiAnalysis.score) || 0;
             if (finalScore > maxScore) finalScore = maxScore;
             if (finalScore < 0) finalScore = 0;
             reasoning = aiAnalysis.reasoning || "";
             analysisText = aiAnalysis.analysisText || "";
-            if (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") {
-              validStatus = aiAnalysis.status;
-            } else {
-              validStatus = "OK";
-            }
+            validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
           }
         }
 
@@ -214,26 +237,49 @@ export class AIService {
         });
       }
     } else {
-      // Fallback if there are no structured questions
+      // Fallback jika tidak ada konfigurasi structured questions:
+      // Cocokkan dengan answerKeyMap jika soal objektif terdeteksi
       assessmentResult.analysis.forEach((analysis: any) => {
-        const questionOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
+        const qOrder = parseInt(String(analysis.questionNumber).replace(/\D/g, '')) || 0;
         let maxScore = Number(analysis.maxScore) || 10;
         let finalScore = Number(analysis.score) || 0;
+        let reasoning = analysis.reasoning || "";
+        let analysisText = analysis.analysisText || "";
+        let studentAnswer = analysis.studentAnswer || "[Kosong]";
+        let validStatus = (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") ? analysis.status : "OK";
+
+        const keyInfo = answerKeyMap.get(qOrder);
+        if (keyInfo && keyInfo.detectedType && isPureObjectiveType(keyInfo.detectedType)) {
+          const systemResult = gradeObjectiveQuestion({
+            questionNumber: String(qOrder),
+            questionType: keyInfo.detectedType,
+            studentAnswer,
+            correctAnswer: keyInfo.key,
+            maxScore
+          });
+          if (systemResult !== null) {
+            finalScore = systemResult.score;
+            reasoning = systemResult.reasoning;
+            analysisText = systemResult.analysisText;
+            studentAnswer = systemResult.studentAnswer;
+            validStatus = systemResult.status;
+            console.log(`[System Grader Auto] Soal ${qOrder} (${keyInfo.detectedType}): "${studentAnswer}" vs "${keyInfo.key}" → ${finalScore}/${maxScore}`);
+          }
+        }
+
         if (finalScore > maxScore) finalScore = maxScore;
         if (finalScore < 0) finalScore = 0;
 
         actualTotalScore += finalScore;
         
-        let validStatus = "OK";
-        if (analysis.status === "UNREADABLE" || analysis.status === "MANUAL_EDIT") {
-          validStatus = analysis.status;
-        }
-
         normalizedAnalyses.push({
           ...analysis,
           questionNumber: String(analysis.questionNumber),
+          studentAnswer,
           score: finalScore,
           maxScore,
+          reasoning,
+          analysisText,
           status: validStatus
         });
       });

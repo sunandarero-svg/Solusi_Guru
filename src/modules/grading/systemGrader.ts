@@ -11,7 +11,32 @@
  */
 
 // Tipe soal yang dinilai oleh sistem
-export const SYSTEM_GRADED_TYPES = ["PILIHAN_GANDA", "BENAR_SALAH", "PILIHAN_GANDA_KOMPLEKS", "ISIAN_SINGKAT"];
+export const SYSTEM_GRADED_TYPES = [
+  "PILIHAN_GANDA",
+  "BENAR_SALAH",
+  "PILIHAN_GANDA_KOMPLEKS",
+  "PILIHAN_GANDA_BERTINGKAT",
+  "PG_KOMPLEKS",
+  "PG_BERTINGKAT",
+  "ISIAN_SINGKAT"
+];
+
+/**
+ * Cek apakah tipe soal merupakan tipe objektif murni (Pilihan Ganda, Benar/Salah, Pilihan Ganda Bertingkat/Kompleks).
+ * Tipe soal ini WAJIB 100% dinilai oleh aplikasi (System Grader), tidak boleh dinilai oleh AI.
+ */
+export function isPureObjectiveType(questionType: string): boolean {
+  if (!questionType) return false;
+  const t = questionType.toUpperCase().replace(/\s+/g, '_');
+  return (
+    t === "PILIHAN_GANDA" ||
+    t === "BENAR_SALAH" ||
+    t === "PILIHAN_GANDA_KOMPLEKS" ||
+    t === "PILIHAN_GANDA_BERTINGKAT" ||
+    t === "PG_KOMPLEKS" ||
+    t === "PG_BERTINGKAT"
+  );
+}
 
 export interface SystemGradingInput {
   questionNumber: string;
@@ -34,24 +59,99 @@ export interface SystemGradingResult {
 
 /**
  * Normalisasi jawaban pilihan ganda.
- * Mengambil huruf pertama (A-E) dari jawaban siswa, case-insensitive.
- * Contoh: "a", "A.", "A. Jawaban", "a)" → "A"
+ * Mengambil huruf (A-E) dari jawaban siswa.
+ * Jika ada coretan atau koreksi dua huruf berurutan (misal: "A B"), ambil huruf kedua / tidak dicoret.
+ * Contoh: "a", "A.", "A. Jawaban", "a)" → "A", "A B" → "B"
  */
 function normalizePGAnswer(answer: string): string {
-  const cleaned = answer.trim().toUpperCase();
+  if (!answer) return "";
+
+  // 1. Bersihkan tanda coretan (strikethrough markdown atau tag coret)
+  let text = answer
+    .replace(/~~[^~]+~~/g, ' ')
+    .replace(/\[(?:coret|dicoret)[^\]]*\]/gi, ' ')
+    .replace(/\((?:coret|dicoret)[^\)]*\)/gi, ' ')
+    .trim();
+
+  // 2. Jika ada dua huruf dipisah spasi tanpa koma (koreksi jawaban: "A B"), ambil huruf kedua
+  const letters = text.match(/\b([A-E])\b/gi);
+  if (letters && letters.length >= 2 && !text.includes(',')) {
+    return letters[letters.length - 1].toUpperCase();
+  }
+
+  const cleaned = text.trim().toUpperCase();
   // Cari huruf A-E di awal jawaban
   const match = cleaned.match(/^([A-E])/);
-  return match ? match[1] : cleaned;
+  return match ? match[1] : (letters && letters.length === 1 ? letters[0].toUpperCase() : cleaned);
+}
+
+/**
+ * Deteksi apakah siswa menuliskan opsi Benar dan Salah secara bersamaan / ambigu:
+ * Contoh: "Benar/Salah", "Benar / Salah", "Benar dan salah", "B/S", "B / S", "B & S", "Benar atau Salah", "Salah/Benar"
+ * Sesuai aturan: jika ada tulisan tersebut, JANGAN DINILAI (skor 0).
+ */
+export function isAmbiguousBSAnswer(raw: string): boolean {
+  if (!raw) return false;
+  const cleaned = raw.trim().toLowerCase();
+
+  // Pola gabungan dengan slash, backslash, ampersand, 'dan', 'atau', tanda hubung antar opsi
+  if (
+    /\b(?:benar|b)\s*(?:[\/\\&]|dan|atau|-)\s*(?:salah|s)\b/i.test(cleaned) ||
+    /\b(?:salah|s)\s*(?:[\/\\&]|dan|atau|-)\s*(?:benar|b)\b/i.test(cleaned)
+  ) {
+    return true;
+  }
+
+  // Pola murni singkat: b/s, s/b, b\s, s\b, b & s
+  if (/^[bs]\s*[\/\\&\-]\s*[bs]$/i.test(cleaned)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
  * Normalisasi jawaban benar/salah.
- * Mendeteksi variasi penulisan "Benar" dan "Salah".
- * Contoh: "B", "benar", "BENAR", "True" → "Benar"
- *         "S", "salah", "SALAH", "False" → "Salah"
+ * Sesuai aturan:
+ * 1. Abaikan bagian yang dicoret (~~teks~~ atau [coret: ...]).
+ * 2. Jika ada dua kata berurutan ("Benar Salah" atau "Salah Benar", "B S", "S B"),
+ *    ambil HANYA KATA KEDUA (jawaban perbaikan siswa).
+ * 3. Ambil kata yang tidak dicoret jika ada coretan.
  */
 function normalizeBSAnswer(answer: string): string {
-  const cleaned = answer.trim().toLowerCase();
+  if (!answer) return "";
+
+  // 1. Bersihkan tanda coretan (strikethrough markdown atau tag coret)
+  let text = answer
+    .replace(/~~[^~]+~~/g, ' ')
+    .replace(/\[(?:coret|dicoret)[^\]]*\]/gi, ' ')
+    .replace(/\((?:coret|dicoret)[^\)]*\)/gi, ' ')
+    .trim();
+
+  // 2. Ekstrak kata-kata kunci Benar / Salah secara urut dari teks
+  const words = text.split(/[\s,.;:]+/).filter(Boolean);
+  const detectedTokens: string[] = [];
+
+  for (const w of words) {
+    const lw = w.toLowerCase();
+    if (lw === "benar" || lw === "betul" || lw === "true" || lw === "ya" || lw === "b") {
+      detectedTokens.push("Benar");
+    } else if (lw === "salah" || lw === "false" || lw === "tidak" || lw === "s") {
+      detectedTokens.push("Salah");
+    }
+  }
+
+  // Jika terdeteksi lebih dari satu kata (misal: "Benar Salah" atau "Salah Benar"):
+  // Ambil kata KEDUA / TERAKHIR (jawaban perbaikan siswa)
+  if (detectedTokens.length >= 2) {
+    return detectedTokens[detectedTokens.length - 1];
+  }
+
+  if (detectedTokens.length === 1) {
+    return detectedTokens[0];
+  }
+
+  const cleaned = text.trim().toLowerCase();
 
   // Deteksi "Benar"
   if (
@@ -61,7 +161,7 @@ function normalizeBSAnswer(answer: string): string {
     cleaned === "betul" ||
     cleaned === "ya" ||
     cleaned === "y" ||
-    cleaned === "t" // "T" for True dalam konteks tertentu — hati-hati ambiguitas
+    cleaned === "t"
   ) {
     return "Benar";
   }
@@ -77,8 +177,8 @@ function normalizeBSAnswer(answer: string): string {
     return "Salah";
   }
 
-  // Jika tidak cocok, kembalikan apa adanya (capitalized)
-  return answer.trim();
+  // Jika tidak cocok, kembalikan apa adanya
+  return text.trim();
 }
 
 /**
@@ -89,7 +189,12 @@ function normalizeBSAnswer(answer: string): string {
  *         "A dan C dan E" → ["A", "C", "E"]
  */
 function normalizePGKompleksAnswer(answer: string): string[] {
-  const cleaned = answer.trim().toUpperCase();
+  let text = (answer || "")
+    .replace(/~~[^~]+~~/g, ' ')
+    .replace(/\[(?:coret|dicoret)[^\]]*\]/gi, ' ')
+    .replace(/\((?:coret|dicoret)[^\)]*\)/gi, ' ')
+    .trim();
+  const cleaned = text.toUpperCase();
   // Ekstrak semua huruf A-E yang muncul
   const matches = cleaned.match(/[A-E]/g);
   if (!matches) return [];
@@ -165,7 +270,9 @@ export function gradeObjectiveQuestion(input: SystemGradingInput): SystemGrading
     };
   }
 
-  switch (questionType) {
+  const normalizedType = (questionType || "").toUpperCase().replace(/\s+/g, '_');
+
+  switch (normalizedType) {
     case "PILIHAN_GANDA":
       return gradePilihanGanda(questionNumber, trimmed, correctAnswer, maxScore);
 
@@ -173,6 +280,9 @@ export function gradeObjectiveQuestion(input: SystemGradingInput): SystemGrading
       return gradeBenarSalah(questionNumber, trimmed, correctAnswer, maxScore);
 
     case "PILIHAN_GANDA_KOMPLEKS":
+    case "PILIHAN_GANDA_BERTINGKAT":
+    case "PG_KOMPLEKS":
+    case "PG_BERTINGKAT":
       return gradePGKompleks(questionNumber, trimmed, correctAnswer, maxScore);
 
     case "ISIAN_SINGKAT":
@@ -213,8 +323,8 @@ function gradePilihanGanda(
     score: isCorrect ? maxScore : 0,
     maxScore,
     analysisText: isCorrect
-      ? `✅ Jawaban benar. Jawaban Anda: **${normalizedStudent}**, Kunci: **${normalizedCorrect}**`
-      : `❌ Jawaban salah. Jawaban Anda: **${normalizedStudent}**, Kunci: **${normalizedCorrect}**`,
+      ? `✅ Jawaban benar. Jawaban: **${normalizedStudent}**${studentAnswer !== normalizedStudent ? ` (dari "${studentAnswer}")` : ""}, Kunci: **${normalizedCorrect}**`
+      : `❌ Jawaban salah. Jawaban: **${normalizedStudent}**${studentAnswer !== normalizedStudent ? ` (dari "${studentAnswer}")` : ""}, Kunci: **${normalizedCorrect}**`,
     reasoning: isCorrect
       ? `Jawaban "${normalizedStudent}" cocok dengan kunci "${normalizedCorrect}".`
       : `Jawaban "${normalizedStudent}" tidak cocok dengan kunci "${normalizedCorrect}".`,
@@ -224,7 +334,10 @@ function gradePilihanGanda(
 }
 
 /**
- * Menilai soal Benar/Salah (exact match setelah normalisasi)
+ * Menilai soal Benar/Salah:
+ * - Jika ada tulisan "Benar/Salah", "Benar dan salah", "B/S", dst -> JANGAN DINILAI (skor 0).
+ * - Jika ada dua kata "Benar Salah" atau "Salah Benar" -> ambil kata kedua (atau yang tidak dicoret).
+ * - Cocokkan dengan kunci jawaban -> skor maxScore jika cocok, 0 jika salah.
  */
 function gradeBenarSalah(
   questionNumber: string,
@@ -232,6 +345,21 @@ function gradeBenarSalah(
   correctAnswer: string,
   maxScore: number
 ): SystemGradingResult {
+  // 1. Cek jika jawaban ambigu (Benar/Salah, Benar dan salah, B/S, dll) -> JANGAN DINILAI (skor 0)
+  if (isAmbiguousBSAnswer(studentAnswer)) {
+    return {
+      questionNumber,
+      studentAnswer,
+      score: 0,
+      maxScore,
+      analysisText: `❌ Jawaban tidak dinilai karena menulis dua opsi sekaligus ("${studentAnswer}"). Skor: 0`,
+      reasoning: `Jawaban siswa mengandung "Benar/Salah" atau "B/S" secara bersamaan (tidak memilih salah satu). Sesuai aturan, jawaban tidak dinilai.`,
+      status: "OK",
+      gradedBy: "SYSTEM"
+    };
+  }
+
+  // 2. Normalisasi: Jika ada dua kata "Benar Salah" atau "Salah Benar", ambil kata kedua atau yang tidak dicoret
   const normalizedStudent = normalizeBSAnswer(studentAnswer);
   const normalizedCorrect = normalizeBSAnswer(correctAnswer);
 
@@ -243,8 +371,8 @@ function gradeBenarSalah(
     score: isCorrect ? maxScore : 0,
     maxScore,
     analysisText: isCorrect
-      ? `✅ Jawaban benar. Jawaban Anda: **${normalizedStudent}**, Kunci: **${normalizedCorrect}**`
-      : `❌ Jawaban salah. Jawaban Anda: **${normalizedStudent}**, Kunci: **${normalizedCorrect}**`,
+      ? `✅ Jawaban benar. Jawaban: **${normalizedStudent}**${studentAnswer !== normalizedStudent ? ` (dari "${studentAnswer}")` : ""}, Kunci: **${normalizedCorrect}**`
+      : `❌ Jawaban salah. Jawaban: **${normalizedStudent}**${studentAnswer !== normalizedStudent ? ` (dari "${studentAnswer}")` : ""}, Kunci: **${normalizedCorrect}**`,
     reasoning: isCorrect
       ? `Jawaban "${normalizedStudent}" cocok dengan kunci "${normalizedCorrect}".`
       : `Jawaban "${normalizedStudent}" tidak cocok dengan kunci "${normalizedCorrect}".`,
@@ -447,4 +575,45 @@ export function isSystemGradedType(questionType: string): boolean {
 export function hasValidCorrectAnswer(question: { questionType: string; correctAnswer?: string }): boolean {
   if (!isSystemGradedType(question.questionType)) return false;
   return !!question.correctAnswer && question.correctAnswer.trim().length > 0;
+}
+
+/**
+ * Mengekstrak kunci jawaban dari teks kunci jawaban tugas ke dalam Map<nomorSoal, { key, detectedType }>.
+ * Berguna jika data AssignmentQuestion di database tidak memiliki correctAnswer lengkap,
+ * atau jika guru hanya mengunggah teks kunci jawaban.
+ */
+export function parseAnswerKeyMap(answerKeyText: string): Map<number, { key: string; detectedType?: string }> {
+  const map = new Map<number, { key: string; detectedType?: string }>();
+  if (!answerKeyText) return map;
+
+  const lines = answerKeyText.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Format baris: "1. B" atau "1) Benar" atau "Nomor 1: A, C, E"
+    const match = trimmed.match(/^(?:(?:Nomor|Soal|No\.?)\s*)?(\d+)[\.\)\:\-]\s*(.*)$/i);
+    if (match) {
+      const qNum = parseInt(match[1]);
+      const rest = match[2].trim();
+
+      // Cek Benar/Salah
+      if (/^(benar|betul|salah|true|false)\b/i.test(rest)) {
+        const bsMatch = rest.match(/^(benar|betul|salah|true|false)\b/i);
+        map.set(qNum, { key: bsMatch ? bsMatch[1] : rest, detectedType: "BENAR_SALAH" });
+      }
+      // Cek PG Kompleks / Bertingkat (misal: "A, C, E" atau "A,B")
+      else if (/^[A-E](?:\s*,\s*[A-E])+$/i.test(rest)) {
+        map.set(qNum, { key: rest, detectedType: "PILIHAN_GANDA_KOMPLEKS" });
+      }
+      // Cek Pilihan Ganda Tunggal (misal: "A" atau "B. Penjelasan...")
+      else if (/^[A-E]\b/i.test(rest)) {
+        const pgMatch = rest.match(/^([A-E])\b/i);
+        map.set(qNum, { key: pgMatch ? pgMatch[1].toUpperCase() : rest, detectedType: "PILIHAN_GANDA" });
+      } else {
+        map.set(qNum, { key: rest });
+      }
+    }
+  }
+  return map;
 }
