@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { groqRateLimiter } from "@/modules/ai/rateLimiter";
+import { openRouterQueue } from "@/modules/ai/openRouterQueue";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { GoogleGenAI } from "@google/genai";
@@ -58,31 +59,33 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
     if (openRouterApiKey) {
       try {
         const primaryModel = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl:free";
-        console.log(`[Extract Text API] Memanggil model (Primary - OpenRouter): ${primaryModel}`);
+        console.log(`[Extract Text API] Memanggil model (Primary - OpenRouter Free): ${primaryModel}`);
 
-        const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openRouterApiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-            "X-Title": "Solusi Guru",
-          },
-          body: JSON.stringify({
-            model: primaryModel,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-                ]
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 2048,
-          }),
-        });
+        const orResponse = await openRouterQueue.executeRequest(primaryModel, () =>
+          fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${openRouterApiKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+              "X-Title": "Solusi Guru",
+            },
+            body: JSON.stringify({
+              model: primaryModel,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: prompt },
+                    { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                  ]
+                }
+              ],
+              temperature: 0.1,
+              max_tokens: 2048,
+            }),
+          })
+        );
 
         if (orResponse.ok) {
           const orData = await orResponse.json();
@@ -95,7 +98,54 @@ PASTIKAN seluruh hasil ekstraksi teks ditulis menggunakan bahasa Indonesia pada 
           console.warn("[Extract Text API] OpenRouter Primary Error:", errBody);
         }
       } catch (orErr: any) {
-        console.warn("[Extract Text API] OpenRouter Primary gagal, mencoba Secondary Groq...", orErr?.message);
+        console.warn("[Extract Text API] OpenRouter Primary (Nemotron Free) gagal, mencoba Alternatif Kedua...", orErr?.message);
+      }
+
+      // 1b. ALTERNATIF KEDUA: OpenRouter NVIDIA Nemotron 3.5 Super VL (Non-free)
+      if (!extractedText) {
+        try {
+          const altModel = "nvidia/nemotron-3.5-super-vl";
+          console.log(`[Extract Text API] Memanggil model (Alternatif Kedua - OpenRouter): ${altModel}`);
+
+          const orResponse = await openRouterQueue.executeRequest(altModel, () =>
+            fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${openRouterApiKey}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+                "X-Title": "Solusi Guru",
+              },
+              body: JSON.stringify({
+                model: altModel,
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: prompt },
+                      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                    ]
+                  }
+                ],
+                temperature: 0.1,
+                max_tokens: 2048,
+              }),
+            })
+          );
+
+          if (orResponse.ok) {
+            const orData = await orResponse.json();
+            extractedText = orData.choices?.[0]?.message?.content || "";
+            if (extractedText.trim().length > 0) {
+              console.log(`[Extract Text API] Ekstraksi berhasil menggunakan OpenRouter Alternatif Kedua: ${altModel}`);
+            }
+          } else {
+            const errBody = await orResponse.text();
+            console.warn("[Extract Text API] OpenRouter Alternatif Kedua Error:", errBody);
+          }
+        } catch (orAltErr: any) {
+          console.warn("[Extract Text API] OpenRouter Alternatif Kedua (Nemotron non-free) gagal, mencoba Secondary Groq...", orAltErr?.message);
+        }
       }
     }
 

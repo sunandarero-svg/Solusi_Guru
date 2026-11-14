@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { groqRateLimiter } from "./rateLimiter";
+import { openRouterQueue } from "./openRouterQueue";
 
 export interface CascadeOptions {
   prompt: string;
@@ -34,28 +35,30 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
   messages.push({ role: "user", content: prompt });
 
   // ==========================================
-  // 1. PRIMARY: OPENROUTER (NVIDIA Nemotron 3.5 Super VL)
+  // 1. PRIMARY: OPENROUTER (NVIDIA Nemotron 3.5 Super VL Free)
   // ==========================================
   const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (openRouterKey) {
     const primaryNemotron = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl:free";
     try {
-      console.log(`${logPrefix} Step 1 (Primary - OpenRouter): Memanggil ${primaryNemotron}...`);
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-          "X-Title": "Solusi Guru",
-        },
-        body: JSON.stringify({
-          model: primaryNemotron,
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-        }),
-      });
+      console.log(`${logPrefix} Step 1 (Primary - OpenRouter Free): Memanggil ${primaryNemotron}...`);
+      const res = await openRouterQueue.executeRequest(primaryNemotron, () =>
+        fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openRouterKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+            "X-Title": "Solusi Guru",
+          },
+          body: JSON.stringify({
+            model: primaryNemotron,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+          }),
+        })
+      );
 
       if (res.ok) {
         const data = await res.json();
@@ -69,7 +72,46 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
         console.warn(`${logPrefix} OpenRouter Primary ${primaryNemotron} returned ${res.status}: ${errText}`);
       }
     } catch (orErr: any) {
-      console.warn(`${logPrefix} OpenRouter Primary ${primaryNemotron} exception:`, orErr?.message || orErr);
+      console.warn(`${logPrefix} OpenRouter Primary ${primaryNemotron} gagal, mencoba Alternatif Kedua...`, orErr?.message || orErr);
+    }
+
+    // ==========================================
+    // 1b. ALTERNATIF KEDUA: OPENROUTER (NVIDIA Nemotron 3.5 Super VL Non-Free)
+    // ==========================================
+    const altNemotron = "nvidia/nemotron-3.5-super-vl";
+    try {
+      console.log(`${logPrefix} Step 1b (Alternatif Kedua - OpenRouter): Memanggil ${altNemotron}...`);
+      const res = await openRouterQueue.executeRequest(altNemotron, () =>
+        fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openRouterKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+            "X-Title": "Solusi Guru",
+          },
+          body: JSON.stringify({
+            model: altNemotron,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+          }),
+        })
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content && content.trim().length > 30) {
+          console.log(`${logPrefix} Berhasil menggunakan OpenRouter Alternatif Kedua (${altNemotron})! Panjang respon: ${content.length}`);
+          return content;
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`${logPrefix} OpenRouter Alternatif Kedua ${altNemotron} returned ${res.status}: ${errText}`);
+      }
+    } catch (orAltErr: any) {
+      console.warn(`${logPrefix} OpenRouter Alternatif Kedua ${altNemotron} gagal, mencoba Groq Secondary...`, orAltErr?.message || orAltErr);
     }
   }
 
@@ -189,21 +231,23 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
     for (const orModel of fallbackOpenRouterModels) {
       try {
         console.log(`${logPrefix} Step 4 (Fallback 2 - OpenRouter): Memanggil OpenRouter (${orModel})...`);
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openRouterKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
-            "X-Title": "Solusi Guru",
-          },
-          body: JSON.stringify({
-            model: orModel,
-            messages,
-            temperature,
-            max_tokens: maxTokens,
-          }),
-        });
+        const res = await openRouterQueue.executeRequest(orModel, () =>
+          fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${openRouterKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+              "X-Title": "Solusi Guru",
+            },
+            body: JSON.stringify({
+              model: orModel,
+              messages,
+              temperature,
+              max_tokens: maxTokens,
+            }),
+          })
+        );
 
         if (!res.ok) {
           const errText = await res.text();
