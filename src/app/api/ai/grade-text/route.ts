@@ -29,6 +29,125 @@ async function compressSingleImage(base64Image: string, maxDimension: number = 1
 }
 
 /**
+ * Resilient JSON Parser for AI Outputs
+ * Menangani:
+ * 1. Markdown code blocks (```json ... ```)
+ * 2. Trailing comma sebelum } atau ]
+ * 3. Missing comma antar elemen array (} \n {) — penyebab error: "Expected ',' or ']' after array element"
+ * 4. Missing comma antar baris properti
+ * 5. Regex salvage extractor jika JSON terpotong (truncated) atau ada unescaped quotes
+ */
+function safeParseAIJson(responseText: string): any {
+  if (!responseText || typeof responseText !== 'string') {
+    throw new Error("Empty AI response text");
+  }
+
+  // 1. Bersihkan markdown code blocks & whitespace
+  let cleanText = responseText
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+
+  // 2. Ekstrak substring JSON terluar dari { pertama ke } terakhir
+  const firstBrace = cleanText.indexOf('{');
+  const lastBrace = cleanText.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleanText = cleanText.substring(firstBrace, lastBrace + 1).trim();
+  }
+
+  // Attempt 1: Standard JSON parse
+  try {
+    const parsed = JSON.parse(cleanText);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch (err1) {
+    // Lanjut ke perbaikan sintaks otomatis
+  }
+
+  // Attempt 2: Auto-repair common LLM JSON syntax errors
+  try {
+    let repaired = cleanText;
+
+    // a. Hapus trailing comma sebelum } atau ] (misal: "a": 1, } -> "a": 1 })
+    repaired = repaired.replace(/,(\s*[\]}])/g, '$1');
+
+    // b. Perbaiki missing comma antar objek dalam array (misal: } \n { -> }, \n {)
+    repaired = repaired.replace(/}(\s*){/g, '},$1{');
+
+    // c. Perbaiki missing comma antar string elemen array (misal: "A" \n "B" -> "A", \n "B")
+    repaired = repaired.replace(/(")\s*\n\s*(")/g, '$1,\n$2');
+
+    // d. Perbaiki missing comma setelah nilai field sebelum field baru
+    // misal: "score": 5 \n "maxScore": 5 -> "score": 5, \n "maxScore": 5
+    repaired = repaired.replace(/((?:true|false|null|\d+|"[^"\\]*(?:\\.[^"\\]*)*"))\s*\n\s*("[a-zA-Z0-9_]+"\s*:)/g, '$1,\n$2');
+
+    const parsed = JSON.parse(repaired);
+    if (parsed && typeof parsed === 'object') {
+      console.log("[Safe JSON Parser] Berhasil mem-parsing JSON setelah auto-repair sintaks.");
+      return parsed;
+    }
+  } catch (err2) {
+    // Lanjut ke regex salvage
+  }
+
+  // Attempt 3: Regex Salvage Parser (Ekstrak setiap objek soal satu per satu)
+  try {
+    const analysisItems: any[] = [];
+
+    // Cari semua blok objek yang memiliki "questionNumber"
+    const objectRegex = /\{[^{}]*?"questionNumber"\s*:\s*"?(\d+|[a-zA-Z0-9_\-]+)"?[\s\S]*?\}/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = objectRegex.exec(cleanText)) !== null) {
+      let block = match[0];
+      // Bersihkan trailing comma di dalam blok
+      block = block.replace(/,(\s*})/g, '$1');
+      try {
+        const item = JSON.parse(block);
+        if (item.questionNumber !== undefined) {
+          analysisItems.push(item);
+        }
+      } catch (itemErr) {
+        // Fallback manual field extraction jika 1 blok tersebut ada unescaped quotes
+        const qNumMatch = block.match(/"questionNumber"\s*:\s*"?([^",}\n]+)"?/);
+        const ansMatch = block.match(/"studentAnswer"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+        const scoreMatch = block.match(/"score"\s*:\s*(\d+(?:\.\d+)?)/);
+        const maxScoreMatch = block.match(/"maxScore"\s*:\s*(\d+(?:\.\d+)?)/);
+        const reasoningMatch = block.match(/"reasoning"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+        const analysisTextMatch = block.match(/"analysisText"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+
+        if (qNumMatch) {
+          analysisItems.push({
+            questionNumber: qNumMatch[1].trim(),
+            studentAnswer: ansMatch ? ansMatch[1] : "",
+            score: scoreMatch ? Number(scoreMatch[1]) : 0,
+            maxScore: maxScoreMatch ? Number(maxScoreMatch[1]) : 10,
+            reasoning: reasoningMatch ? reasoningMatch[1] : "",
+            analysisText: analysisTextMatch ? analysisTextMatch[1] : "",
+            status: "OK"
+          });
+        }
+      }
+    }
+
+    if (analysisItems.length > 0) {
+      console.warn(`[Safe JSON Parser] ⚠️ Berhasil memulihkan ${analysisItems.length} butir analisis soal via Regex Salvage!`);
+      const fbMatch = cleanText.match(/"generalFeedback"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+      const scoreMatch = cleanText.match(/"totalScore"\s*:\s*(\d+(?:\.\d+)?)/);
+
+      return {
+        totalScore: scoreMatch ? Number(scoreMatch[1]) : 0,
+        generalFeedback: fbMatch ? fbMatch[1] : "Penilaian diproses dengan pemulihan parser resilien.",
+        analysis: analysisItems
+      };
+    }
+  } catch (err3) {
+    // Gagal total
+  }
+
+  throw new Error(`Gagal mem-parsing format JSON dari AI: ${cleanText.substring(0, 150)}...`);
+}
+
+/**
  * Build the unified prompt that combines OCR reading + grading in one step.
  */
 function buildUnifiedPrompt(
@@ -159,8 +278,13 @@ ${questionsInstruction}
 4. TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), tandai sebagai tidak terbaca. Jangan menebak.
 5. WAJIB BAHASA INDONESIA: PASTIKAN seluruh hasil pembacaan teks ditulis menggunakan bahasa Indonesia. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.
 
-=== FORMAT OUTPUT JSON ===
-Output WAJIB berupa JSON murni tanpa markdown, tanpa backticks, dan TANPA KALIMAT PEMBUKA/PENUTUP seperti 'Berikut adalah...'. DILARANG KERAS menambahkan teks di luar struktur JSON ini:
+=== FORMAT OUTPUT JSON (SANGAT PENTING - WAJIB VALID SINTAKS JSON) ===
+Output WAJIB berupa JSON murni yang VALID secara sintaks tanpa markdown, tanpa backticks, dan TANPA KALIMAT PEMBUKA/PENUTUP.
+ATURAN SINTAKS JSON SANGAT KETAT:
+1. Pastikan SETIAP elemen objek di dalam array 'analysis' SELALU dipisahkan dengan tanda koma (','). Contoh: [ { ... }, { ... } ]. JANGAN PERNAH melewatkan tanda koma antar elemen!
+2. DILARANG menambahkan tanda koma setelah elemen terakhir (TIDAK BOLEH ada trailing comma sebelum kurung siku penutup ']').
+3. Jika di dalam teks (studentAnswer, reasoning, atau analysisText) terdapat tanda kutip ganda, WAJIB di-escape dengan '\\"'.
+Struktur JSON yang dihasilkan:
 {
   "totalScore": number,
   "generalFeedback": "Apresiasi/umpan balik singkat keseluruhan",
@@ -237,6 +361,9 @@ async function callUnifiedAI(
       const text = orData.choices?.[0]?.message?.content || "";
       if (!text) throw new Error("Empty response from OpenRouter2 Primary");
 
+      // Validasi awal bahwa teks AI dapat diparse/dipulihkan menjadi JSON
+      safeParseAIJson(text);
+
       console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter2 Primary: ${primaryModel}`);
       return text;
     } catch (or2Err: any) {
@@ -284,6 +411,9 @@ async function callUnifiedAI(
         const text = nvData.choices?.[0]?.message?.content || "";
         if (!text) throw new Error(`Empty response from NVIDIA (${nvModel})`);
 
+        // Validasi awal bahwa teks AI dapat diparse/dipulihkan menjadi JSON
+        safeParseAIJson(text);
+
         console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan NVIDIA Fallback 1: ${nvModel}`);
         return text;
       } catch (nvErr: any) {
@@ -330,6 +460,9 @@ async function callUnifiedAI(
       const text = orData.choices?.[0]?.message?.content || "";
       if (!text) throw new Error("Empty response from OpenRouter Fallback 2");
 
+      // Validasi awal bahwa teks AI dapat diparse/dipulihkan menjadi JSON
+      safeParseAIJson(text);
+
       console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter Fallback 2: ${orModel}`);
       return text;
     } catch (openRouterErr: any) {
@@ -369,6 +502,10 @@ async function callUnifiedAI(
     const groqData = await groqResponse.json();
     const text = groqData.choices?.[0]?.message?.content || "";
     if (!text) throw new Error("Empty response from Groq Fallback 3");
+
+    // Validasi awal bahwa teks AI dapat diparse/dipulihkan menjadi JSON
+    safeParseAIJson(text);
+
     console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Groq Fallback 3: ${tertiaryModel}`);
     return text;
   } catch (groqError: any) {
@@ -441,15 +578,8 @@ async function processFullGradingInBackground(
 
     console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Respons AI diterima. Parsing JSON...`);
 
-    // === STEP 4: Parse JSON response ===
-    let jsonString = responseText;
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      jsonString = jsonMatch[0];
-    }
-
-    const cleanText = jsonString.replace(/```json/gi, "").replace(/```/g, "").trim();
-    const assessmentResult = JSON.parse(cleanText);
+    // === STEP 4: Parse JSON response with auto-repair and regex salvage ===
+    const assessmentResult = safeParseAIJson(responseText);
 
     // === STEP 5: Normalize and enforce scores ===
     let actualTotalScore = 0;
