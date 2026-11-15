@@ -41,8 +41,10 @@ export async function compressBufferForOCR(
     // 3. PERTAHANKAN WARNA ASLI (RGB): Jangan gunakan grayscale!
     // Warna tinta pulpen (biru/hitam) sangat penting bagi model vision AI untuk membedakan tulisan siswa dari garis buku tulis.
 
-    // 4. Pertajam goresan tinta tulisan tangan
-    pipeline = pipeline.sharpen({ sigma: 1.0, m1: 0.5, m2: 2.0 });
+    // 4. Pertajam goresan tinta tulisan tangan tanpa mempertegas garis buku tulis
+    // m1 rendah (0.1) menjaga agar garis horizontal buku tulis tidak menebal menjadi garis tengah huruf (seperti C disangka E)
+    // m2 (1.2) memperjelas tepian tinta pena
+    pipeline = pipeline.sharpen({ sigma: 0.8, m1: 0.1, m2: 1.2 });
 
     // 5. Output JPEG berkualitas tinggi (85) dengan mozjpeg agar tidak ada artifak blur
     const compressedBuffer = await pipeline

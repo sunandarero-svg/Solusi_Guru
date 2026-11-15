@@ -82,6 +82,11 @@ ${questionsInstruction}
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
 3. PANDUAN KHUSUS PEMBACAAN OCR TULISAN TANGAN PILIHAN GANDA (A, B, C, D, E):
    - Ambil HANYA 1 huruf pilihan (A, B, C, D, atau E) ke dalam 'studentAnswer'.
+   - PEMBEDAAN HURUF 'C' vs 'E' (SANGAT KRITIS - HINDARI KESALAHAN INI):
+     * Huruf 'C' (kapital maupun kecil) HANYA berupa SATU lengkungan busur kurva terbuka ke kanan (sisi kiri melengkung mulus cembung, terbuka di sisi kanan). Huruf 'C' TIDAK MEMILIKI tiang vertikal tegak lurus di kiri dan TIDAK MEMILIKI garis mendatar di tengah!
+     * WASPADAI GARIS BUKU TULIS BERGARIS: Pada lembar jawaban bergaris, garis horizontal tipis cetakan buku tulis seringkali melintas tepat memotong bagian tengah bukaan huruf 'C'. JANGAN PERNAH menyangka garis horizontal buku tulis tersebut sebagai garis tengah huruf 'E'! Perhatikan tinta pulpen: jika tinta pena melengkung bulat dan hanya ada garis tipis buku di tengahnya, itu 100% adalah huruf 'C', BUKAN 'E'!
+     * WASPADAI KAIT/SERIF PADA HURUF 'C': Siswa sering menulis huruf 'C' dengan sedikit lengkungan kait di ujung atas atau bawah. Jangan pernah membacanya sebagai 'E'!
+     * Huruf 'E' yang sebenarnya WAJIB memiliki tiang vertikal tegak lurus yang jelas di sisi kiri dan TIGA garis mendatar tebal yang ditarik sengaja dengan tinta pena yang sama (atas, tengah, bawah).
    - PEMBEDAAN HURUF 'B' vs 'D' (SANGAT KRITIS):
      * Huruf 'B' (kapital) WAJIB memiliki tiang vertikal tegak lurus di sisi kiri DAN DUA lekukan bulatan (bulatan atas dan bulatan bawah) yang bertemu di pinggang tengah sisi kanan.
      * Huruf 'D' (kapital) hanya memiliki tiang vertikal di kiri DAN SATU lengkungan busur besar tunggal yang menyatu dari ujung atas sampai ujung bawah.
@@ -99,8 +104,18 @@ ${questionsInstruction}
      * Jika siswa melingkari atau menyilang salah satu huruf opsi pada lembar, ambil huruf opsi yang dilingkari/dipilih.
      * Jika terdapat coretan atau perbaikan (misal "A B", "A dicoret lalu B", "A -> B"), ambil HANYA HURUF TERAKHIR yang tidak dicoret (huruf kedua).
 3b. PANDUAN KHUSUS PEMBACAAN OCR TULISAN TANGAN BENAR / SALAH (BENAR_SALAH):
-   - Format jawaban siswa yang sah: kata "Benar", "Salah", atau singkatan huruf "B", "S", atau simbol centang (✓) / silang (✗/X).
-   - PERBEDAAN BENTUK HURUF 'S' (Salah) vs 'B' (Benar) (SANGAT KRITIS - HINDARI KESALAHAN INI):
+   - KETENTUAN MUTLAK NILAI studentAnswer:
+     * Pada soal bertipe BENAR_SALAH, kolom 'studentAnswer' HANYA BOLEH bernilai salah satu dari dua kata baku: "Benar" ATAU "Salah" (atau singkatan huruf "B" / "S", "✓" / "✗").
+     * DILARANG KERAS mengeluarkan kata-kata non-kamus, typo, atau kesalahan OCR fonetik seperti "lenar", "terlah", "tenar", "denar", "serlah", "bener", "slah"!
+     * PENGECUALIAN ATURAN VERBATIM: Aturan transkripsi verbatim TIDAK BERLAKU untuk soal BENAR_SALAH dan PILIHAN_GANDA. Anda bertugas mengenali intensi kata siswa apakah "Benar" atau "Salah".
+   - KENALI TULISAN TANGAN SAMBUNG (CURSIVE) KATA "Benar":
+     * Siswa sering menulis kata "Benar" dengan huruf sambung / cursive:
+       - Huruf 'B' bersambung memiliki tiang tinggi yang sering salah dibaca oleh OCR mentah sebagai huruf 'l' (sehingga terbaca "lenar") atau 't' (sehingga terbaca "tenar" atau "terlah").
+       - Huruf 'r' di akhir kata "Benar" sering memiliki kait ke atas yang salah dibaca sebagai 'h' (sehingga terbaca "terlah").
+       - PAHAMI DENGAN TEGAS: Tulisan tangan seperti "lenar", "terlah", "tenar", "denar", "penar", "bener", "benr" 100% ADALAH KATA "Benar"! Wajib dituliskan ke 'studentAnswer' sebagai "Benar"!
+   - KENALI TULISAN TANGAN KATA "Salah":
+     * Kata "Salah" selalu diawali huruf lengkung bergelombang 'S' (atau 's') tanpa tiang vertikal lurus di depan. Jika tulisan menyerupai "salah", "slah", "selah", masukkan ke 'studentAnswer' sebagai "Salah".
+   - PERBEDAAN BENTUK HURUF 'S' (Salah) vs 'B' (Benar) (SANGAT KRITIS):
      * Huruf 'S' tulisan tangan berupa SATU GARIS GELOMBANG LENGKUNG KONTINU seperti ular (melengkung ke kiri di atas, melengkung ke kanan di bawah). Huruf 'S' TIDAK MEMILIKI TIANG VERTIKAL LURUS!
      * Huruf 'B' WAJIB MEMILIKI TIANG VERTIKAL LURUS TEGAK di sisi kiri dengan dua bulatan di kanan.
      * PERINGATAN KERAS: JANGAN PERNAH membaca huruf kurva gelombang 'S' sebagai 'B'! Jika goresan adalah garis lengkung bergelombang tanpa tiang tegak lurus, itu 100% adalah huruf 'S' (Salah) atau kata "Salah"!
@@ -140,7 +155,7 @@ ${questionsInstruction}
 === ATURAN EKSTRAKSI TEKS (OCR) ===
 1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING): Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks FINAL yang dipertahankan/dimaksudkan oleh penulis.
 2. STRUKTUR & HIERARKI: Pertahankan hierarki dokumen asli. Pertahankan penomoran persis seperti urutan di dokumen.
-3. TRANSKRIPSI VERBATIM (APA ADANYA): Ekstrak teks persis seperti yang tertulis, termasuk variasi ejaan atau singkatan yang digunakan penulis. Jangan melakukan koreksi tata bahasa pada teks yang valid.
+3. TRANSKRIPSI TEKS & NORMALISASI OBJEKTIF: Ekstrak teks persis seperti yang tertulis untuk soal ISIAN dan ESSAY. Untuk soal PILIHAN GANDA, HANYA ambil 1 huruf opsi (A, B, C, D, E). Untuk soal BENAR_SALAH, HANYA ambil kata baku "Benar" atau "Salah" (jangan mengeluarkan kata cacat/typo OCR seperti "lenar" atau "terlah"). Jangan melakukan koreksi tata bahasa pada teks yang valid.
 4. TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), tandai sebagai tidak terbaca. Jangan menebak.
 5. WAJIB BAHASA INDONESIA: PASTIKAN seluruh hasil pembacaan teks ditulis menggunakan bahasa Indonesia. JANGAN PERNAH menerjemahkan teks tersebut ke bahasa Inggris atau bahasa lain.
 

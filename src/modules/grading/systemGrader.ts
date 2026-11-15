@@ -129,6 +129,124 @@ export function isAmbiguousBSAnswer(raw: string): boolean {
 }
 
 /**
+ * Hitung Levenshtein distance antara dua string.
+ * Algoritma edit distance standar tanpa dependency eksternal.
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= a.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= b.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+/**
+ * Memeriksa apakah sebuah kata/token merupakan kata "Benar" atau variasi typo/salah baca OCR handwriting (termasuk tulisan sambung/cursive).
+ * Contoh misread handwriting: "lenar" (tiang B disangka l), "terlah" (B sambung dan loop r disangka t..lah), "tenar", "denar", dsb.
+ */
+function isBenarToken(word: string): boolean {
+  if (!word) return false;
+  const w = word.toLowerCase().trim().replace(/[.,;:!?()\[\]"']/g, '');
+  if (!w) return false;
+
+  // 1. Bentuk baku & singkatan
+  if (
+    w === "benar" ||
+    w === "betul" ||
+    w === "true" ||
+    w === "ya" ||
+    w === "y" ||
+    w === "t" ||
+    w === "b" ||
+    w === "✓" ||
+    w === "✔" ||
+    w === "v"
+  ) {
+    return true;
+  }
+
+  // 2. Variasi typo & salah baca OCR handwriting (cursive/sambung) untuk kata "Benar"
+  const BENAR_OCR_TYPOS = new Set([
+    "lenar", "terlah", "tenar", "denar", "penar", "renar", "kenar", "henar",
+    "bener", "benr", "bnar", "benat", "bemar", "bebar", "benal", "benarr",
+    "bwnar", "benwr", "1benar", "benar.", "benqr", "benpr", "bensr", "bena",
+    "benae", "benart", "benard", "terah", "tela", "telar", "lenat", "tenat"
+  ]);
+  if (BENAR_OCR_TYPOS.has(w)) {
+    return true;
+  }
+
+  // 3. Fuzzy Levenshtein (jarak <= 2 ke "benar" dan lebih dekat ke "benar" daripada "salah")
+  if (w.length >= 4 && w.length <= 7) {
+    const distBenar = levenshteinDistance(w, "benar");
+    const distSalah = levenshteinDistance(w, "salah");
+    if (distBenar <= 2 && distBenar < distSalah) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Memeriksa apakah sebuah kata/token merupakan kata "Salah" atau variasi typo/salah baca OCR handwriting.
+ */
+function isSalahToken(word: string): boolean {
+  if (!word) return false;
+  const w = word.toLowerCase().trim().replace(/[.,;:!?()\[\]"']/g, '');
+  if (!w) return false;
+
+  // 1. Bentuk baku & singkatan
+  if (
+    w === "salah" ||
+    w === "false" ||
+    w === "tidak" ||
+    w === "f" ||
+    w === "s" ||
+    w === "✗" ||
+    w === "x" ||
+    w === "✕" ||
+    w === "✖"
+  ) {
+    return true;
+  }
+
+  // 2. Variasi typo & salah baca OCR handwriting untuk kata "Salah"
+  const SALAH_OCR_TYPOS = new Set([
+    "slah", "salahh", "sala", "salaj", "salak", "sdlah", "sxlah", "selah",
+    "swlah", "sallh", "salah.", "1salah", "serlah", "salsah", "salsh", "salaht",
+    "salag", "salap", "zalah", "calah"
+  ]);
+  if (SALAH_OCR_TYPOS.has(w)) {
+    return true;
+  }
+
+  // 3. Fuzzy Levenshtein (jarak <= 2 ke "salah" dan lebih dekat ke "salah" daripada "benar")
+  if (w.length >= 4 && w.length <= 7) {
+    const distSalah = levenshteinDistance(w, "salah");
+    const distBenar = levenshteinDistance(w, "benar");
+    if (distSalah <= 2 && distSalah < distBenar) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Normalisasi jawaban benar/salah.
  * Sesuai aturan:
  * 1. Abaikan bagian yang dicoret (~~teks~~ atau [coret: ...]).
@@ -136,6 +254,7 @@ export function isAmbiguousBSAnswer(raw: string): boolean {
  * 3. Jika ada dua kata berurutan ("Benar Salah" atau "Salah Benar", "B S", "S B"),
  *    ambil HANYA KATA KEDUA (jawaban perbaikan siswa).
  * 4. Mendukung simbol: centang (✓, ✔, v) = Benar, silang (✗, x, ✕, ✖) = Salah.
+ * 5. Tahan terhadap kesalahan pembacaan OCR handwriting/cursive (misal "lenar" / "terlah" → "Benar").
  */
 function normalizeBSAnswer(answer: string): string {
   if (!answer) return "";
@@ -155,33 +274,14 @@ function normalizeBSAnswer(answer: string): string {
   const detectedTokens: string[] = [];
 
   for (const w of words) {
-    const lw = w.toLowerCase();
-    if (
-      lw === "benar" ||
-      lw === "betul" ||
-      lw === "true" ||
-      lw === "ya" ||
-      lw === "b" ||
-      lw === "✓" ||
-      lw === "✔" ||
-      lw === "v"
-    ) {
+    if (isBenarToken(w)) {
       detectedTokens.push("Benar");
-    } else if (
-      lw === "salah" ||
-      lw === "false" ||
-      lw === "tidak" ||
-      lw === "s" ||
-      lw === "✗" ||
-      lw === "x" ||
-      lw === "✕" ||
-      lw === "✖"
-    ) {
+    } else if (isSalahToken(w)) {
       detectedTokens.push("Salah");
     }
   }
 
-  // Jika terdeteksi lebih dari satu kata (misal: "Benar Salah" atau "Salah Benar"):
+  // Jika terdeteksi lebih dari satu kata (misal: "Benar Salah" atau "lenar Salah"):
   // Ambil kata KEDUA / TERAKHIR (jawaban perbaikan siswa)
   if (detectedTokens.length >= 2) {
     return detectedTokens[detectedTokens.length - 1];
@@ -191,36 +291,11 @@ function normalizeBSAnswer(answer: string): string {
     return detectedTokens[0];
   }
 
-  const cleaned = text.trim().toLowerCase();
-
-  // Deteksi "Benar"
-  if (
-    cleaned === "benar" ||
-    cleaned === "b" ||
-    cleaned === "true" ||
-    cleaned === "betul" ||
-    cleaned === "ya" ||
-    cleaned === "y" ||
-    cleaned === "t" ||
-    cleaned === "✓" ||
-    cleaned === "✔" ||
-    cleaned === "v"
-  ) {
+  // Fallback single string check:
+  if (isBenarToken(text)) {
     return "Benar";
   }
-
-  // Deteksi "Salah"
-  if (
-    cleaned === "salah" ||
-    cleaned === "s" ||
-    cleaned === "false" ||
-    cleaned === "tidak" ||
-    cleaned === "f" ||
-    cleaned === "✗" ||
-    cleaned === "x" ||
-    cleaned === "✕" ||
-    cleaned === "✖"
-  ) {
+  if (isSalahToken(text)) {
     return "Salah";
   }
 
@@ -258,31 +333,6 @@ function normalizeIsianSingkat(answer: string): string {
     .replace(/[.,;:!?'"()\[\]{}\-_\/\\]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-/**
- * Hitung Levenshtein distance antara dua string.
- * Algoritma edit distance standar tanpa dependency eksternal.
- */
-function levenshteinDistance(a: string, b: string): number {
-  const matrix: number[][] = [];
-  for (let i = 0; i <= a.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= b.length; j++) {
-    matrix[0][j] = j;
-  }
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost
-      );
-    }
-  }
-  return matrix[a.length][b.length];
 }
 
 /**
