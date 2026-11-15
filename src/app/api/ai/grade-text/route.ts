@@ -36,9 +36,19 @@ function buildUnifiedPrompt(
   questions: any[],
   imageCount: number
 ): string {
+  let effectiveAnswerKey = answerKey || "";
+  if (!effectiveAnswerKey.trim() && questions && questions.length > 0) {
+    const synthLines = questions
+      .filter((q: any) => q.correctAnswer && q.correctAnswer.trim().length > 0)
+      .map((q: any) => `${q.order}. ${q.correctAnswer}`);
+    if (synthLines.length > 0) {
+      effectiveAnswerKey = synthLines.join("\n");
+    }
+  }
+
   let answerKeyInstruction = "";
-  if (answerKey && answerKey.trim().length > 0) {
-    answerKeyInstruction = `KUNCI JAWABAN REFERENSI:\n${answerKey}\n`;
+  if (effectiveAnswerKey && effectiveAnswerKey.trim().length > 0) {
+    answerKeyInstruction = `KUNCI JAWABAN REFERENSI:\n${effectiveAnswerKey}\n`;
   }
 
   let questionsInstruction = "";
@@ -50,8 +60,8 @@ function buildUnifiedPrompt(
     });
     const qList = sortedQuestions.map((q: any) => {
       let line = `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`;
-      if (q.correctAnswer && (q.questionType === 'ISIAN_SINGKAT' || q.questionType === 'ESSAY')) {
-        line += `, Kunci/Poin: ${q.correctAnswer}`;
+      if (q.correctAnswer && q.correctAnswer.trim().length > 0) {
+        line += `, Referensi/Kunci: ${q.correctAnswer}`;
       }
       return line;
     }).join("\n");
@@ -70,17 +80,44 @@ ${questionsInstruction}
 0. WAJIB MENILAI KESELURUHAN SOAL TANPA TERKECUALI! PASTIKAN JUMLAH ITEM DALAM ARRAY 'analysis' SAMA PERSIS DENGAN JUMLAH SOAL, KUNCI JAWABAN, DAN JAWABAN SISWA. JANGAN MEMOTONG ATAU MENGHENTIKAN PENILAIAN DI TENGAH JALAN!
 1. PENCOCOKAN NOMOR SOAL: Kaitkan jawaban siswa dengan nomor soal yang benar. Pastikan nomor soal 1 sampai akhir terisi lengkap dan berurutan.
 2. TAHAP PENALARAN SINGKAT: Tulis 1 kalimat penalaran di 'reasoning' membandingkan inti jawaban siswa dan kunci.
-3. KRITERIA PILIHAN GANDA:
-   - Ambil HANYA huruf pilihan (A, B, C, D, E) ke dalam 'studentAnswer'.
-   - Jika siswa menulis dua huruf seperti "A B" (koreksi jawaban) atau terdapat coretan, ambil huruf KEDUA / huruf yang TIDAK DICORET.
-3b. KRITERIA BENAR / SALAH (SANGAT PENTING - OCR TINGKAT TINGGI):
-   - PENTING: Perhatikan baik-baik tulisan siswa pada soal Benar/Salah (misal nomor 11-15). Bedakan secara akurat antara huruf 'B' (Benar) dan 'S' (Salah) atau kata "Benar" dan "Salah".
-   - PENGABAIAN JUDUL / PETUNJUK: Jika terdapat tulisan "Benar/Salah", "Benar dan salah", "B/S", "B / S", "Pernyataan Benar/Salah", atau opsi ganda petunjuk: Tulisan tersebut BUKAN BAGIAN SOAL, HARUS DILEWATI sepenuhnya, dan JANGAN menggeser penomoran soal siswa.
-   - PENANGANAN KOREKSI / CORETAN: Jika siswa mencoret jawaban pertama lalu menuliskan jawaban baru (misal mencoret 'Benar' lalu menulis 'Salah', atau menulis dua kata berurutan 'Benar Salah' / 'Salah Benar'), AMBIL HANYA JAWABAN KEDUA / KATA YANG TIDAK DICORET sebagai jawaban akhir siswa di 'studentAnswer'.
-   - JIKA RAGU: Transkripsikan apa adanya (misal "Benar Salah") agar sistem pemeriksa otomatis dapat mengambil kata perbaikan terakhir.
+3. PANDUAN KHUSUS PEMBACAAN OCR TULISAN TANGAN PILIHAN GANDA (A, B, C, D, E):
+   - Ambil HANYA 1 huruf pilihan (A, B, C, D, atau E) ke dalam 'studentAnswer'.
+   - PEMBEDAAN HURUF 'B' vs 'D' (SANGAT KRITIS):
+     * Huruf 'B' (kapital) WAJIB memiliki tiang vertikal tegak lurus di sisi kiri DAN DUA lekukan bulatan (bulatan atas dan bulatan bawah) yang bertemu di pinggang tengah sisi kanan.
+     * Huruf 'D' (kapital) hanya memiliki tiang vertikal di kiri DAN SATU lengkungan busur besar tunggal yang menyatu dari ujung atas sampai ujung bawah.
+     * JIKA ADA LEKUKAN PINGGANG DI TENGAH SISI KANAN, ITU ADALAH HURUF 'B', BUKAN 'D'!
+   - PEMBEDAAN HURUF KECIL 'b' vs 'd':
+     * Siswa sering menulis huruf kecil!
+     * Huruf 'b' kecil: tiang vertikal tinggi di sebelah KIRI, bulatan di sebelah KANAN bawah.
+     * Huruf 'd' kecil: bulatan di sebelah KIRI bawah, tiang vertikal tinggi di sebelah KANAN. JANGAN SAMPAI TERTUKAR!
+   - PEMBEDAAN HURUF 'A' vs 'D'/'4':
+     * Huruf 'A' memiliki dua kaki miring membentuk tenda/segitiga meruncing ke atas dengan garis mendatar di tengah.
+   - PEMBEDAAN HURUF 'C' vs 'O'/'G':
+     * Huruf 'C' memiliki bukaan lengkungan yang jelas dan lebar di sebelah kanan.
+   - FORMAT PENULISAN SISWA:
+     * Jika siswa menulis dengan nomor (misal "1. A", "1) B", "(A)"), BUANG nomor soalnya dan ambil HANYA huruf pilihannya ("A", "B").
+     * Jika siswa melingkari atau menyilang salah satu huruf opsi pada lembar, ambil huruf opsi yang dilingkari/dipilih.
+     * Jika terdapat coretan atau perbaikan (misal "A B", "A dicoret lalu B", "A -> B"), ambil HANYA HURUF TERAKHIR yang tidak dicoret (huruf kedua).
+3b. PANDUAN KHUSUS PEMBACAAN OCR TULISAN TANGAN BENAR / SALAH (BENAR_SALAH):
+   - Format jawaban siswa yang sah: kata "Benar", "Salah", atau singkatan huruf "B", "S", atau simbol centang (✓) / silang (✗/X).
+   - PERBEDAAN BENTUK HURUF 'S' (Salah) vs 'B' (Benar) (SANGAT KRITIS - HINDARI KESALAHAN INI):
+     * Huruf 'S' tulisan tangan berupa SATU GARIS GELOMBANG LENGKUNG KONTINU seperti ular (melengkung ke kiri di atas, melengkung ke kanan di bawah). Huruf 'S' TIDAK MEMILIKI TIANG VERTIKAL LURUS!
+     * Huruf 'B' WAJIB MEMILIKI TIANG VERTIKAL LURUS TEGAK di sisi kiri dengan dua bulatan di kanan.
+     * PERINGATAN KERAS: JANGAN PERNAH membaca huruf kurva gelombang 'S' sebagai 'B'! Jika goresan adalah garis lengkung bergelombang tanpa tiang tegak lurus, itu 100% adalah huruf 'S' (Salah) atau kata "Salah"!
+   - PEMBEDAAN KATA "Benar" vs "Salah":
+     * Kata "Benar" selalu diawali huruf 'B' dengan tiang tegak lurus ke bawah.
+     * Kata "Salah" selalu diawali huruf 'S' dengan lengkungan kurva bergelombang tanpa tiang tegak.
+   - SIMBOL CENTANG DAN SILANG:
+     * Simbol centang (✓, ✔, v) = transkripsikan sebagai "Benar".
+     * Simbol silang (✗, ✕, x, X) = transkripsikan sebagai "Salah".
+   - PENGABAIAN JUDUL / PETUNJUK KOLOM:
+     * Jika terdapat tulisan "Benar/Salah", "Benar dan salah", "B/S", "B / S", "Pernyataan Benar/Salah", atau teks petunjuk di header tabel: TULISAN TERSEBUT BUKAN JAWABAN SOAL, HARUS DILEWATI SEPENUHNYA! Jangan masukkan judul ini sebagai nomor soal dan jangan menggeser urutan soal siswa.
+   - PENANGANAN KOREKSI / CORETAN:
+     * Jika siswa menulis dua kata berurutan (misal: "Benar Salah" atau "Salah Benar") atau mencoret kata pertama dan menulis kata kedua, AMBIL HANYA KATA KEDUA / KATA YANG TIDAK DICORET sebagai jawaban akhir siswa di 'studentAnswer'.
+     * Jika ragu, tuliskan keduanya apa adanya (misal "Benar Salah") agar sistem pemeriksa otomatis dapat mengambil kata perbaikan kedua secara aman.
 3c. KRITERIA PILIHAN GANDA KOMPLEKS / BERTINGKAT:
    - Ekstrak seluruh huruf pilihan yang dipilih siswa (misal: "A, C, E").
-*CATATAN INTEGRITAS PENILAIAN: Seluruh soal Pilihan Ganda, Benar/Salah, dan Pilihan Ganda Kompleks/Bertingkat dinilai secara mutlak oleh Aplikasi Sistem (System Grader). AI bertugas membaca dan mentranskripsikan jawaban siswa (OCR) dengan setepat mungkin ke dalam 'studentAnswer'.*
+*CATATAN INTEGRITAS PENILAIAN: Seluruh soal Pilihan Ganda, Benar/Salah, dan Pilihan Ganda Kompleks/Bertingkat dinilai secara mutlak oleh Aplikasi Sistem (System Grader). AI bertugas membaca dan mentranskripsikan jawaban siswa (OCR) dengan setepat dan seakurat mungkin ke dalam 'studentAnswer'.*
 4. KRITERIA ISIAN SINGKAT (SKOR PARSIAL - SANGAT PENTING):
    Penilaian ISIAN SINGKAT harus FLEKSIBEL. Jawaban TIDAK harus exact match. Berikan skor GRADUAL berdasarkan kecocokan makna/konsep:
    - 100% maxScore: Jawaban identik, sinonim sempurna, atau hanya typo minor (cth: "fotosintesa" ≈ "fotosintesis", "Jkt" ≈ "Jakarta")
@@ -348,8 +385,8 @@ async function processFullGradingInBackground(
     await dbConnect();
 
     // === STEP 1: Compress all images ===
-    // Resolusi adaptif: jika gambar >= 3, gunakan 800px agar aman di bawah batas 7.000 ITPM Groq
-    const targetDimension = base64Images.length >= 3 ? 800 : (base64Images.length === 2 ? 900 : 1024);
+    // Resolusi tinggi (1400-1800px) untuk memastikan goresan huruf tangan (B vs D, S vs B) terbaca sangat tajam
+    const targetDimension = base64Images.length >= 3 ? 1400 : (base64Images.length === 2 ? 1600 : 1800);
     console.log(`[Grade BG][Sub ${submissionId.slice(-6)}] Mulai kompresi ${base64Images.length} gambar (target max ${targetDimension}px)`);
     const compressedImages: CompressedImage[] = [];
     for (let i = 0; i < base64Images.length; i++) {

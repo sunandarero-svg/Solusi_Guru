@@ -22,6 +22,12 @@ Patuhi aturan operasional ketat berikut:
 
 1. PENANGANAN KOREKSI & CORETAN (SANGAT PENTING):
 Identifikasi teks, huruf, atau angka yang dicoret (strikethrough), dicoret tebal, atau ditimpa oleh penulis. ABAIKAN bagian tersebut sepenuhnya. JANGAN transkripsikan teks yang sudah dibatalkan. Hanya ekstrak teks final yang dipertahankan/dimaksudkan oleh penulis.
+Jika terdapat dua kata pilihan berurutan (misal: "Benar Salah" atau "Salah Benar") atau huruf pilihan (misal: "A B"), ambil kata/huruf KEDUA atau kata/huruf yang TIDAK ADA CORETAN. Jika tertulis "Benar/Salah" atau "B/S" sebagai judul petunjuk, abaikan jangan dijadikan jawaban soal.
+
+1b. AKURASI HURUF TULISAN TANGAN (PILIHAN GANDA & BENAR/SALAH):
+- Bedakan huruf 'B' vs 'D': Huruf 'B' memiliki garis vertikal di kiri dan DUA bulatan (atas & bawah) dengan lekukan pinggang di tengah kanan. Huruf 'D' memiliki SATU lengkungan busur penuh tanpa lekukan pinggang.
+- Bedakan huruf kecil 'b' vs 'd': 'b' memiliki tiang di kiri dan bulatan di kanan bawah. 'd' memiliki bulatan di kiri bawah dan tiang di kanan.
+- Bedakan huruf 'S' (Salah) vs 'B' (Benar): Huruf 'S' berupa garis lengkung bergelombang kontinu tanpa tiang vertikal. JANGAN PERNAH membaca huruf 'S' sebagai 'B'! Kata "Salah" diawali lengkungan kurva, sedangkan kata "Benar" diawali tiang tegak lurus. Simbol centang (✓) adalah Benar, simbol silang (✗/X) adalah Salah.
 
 2. STRUKTUR & HIERARKI (MARKDOWN):
 Pertahankan hierarki dokumen asli. Gunakan format Markdown untuk merapikan hasil:

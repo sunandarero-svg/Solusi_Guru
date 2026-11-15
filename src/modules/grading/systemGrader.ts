@@ -60,8 +60,8 @@ export interface SystemGradingResult {
 /**
  * Normalisasi jawaban pilihan ganda.
  * Mengambil huruf (A-E) dari jawaban siswa.
- * Jika ada coretan atau koreksi dua huruf berurutan (misal: "A B"), ambil huruf kedua / tidak dicoret.
- * Contoh: "a", "A.", "A. Jawaban", "a)" → "A", "A B" → "B"
+ * Jika ada coretan atau koreksi dua huruf berurutan (misal: "A B", "A -> B", "~~A~~ B"), ambil huruf terakhir / tidak dicoret.
+ * Contoh: "a", "A.", "A. Jawaban", "a)", "1. A", "(B)", "A B" → "B"
  */
 function normalizePGAnswer(answer: string): string {
   if (!answer) return "";
@@ -73,16 +73,29 @@ function normalizePGAnswer(answer: string): string {
     .replace(/\((?:coret|dicoret)[^\)]*\)/gi, ' ')
     .trim();
 
-  // 2. Jika ada dua huruf dipisah spasi tanpa koma (koreksi jawaban: "A B"), ambil huruf kedua
+  // 2. Jika ada nomor soal di awal (misal "1. A" atau "1) B" atau "(1) C"), hilangkan nomornya
+  text = text.replace(/^(?:\(?\d+[\.\)]?\s*)+/, '').trim();
+
+  // 3. Ekstrak seluruh huruf A-E mandiri yang muncul
   const letters = text.match(/\b([A-E])\b/gi);
-  if (letters && letters.length >= 2 && !text.includes(',')) {
+  if (letters && letters.length >= 2) {
+    // Ambil huruf terakhir (koreksi jawaban siswa)
     return letters[letters.length - 1].toUpperCase();
   }
 
+  // 4. Deteksi langsung pola awalan seperti "(A)", "[A]", "A.", "A)"
+  const directMatch = text.match(/^[\(\[\s]*([A-E])[\)\]\.\s]/i) || text.match(/^([A-E])$/i);
+  if (directMatch) {
+    return directMatch[1].toUpperCase();
+  }
+
+  if (letters && letters.length === 1) {
+    return letters[0].toUpperCase();
+  }
+
   const cleaned = text.trim().toUpperCase();
-  // Cari huruf A-E di awal jawaban
   const match = cleaned.match(/^([A-E])/);
-  return match ? match[1] : (letters && letters.length === 1 ? letters[0].toUpperCase() : cleaned);
+  return match ? match[1] : cleaned;
 }
 
 /**
@@ -119,9 +132,10 @@ export function isAmbiguousBSAnswer(raw: string): boolean {
  * Normalisasi jawaban benar/salah.
  * Sesuai aturan:
  * 1. Abaikan bagian yang dicoret (~~teks~~ atau [coret: ...]).
- * 2. Jika ada dua kata berurutan ("Benar Salah" atau "Salah Benar", "B S", "S B"),
+ * 2. Hilangkan nomor soal di awal jika ada (misal "11. Salah" → "Salah").
+ * 3. Jika ada dua kata berurutan ("Benar Salah" atau "Salah Benar", "B S", "S B"),
  *    ambil HANYA KATA KEDUA (jawaban perbaikan siswa).
- * 3. Ambil kata yang tidak dicoret jika ada coretan.
+ * 4. Mendukung simbol: centang (✓, ✔, v) = Benar, silang (✗, x, ✕, ✖) = Salah.
  */
 function normalizeBSAnswer(answer: string): string {
   if (!answer) return "";
@@ -133,15 +147,36 @@ function normalizeBSAnswer(answer: string): string {
     .replace(/\((?:coret|dicoret)[^\)]*\)/gi, ' ')
     .trim();
 
-  // 2. Ekstrak kata-kata kunci Benar / Salah secara urut dari teks
+  // 2. Hilangkan nomor soal di awal (misal "11. " atau "12) ")
+  text = text.replace(/^(?:\(?\d+[\.\)]?\s*)+/, '').trim();
+
+  // 3. Ekstrak kata-kata kunci Benar / Salah secara urut dari teks
   const words = text.split(/[\s,.;:]+/).filter(Boolean);
   const detectedTokens: string[] = [];
 
   for (const w of words) {
     const lw = w.toLowerCase();
-    if (lw === "benar" || lw === "betul" || lw === "true" || lw === "ya" || lw === "b") {
+    if (
+      lw === "benar" ||
+      lw === "betul" ||
+      lw === "true" ||
+      lw === "ya" ||
+      lw === "b" ||
+      lw === "✓" ||
+      lw === "✔" ||
+      lw === "v"
+    ) {
       detectedTokens.push("Benar");
-    } else if (lw === "salah" || lw === "false" || lw === "tidak" || lw === "s") {
+    } else if (
+      lw === "salah" ||
+      lw === "false" ||
+      lw === "tidak" ||
+      lw === "s" ||
+      lw === "✗" ||
+      lw === "x" ||
+      lw === "✕" ||
+      lw === "✖"
+    ) {
       detectedTokens.push("Salah");
     }
   }
@@ -166,7 +201,10 @@ function normalizeBSAnswer(answer: string): string {
     cleaned === "betul" ||
     cleaned === "ya" ||
     cleaned === "y" ||
-    cleaned === "t"
+    cleaned === "t" ||
+    cleaned === "✓" ||
+    cleaned === "✔" ||
+    cleaned === "v"
   ) {
     return "Benar";
   }
@@ -177,7 +215,11 @@ function normalizeBSAnswer(answer: string): string {
     cleaned === "s" ||
     cleaned === "false" ||
     cleaned === "tidak" ||
-    cleaned === "f"
+    cleaned === "f" ||
+    cleaned === "✗" ||
+    cleaned === "x" ||
+    cleaned === "✕" ||
+    cleaned === "✖"
   ) {
     return "Salah";
   }

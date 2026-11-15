@@ -14,7 +14,7 @@ import sharp from "sharp";
 export async function compressBufferForOCR(
   inputBuffer: Buffer,
   mimeType: string = "image/jpeg",
-  maxDimension: number = 1024
+  maxDimension: number = 1600
 ): Promise<{ compressedBuffer: Buffer; compressedBase64: string; compressedMimeType: string; savings: string }> {
   try {
     const originalSize = inputBuffer.length;
@@ -24,7 +24,10 @@ export async function compressBufferForOCR(
 
     let pipeline = sharp(inputBuffer);
 
-    // Resize to maxDimension (default 1024px, or 800px for multi-image to fit Groq ITPM)
+    // 1. Auto-orient berdasarkan EXIF orientation tag (SANGAT KRUSIAL untuk foto smartphone!)
+    pipeline = pipeline.rotate();
+
+    // 2. Resize ke resolusi tinggi (default 1600px) agar goresan pena tulisan tangan tetap tajam dan jelas
     const MAX_DIMENSION = maxDimension;
     if (originalWidth > MAX_DIMENSION || originalHeight > MAX_DIMENSION) {
       pipeline = pipeline.resize({
@@ -35,15 +38,15 @@ export async function compressBufferForOCR(
       });
     }
 
-    // Convert to grayscale — text OCR doesn't need color, saves significant tokens
-    pipeline = pipeline.grayscale();
+    // 3. PERTAHANKAN WARNA ASLI (RGB): Jangan gunakan grayscale!
+    // Warna tinta pulpen (biru/hitam) sangat penting bagi model vision AI untuk membedakan tulisan siswa dari garis buku tulis.
 
-    // Normalize (auto-level contrast) — helps with handwritten text on various backgrounds
-    pipeline = pipeline.normalize();
+    // 4. Pertajam goresan tinta tulisan tangan
+    pipeline = pipeline.sharpen({ sigma: 1.0, m1: 0.5, m2: 2.0 });
 
-    // Output as JPEG quality 65 — sharp enough for text, small file size
+    // 5. Output JPEG berkualitas tinggi (85) dengan mozjpeg agar tidak ada artifak blur
     const compressedBuffer = await pipeline
-      .jpeg({ quality: 65, mozjpeg: true })
+      .jpeg({ quality: 85, mozjpeg: true })
       .toBuffer();
 
     const compressedBase64 = compressedBuffer.toString("base64");
@@ -52,7 +55,7 @@ export async function compressBufferForOCR(
     const savedPercent = ((1 - compressedSize / originalSize) * 100).toFixed(1);
     const savings = `${(originalSize / 1024).toFixed(0)}KB → ${(compressedSize / 1024).toFixed(0)}KB (hemat ${savedPercent}%)`;
 
-    console.log(`[OCR Compress] ${savings} | ${originalWidth}x${originalHeight} → max ${MAX_DIMENSION}px grayscale JPEG`);
+    console.log(`[OCR Compress] ${savings} | ${originalWidth}x${originalHeight} → max ${MAX_DIMENSION}px high-res JPEG (RGB Color preserved)`);
 
     return {
       compressedBuffer,
@@ -72,12 +75,12 @@ export async function compressBufferForOCR(
 }
 
 /**
- * Compress a base64 image for OCR to minimize AI token usage.
+ * Compress a base64 image for OCR to minimize AI token usage while preserving handwriting clarity.
  */
 export async function compressImageForOCR(
   base64Data: string, 
   mimeType: string,
-  maxDimension: number = 1024
+  maxDimension: number = 1600
 ): Promise<{ compressedBase64: string; compressedMimeType: string; savings: string }> {
   const inputBuffer = Buffer.from(base64Data, "base64");
   const res = await compressBufferForOCR(inputBuffer, mimeType, maxDimension);

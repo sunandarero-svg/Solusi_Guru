@@ -58,8 +58,8 @@ export class OpenRouterProvider implements AIProvider {
       }
       const rawMimeType = page.mimeType || "image/jpeg";
       
-      // Kompresi buffer adaptif agar menghemat token vision (60-70%)
-      const targetDimension = pages.length >= 3 ? 800 : (pages.length === 2 ? 900 : 1024);
+      // Kompresi buffer adaptif resolusi tinggi (1400-1800px) agar detail huruf tulisan tangan tetap tajam
+      const targetDimension = pages.length >= 3 ? 1400 : (pages.length === 2 ? 1600 : 1800);
       const { compressedBase64, compressedMimeType } = await compressBufferForOCR(buffer, rawMimeType, targetDimension);
 
       visionContentParts.push({
