@@ -17,7 +17,8 @@ import {
   Trophy,
   ChevronDown,
   FileSpreadsheet,
-  Cpu
+  Cpu,
+  Award
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -62,6 +63,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
           icon: Gamepad2,
           subItems: [
             { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy },
+            { href: "/dashboard/interactive-learning/excel-master-challenge", label: "Excel Master Challenge (50 Soal)", icon: Award },
             { href: "/dashboard/interactive-learning/excel-adventure", label: "Excel Adventure (Spreadsheet)", icon: FileSpreadsheet },
             { href: "/dashboard/interactive-learning/computer-system-simulator", label: "Simulator Sistem Komputer", icon: Cpu }
           ]
@@ -84,6 +86,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
           icon: Gamepad2,
           subItems: [
             { href: "/dashboard/interactive-learning/borneo-edu", label: "Meja Guru (Borneo Edu)", icon: Trophy },
+            { href: "/dashboard/interactive-learning/excel-master-challenge", label: "Excel Master Challenge (50 Soal)", icon: Award },
             { href: "/dashboard/interactive-learning/excel-adventure", label: "Excel Adventure (Spreadsheet)", icon: FileSpreadsheet },
             { href: "/dashboard/interactive-learning/computer-system-simulator", label: "Simulator Sistem Komputer", icon: Cpu }
           ]
@@ -100,6 +103,7 @@ export default function DashboardLayoutClient({ children, userEmail, role }: Das
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/subjects", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/dashboard/my-assignments", label: "Tugas Saya", icon: CheckSquare },
+      { href: "/dashboard/interactive-learning/excel-master-challenge", label: "Excel Master Challenge", icon: Award },
       { href: "/dashboard/interactive-learning/excel-adventure", label: "Excel Adventure", icon: FileSpreadsheet },
       { href: "/dashboard/interactive-learning/computer-system-simulator", label: "Simulator Komputer", icon: Cpu },
       { href: "/dashboard/settings", label: "Pengaturan Akun", icon: ShieldCheck },

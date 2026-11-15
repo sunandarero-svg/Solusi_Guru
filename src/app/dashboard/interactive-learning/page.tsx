@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { Gamepad2, Sparkles, Trophy, Users, BookOpen, ArrowRight, Star, BarChart3, Cpu } from 'lucide-react';
+import { Gamepad2, Sparkles, Trophy, Users, BookOpen, ArrowRight, Star, BarChart3, Cpu, FileSpreadsheet, Award } from 'lucide-react';
 
 export const metadata = {
   title: 'Pembelajaran Interaktif — Solusi Guru',
@@ -89,6 +89,70 @@ export default async function InteractiveLearningHubPage() {
             <span className="text-xl block mb-1">👨‍🏫</span>
             <span className="text-xs font-black block">{isTeacher ? 'Meja Guru' : 'Progress Nilai'}</span>
             <span className="text-[10px] text-slate-300">{isTeacher ? 'Bank Soal & Ekspor Excel' : 'Tantangan Belajar'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Excel Master Challenge (50 Soal) Hero Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border-2 border-emerald-400/50 p-6 sm:p-10 text-white shadow-2xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-black border border-emerald-500/40 mb-4">
+            <Award size={14} />
+            <span>TANTANGAN 50 SOAL & 5 MEDALI KEHORMATAN</span>
+          </div>
+
+          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Excel Master Challenge
+          </h2>
+          <p className="text-lg font-bold text-emerald-300 mt-1">
+            "Petualangan Menjadi Ahli Microsoft Excel Bersama Robot EXO!"
+          </p>
+          <p className="text-sm text-slate-200 mt-3 leading-relaxed">
+            {isTeacher
+              ? 'Tugaskan kuis tantangan 50 soal interaktif berjenjang untuk seluruh kelas atau siswa pilihan (remedial). Pantau nilai real-time, analisis butir soal tersulit, dan ekspor rekap ke format CSV/Excel.'
+              : 'Taklukkan 5 level penguasaan Excel: Beginner, Explorer, Formula Master, Logic & Text Expert, hingga Data Analyst. Kumpulkan Bronze, Silver, Gold, Platinum, dan Diamond Medal untuk meraih gelar Excel Grand Master!'}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-4 mt-6">
+            <Link
+              href="/dashboard/interactive-learning/excel-master-challenge"
+              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-slate-950 font-black text-sm shadow-xl transition-transform active:scale-95 flex items-center gap-2"
+            >
+              <span>{isTeacher ? 'PANEL GURU & TUGASKAN SISWA' : 'MAIN EXCEL MASTER (50 SOAL)'}</span>
+              <ArrowRight size={18} />
+            </Link>
+            <Link
+              href="/interactive-learning/excel-master-challenge"
+              className="px-5 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition"
+            >
+              Mode Layar Penuh (Smartboard & HP)
+            </Link>
+          </div>
+        </div>
+
+        {/* Feature Highlights Grid */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8 pt-6 border-t border-white/10">
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">🤖</span>
+            <span className="text-xs font-black block">Pemandu Robot EXO</span>
+            <span className="text-[10px] text-slate-300">Petunjuk Konsep & Motivasi</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">🏆</span>
+            <span className="text-xs font-black block">50 Soal & 5 Medali</span>
+            <span className="text-[10px] text-slate-300">Level 1 s/d Level 5</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">💡</span>
+            <span className="text-xs font-black block">Pembahasan Lengkap</span>
+            <span className="text-[10px] text-slate-300">Kunci & Penjelasan Detail</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <span className="text-xl block mb-1">👨‍🏫</span>
+            <span className="text-xs font-black block">{isTeacher ? 'Penugasan Khusus' : 'Gelar Master'}</span>
+            <span className="text-[10px] text-slate-300">{isTeacher ? 'Per Kelas & Siswa Tertentu' : 'Excel Grand Master (90%+)'}</span>
           </div>
         </div>
       </div>

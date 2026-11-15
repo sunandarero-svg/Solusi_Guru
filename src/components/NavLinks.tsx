@@ -24,6 +24,7 @@ export default function NavLinks({ role }: NavLinksProps) {
     { href: "/dashboard/journal", label: "📔 Jurnal Guru" },
     { href: "/dashboard/interactive-learning", label: "🎮 Pembelajaran Interaktif" },
     { href: "/dashboard/interactive-learning/borneo-edu", label: "👨‍🏫 Meja Guru (Borneo Edu)" },
+    { href: "/dashboard/interactive-learning/excel-master-challenge", label: "🏆 Excel Master Challenge (50 Soal)" },
     { href: "/dashboard/interactive-learning/excel-adventure", label: "📊 Excel Adventure (SmartBoard & Kelas)" },
     { href: "/dashboard/interactive-learning/computer-system-simulator", label: "🖥️ Simulator Sistem Komputer (IFP & Siswa)" },
   ];
@@ -31,6 +32,7 @@ export default function NavLinks({ role }: NavLinksProps) {
   const studentLinks = [
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/dashboard/my-assignments", label: "📚 Tugas Saya" },
+    { href: "/dashboard/interactive-learning/excel-master-challenge", label: "🏆 Excel Master Challenge" },
     { href: "/dashboard/interactive-learning/excel-adventure", label: "📊 Excel Adventure" },
     { href: "/dashboard/interactive-learning/computer-system-simulator", label: "🖥️ Simulator Sistem Komputer" },
   ];
