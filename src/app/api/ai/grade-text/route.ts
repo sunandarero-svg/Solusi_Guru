@@ -133,9 +133,10 @@ ${imageCount > 1 ? `Terdapat ${imageCount} gambar halaman jawaban siswa yang dil
 /**
  * Call AI with multi-image support using fallback chain.
  * Hierarchy:
- * 1. PRIMARY: NVIDIA Direct API (https://integrate.api.nvidia.com/v1) - nvidia/nemotron-3.5-super-vl-120b-a12b
- * 2. FALLBACK 1: OpenRouter (Berbayar) - nvidia/nemotron-3.5-super-vl
- * 3. FALLBACK 2: Groq (Qwen - qwen/qwen3.8-27b)
+ * 1. PRIMARY: OpenRouter2 (Free) - nvidia/nemotron-3.5-super-vl:free (OPENROUTER_API_KEY2)
+ * 2. FALLBACK 1: NVIDIA Direct API (https://integrate.api.nvidia.com/v1) - nvidia/nemotron-3.5-super-vl-120b-a12b & meta/muse-glimmer-30b
+ * 3. FALLBACK 2: OpenRouter (Berbayar) - nvidia/nemotron-3.5-super-vl (OPENROUTER_API_KEY)
+ * 4. FALLBACK 3: Groq (Qwen - qwen/qwen3.8-27b)
  */
 async function callUnifiedAI(
   prompt: string,
@@ -149,52 +150,107 @@ async function callUnifiedAI(
     });
   }
 
-  // 1. PRIMARY: NVIDIA Direct API (nvidia/nemotron-3.5-super-vl-120b-a12b)
-  const nvidiaApiKey = (process.env.NVIDIA_API_KEY || process.env.NVIDIA_KEY)?.trim().replace(/^["']|["']$/g, "");
-  if (nvidiaApiKey) {
+  // ============================================================
+  // 1. PRIMARY: OpenRouter2 (NVIDIA Nemotron 3.5 Super VL Free)
+  // ============================================================
+  const openRouterApiKey2 = (process.env.OPENROUTER_API_KEY2 || process.env.OPENROUTER_API_KEY)?.trim().replace(/^["']|["']$/g, "");
+  if (openRouterApiKey2) {
+    const primaryModel = process.env.OPENROUTER_MODEL_FREE || "nvidia/nemotron-3.5-super-vl:free";
     try {
-      const nvidiaModel = process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b";
-      console.log(`[Grade BG] Memanggil model unified (Primary - NVIDIA): ${nvidiaModel}`);
+      console.log(`[Grade BG] Memanggil model unified (Primary - OpenRouter2 Free): ${primaryModel}`);
 
-      const nvResponse = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${nvidiaApiKey}`,
+          Authorization: `Bearer ${openRouterApiKey2}`,
           "Content-Type": "application/json",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+          "X-Title": "Solusi Guru",
         },
         body: JSON.stringify({
-          model: nvidiaModel,
+          model: primaryModel,
           messages: [{ role: "user", content: contentParts }],
           temperature: 0.0,
           max_tokens: 16384,
         }),
       });
 
-      if (!nvResponse.ok) {
-        const errBody = await nvResponse.text();
-        console.error(`[Grade BG] NVIDIA Primary Error (${nvidiaModel}):`, errBody);
-        throw new Error(`NVIDIA API returned ${nvResponse.status} - ${errBody}`);
+      if (!orResponse.ok) {
+        const errBody = await orResponse.text();
+        console.error(`[Grade BG] OpenRouter2 Primary Error (${primaryModel}):`, errBody);
+        throw new Error(`OpenRouter2 API returned ${orResponse.status} - ${errBody}`);
       }
 
-      const nvData = await nvResponse.json();
-      const text = nvData.choices?.[0]?.message?.content || "";
-      if (!text) throw new Error("Empty response from NVIDIA Primary");
+      const orData = await orResponse.json();
+      const text = orData.choices?.[0]?.message?.content || "";
+      if (!text) throw new Error("Empty response from OpenRouter2 Primary");
 
-      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan NVIDIA Primary: ${nvidiaModel}`);
+      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter2 Primary: ${primaryModel}`);
       return text;
-    } catch (nvidiaPrimaryErr: any) {
-      console.warn("[Grade BG] NVIDIA Primary gagal, mencoba Fallback 1 (OpenRouter Nemotron)...", nvidiaPrimaryErr?.message);
+    } catch (or2Err: any) {
+      console.warn("[Grade BG] OpenRouter2 Primary gagal, mencoba Fallback 1 (NVIDIA Direct)...", or2Err?.message);
     }
   } else {
-    console.warn("[Grade BG] NVIDIA_API_KEY tidak ditemukan, melanjutkan ke Fallback 1 OpenRouter...");
+    console.warn("[Grade BG] OPENROUTER_API_KEY2 tidak ditemukan, melanjutkan ke Fallback 1 NVIDIA Direct...");
   }
 
-  // 2. FALLBACK 1: OpenRouter (nvidia/nemotron-3.5-super-vl - Berbayar)
+  // ============================================================
+  // 2. FALLBACK 1: NVIDIA Direct API (Nemotron 120B / meta/muse-glimmer-30b)
+  // ============================================================
+  const nvidiaApiKey = (process.env.NVIDIA_API_KEY || process.env.NVIDIA_KEY)?.trim().replace(/^["']|["']$/g, "");
+  if (nvidiaApiKey) {
+    const nvidiaModels = [
+      process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "meta/muse-glimmer-30b"
+    ];
+
+    for (const nvModel of nvidiaModels) {
+      try {
+        console.log(`[Grade BG] Memanggil model unified (Fallback 1 - NVIDIA): ${nvModel}`);
+
+        const nvResponse = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${nvidiaApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: nvModel,
+            messages: [{ role: "user", content: contentParts }],
+            temperature: 0.0,
+            max_tokens: 16384,
+          }),
+        });
+
+        if (!nvResponse.ok) {
+          const errBody = await nvResponse.text();
+          console.error(`[Grade BG] NVIDIA Fallback 1 Error (${nvModel}):`, errBody);
+          throw new Error(`NVIDIA API returned ${nvResponse.status} - ${errBody}`);
+        }
+
+        const nvData = await nvResponse.json();
+        const text = nvData.choices?.[0]?.message?.content || "";
+        if (!text) throw new Error(`Empty response from NVIDIA (${nvModel})`);
+
+        console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan NVIDIA Fallback 1: ${nvModel}`);
+        return text;
+      } catch (nvErr: any) {
+        console.warn(`[Grade BG] NVIDIA model ${nvModel} gagal:`, nvErr?.message);
+      }
+    }
+    console.warn("[Grade BG] Seluruh model NVIDIA gagal, mencoba Fallback 2 (OpenRouter Berbayar)...");
+  } else {
+    console.warn("[Grade BG] NVIDIA_API_KEY tidak ditemukan, melanjutkan ke Fallback 2 OpenRouter...");
+  }
+
+  // ============================================================
+  // 3. FALLBACK 2: OpenRouter (nvidia/nemotron-3.5-super-vl - Berbayar)
+  // ============================================================
   const openRouterApiKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (openRouterApiKey) {
     try {
       const orModel = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl";
-      console.log(`[Grade BG] Memanggil model unified (Fallback 1 - OpenRouter): ${orModel}`);
+      console.log(`[Grade BG] Memanggil model unified (Fallback 2 - OpenRouter Berbayar): ${orModel}`);
 
       const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -214,27 +270,29 @@ async function callUnifiedAI(
 
       if (!orResponse.ok) {
         const errBody = await orResponse.text();
-        console.error(`[Grade BG] OpenRouter Fallback 1 Error (${orModel}):`, errBody);
+        console.error(`[Grade BG] OpenRouter Fallback 2 Error (${orModel}):`, errBody);
         throw new Error(`OpenRouter API returned ${orResponse.status} - ${errBody}`);
       }
 
       const orData = await orResponse.json();
       const text = orData.choices?.[0]?.message?.content || "";
-      if (!text) throw new Error("Empty response from OpenRouter Fallback 1");
+      if (!text) throw new Error("Empty response from OpenRouter Fallback 2");
 
-      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter Fallback 1: ${orModel}`);
+      console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan OpenRouter Fallback 2: ${orModel}`);
       return text;
     } catch (openRouterErr: any) {
-      console.warn("[Grade BG] OpenRouter Fallback 1 (Nemotron) gagal, mencoba Fallback 2 (Groq)...", openRouterErr?.message);
+      console.warn("[Grade BG] OpenRouter Fallback 2 (Nemotron berbayar) gagal, mencoba Fallback 3 (Groq)...", openRouterErr?.message);
     }
   }
 
-  // 3. FALLBACK 2: Groq (Qwen)
+  // ============================================================
+  // 4. FALLBACK 3: Groq (Qwen)
+  // ============================================================
   try {
     const { groqRateLimiter } = await import("@/modules/ai/rateLimiter");
     const { key } = await groqRateLimiter.waitForKey(30000);
-    const secondaryModel = "qwen/qwen3.8-27b";
-    console.log(`[Grade BG] Memanggil model unified (Fallback 2 - Groq): ${secondaryModel}`);
+    const tertiaryModel = "qwen/qwen3.8-27b";
+    console.log(`[Grade BG] Memanggil model unified (Fallback 3 - Groq): ${tertiaryModel}`);
 
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -243,7 +301,7 @@ async function callUnifiedAI(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: secondaryModel,
+        model: tertiaryModel,
         messages: [{ role: "user", content: contentParts }],
         temperature: 0.0,
         max_tokens: 16384,
@@ -252,20 +310,20 @@ async function callUnifiedAI(
 
     if (!groqResponse.ok) {
       const errBody = await groqResponse.text();
-      console.error("[Grade BG] Groq Fallback 2 Error:", errBody);
+      console.error("[Grade BG] Groq Fallback 3 Error:", errBody);
       throw new Error(`Groq API returned ${groqResponse.status} - ${errBody}`);
     }
 
     const groqData = await groqResponse.json();
     const text = groqData.choices?.[0]?.message?.content || "";
-    if (!text) throw new Error("Empty response from Groq Fallback 2");
-    console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Groq Fallback 2: ${secondaryModel}`);
+    if (!text) throw new Error("Empty response from Groq Fallback 3");
+    console.log(`[Grade BG] Unified OCR+Grade berhasil menggunakan Groq Fallback 3: ${tertiaryModel}`);
     return text;
   } catch (groqError: any) {
-    console.error("[Grade BG] Seluruh provider (NVIDIA Primary, OpenRouter Fallback 1, Groq Fallback 2) gagal:", groqError?.message);
+    console.error("[Grade BG] Seluruh provider (OpenRouter2 Primary, NVIDIA Fallback 1, OpenRouter Fallback 2, Groq Fallback 3) gagal:", groqError?.message);
   }
 
-  throw new Error("Semua provider AI (NVIDIA Primary, OpenRouter Fallback 1, Groq Fallback 2) gagal.");
+  throw new Error("Semua provider AI (OpenRouter2 Primary, NVIDIA Fallback 1, OpenRouter Fallback 2, Groq Fallback 3) gagal.");
 }
 
 // In-flight tracking to prevent concurrent double-grading on the same submission

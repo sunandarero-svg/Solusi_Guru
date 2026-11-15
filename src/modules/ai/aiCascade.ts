@@ -11,9 +11,10 @@ export interface CascadeOptions {
 
 /**
  * Menjalankan pembuatan teks AI dengan urutan kaskade:
- * 1. Primary: NVIDIA Direct API (https://integrate.api.nvidia.com/v1) - nvidia/nemotron-3.5-super-vl-120b-a12b
- * 2. Fallback 1: OpenRouter (Berbayar) - nvidia/nemotron-3.5-super-vl
- * 3. Fallback 2: Groq (Qwen models)
+ * 1. Primary: OpenRouter2 Free (https://openrouter.ai/api/v1) - nvidia/nemotron-3.5-super-vl:free (OPENROUTER_API_KEY2)
+ * 2. Fallback 1: NVIDIA Direct API (https://integrate.api.nvidia.com/v1) - nvidia/nemotron-3.5-super-vl-120b-a12b & meta/muse-glimmer-30b
+ * 3. Fallback 2: OpenRouter (Berbayar) - nvidia/nemotron-3.5-super-vl (OPENROUTER_API_KEY)
+ * 4. Fallback 3: Groq (Qwen models)
  */
 export async function callAICascade(options: CascadeOptions): Promise<string> {
   const {
@@ -32,21 +33,23 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
   messages.push({ role: "user", content: prompt });
 
   // ==========================================
-  // 1. PRIMARY: NVIDIA DIRECT API (Nemotron 3.5 Super VL 120B)
+  // 1. PRIMARY: OpenRouter2 Free (Nemotron 3.5 Super VL Free)
   // ==========================================
-  const nvidiaApiKey = (process.env.NVIDIA_API_KEY || process.env.NVIDIA_KEY)?.trim().replace(/^["']|["']$/g, "");
-  if (nvidiaApiKey) {
-    const nvidiaModel = process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b";
+  const openRouterKey2 = (process.env.OPENROUTER_API_KEY2 || process.env.OPENROUTER_API_KEY)?.trim().replace(/^["']|["']$/g, "");
+  if (openRouterKey2) {
+    const freeModel = process.env.OPENROUTER_MODEL_FREE || "nvidia/nemotron-3.5-super-vl:free";
     try {
-      console.log(`${logPrefix} Step 1 (Primary - NVIDIA): Memanggil ${nvidiaModel}...`);
-      const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      console.log(`${logPrefix} Step 1 (Primary - OpenRouter2 Free): Memanggil ${freeModel}...`);
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${nvidiaApiKey}`,
+          Authorization: `Bearer ${openRouterKey2}`,
           "Content-Type": "application/json",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://solusi-guru.vercel.app",
+          "X-Title": "Solusi Guru",
         },
         body: JSON.stringify({
-          model: nvidiaModel,
+          model: freeModel,
           messages,
           temperature,
           max_tokens: maxTokens,
@@ -57,26 +60,70 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
         const data = await res.json();
         const content = data.choices?.[0]?.message?.content;
         if (content && content.trim().length > 30) {
-          console.log(`${logPrefix} Berhasil menggunakan NVIDIA Primary (${nvidiaModel})! Panjang respon: ${content.length}`);
+          console.log(`${logPrefix} Berhasil menggunakan OpenRouter2 Primary (${freeModel})! Panjang respon: ${content.length}`);
           return content;
         }
       } else {
         const errText = await res.text();
-        console.warn(`${logPrefix} NVIDIA Primary ${nvidiaModel} returned ${res.status}: ${errText}`);
+        console.warn(`${logPrefix} OpenRouter2 Primary ${freeModel} returned ${res.status}: ${errText}`);
       }
-    } catch (nvErr: any) {
-      console.warn(`${logPrefix} NVIDIA Primary ${nvidiaModel} exception:`, nvErr?.message || nvErr);
+    } catch (or2Err: any) {
+      console.warn(`${logPrefix} OpenRouter2 Primary exception:`, or2Err?.message || or2Err);
     }
   }
 
   // ==========================================
-  // 2. FALLBACK 1: OPENROUTER (NVIDIA Nemotron 3.5 Super VL Berbayar)
+  // 2. FALLBACK 1: NVIDIA DIRECT API (Nemotron 120B & meta/muse-glimmer-30b)
+  // ==========================================
+  const nvidiaApiKey = (process.env.NVIDIA_API_KEY || process.env.NVIDIA_KEY)?.trim().replace(/^["']|["']$/g, "");
+  if (nvidiaApiKey) {
+    const nvidiaModels = [
+      process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "meta/muse-glimmer-30b"
+    ];
+
+    for (const nvModel of nvidiaModels) {
+      try {
+        console.log(`${logPrefix} Step 2 (Fallback 1 - NVIDIA): Memanggil ${nvModel}...`);
+        const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${nvidiaApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: nvModel,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content && content.trim().length > 30) {
+            console.log(`${logPrefix} Berhasil menggunakan NVIDIA Fallback 1 (${nvModel})! Panjang respon: ${content.length}`);
+            return content;
+          }
+        } else {
+          const errText = await res.text();
+          console.warn(`${logPrefix} NVIDIA Fallback 1 ${nvModel} returned ${res.status}: ${errText}`);
+        }
+      } catch (nvErr: any) {
+        console.warn(`${logPrefix} NVIDIA Fallback 1 ${nvModel} exception:`, nvErr?.message || nvErr);
+      }
+    }
+  }
+
+  // ==========================================
+  // 3. FALLBACK 2: OPENROUTER (NVIDIA Nemotron 3.5 Super VL Berbayar)
   // ==========================================
   const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (openRouterKey) {
     const openRouterModel = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl";
     try {
-      console.log(`${logPrefix} Step 2 (Fallback 1 - OpenRouter): Memanggil ${openRouterModel}...`);
+      console.log(`${logPrefix} Step 3 (Fallback 2 - OpenRouter Berbayar): Memanggil ${openRouterModel}...`);
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -97,20 +144,20 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
         const data = await res.json();
         const content = data.choices?.[0]?.message?.content;
         if (content && content.trim().length > 30) {
-          console.log(`${logPrefix} Berhasil menggunakan OpenRouter Fallback 1 (${openRouterModel})! Panjang respon: ${content.length}`);
+          console.log(`${logPrefix} Berhasil menggunakan OpenRouter Fallback 2 (${openRouterModel})! Panjang respon: ${content.length}`);
           return content;
         }
       } else {
         const errText = await res.text();
-        console.warn(`${logPrefix} OpenRouter Fallback 1 ${openRouterModel} returned ${res.status}: ${errText}`);
+        console.warn(`${logPrefix} OpenRouter Fallback 2 ${openRouterModel} returned ${res.status}: ${errText}`);
       }
     } catch (orErr: any) {
-      console.warn(`${logPrefix} OpenRouter Fallback 1 ${openRouterModel} exception:`, orErr?.message || orErr);
+      console.warn(`${logPrefix} OpenRouter Fallback 2 ${openRouterModel} exception:`, orErr?.message || orErr);
     }
   }
 
   // ==========================================
-  // 3. FALLBACK 2: GROQ (Qwen Models)
+  // 4. FALLBACK 3: GROQ (Qwen Models)
   // ==========================================
   const groqKeysStr = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY;
   if (groqKeysStr) {
@@ -127,7 +174,7 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
 
       for (const groqModel of groqModels) {
         try {
-          console.log(`${logPrefix} Step 3 (Fallback 2 - Groq): Memanggil Groq (${groqModel})...`);
+          console.log(`${logPrefix} Step 4 (Fallback 3 - Groq): Memanggil Groq (${groqModel})...`);
           const bodyPayload: any = {
             model: groqModel,
             messages,
@@ -166,9 +213,9 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
         }
       }
     } catch (groqErr: any) {
-      console.warn(`${logPrefix} Groq fallback 2 gagal:`, groqErr?.message || groqErr);
+      console.warn(`${logPrefix} Groq fallback 3 gagal:`, groqErr?.message || groqErr);
     }
   }
 
-  throw new Error(`${logPrefix} Semua provider AI (NVIDIA Primary, OpenRouter Fallback 1, Groq Fallback 2) gagal atau tidak tersedia.`);
+  throw new Error(`${logPrefix} Semua provider AI (OpenRouter2 Primary, NVIDIA Fallback 1, OpenRouter Fallback 2, Groq Fallback 3) gagal atau tidak tersedia.`);
 }
