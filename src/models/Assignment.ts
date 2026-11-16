@@ -109,12 +109,18 @@ export const AssignmentAttachment = mongoose.models.AssignmentAttachment || mong
 
 // === Assignment Question Config ===
 
+export interface IQuestionIndicator {
+  name: string;
+  weight: number; // Persentase bobot dalam % (contoh: 50 untuk 50%, total per soal 100%)
+}
+
 export interface IAssignmentQuestion extends Document {
   assignmentId: mongoose.Types.ObjectId;
   order: number;
   questionType: string;
   maxScore: number;
   correctAnswer?: string; // Kunci jawaban untuk soal objektif (PG: "A", BS: "Benar", PG Kompleks: "A,C,E")
+  indicators?: IQuestionIndicator[]; // Indikator penilaian per butir soal (default 100% jika kosong)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -124,7 +130,13 @@ const AssignmentQuestionSchema: Schema = new Schema({
   order: { type: Number, required: true },
   questionType: { type: String, required: true },
   maxScore: { type: Number, required: true, default: 0 },
-  correctAnswer: { type: String } // Kunci jawaban untuk soal objektif
+  correctAnswer: { type: String }, // Kunci jawaban untuk soal objektif
+  indicators: [
+    {
+      name: { type: String, required: true },
+      weight: { type: Number, required: true, default: 100 }
+    }
+  ]
 }, {
   timestamps: true
 });

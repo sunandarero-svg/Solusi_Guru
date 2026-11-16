@@ -496,6 +496,36 @@ export default function TeacherReviewPage({
                               </div>
                             ) : (
                               <>
+                                {a.indicators && a.indicators.length > 0 && (
+                                  <div className="mb-3 p-3 bg-emerald-50/70 rounded-lg border border-emerald-200">
+                                    <p className="text-[11px] text-emerald-800 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+                                      <span>📊 Rincian Skor per Indikator Penilaian</span>
+                                      <span className="text-[10px] text-emerald-700 font-semibold">
+                                        Total: {a.score} / {a.maxScore}
+                                      </span>
+                                    </p>
+                                    <div className="space-y-1.5">
+                                      {a.indicators.map((ind: any, iIdx: number) => (
+                                        <div key={iIdx} className="bg-white p-2.5 rounded-md border border-emerald-100 text-xs flex flex-col gap-1 shadow-2xs">
+                                          <div className="flex justify-between items-center">
+                                            <span className="font-bold text-gray-800">
+                                              {ind.name} <span className="text-emerald-700 font-normal">({ind.weight}%)</span>
+                                            </span>
+                                            <span className="font-black px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] border border-emerald-200">
+                                              {ind.score} / {ind.maxScore}
+                                            </span>
+                                          </div>
+                                          {ind.feedback && (
+                                            <p className="text-[11px] text-gray-600 leading-relaxed">
+                                              {ind.feedback}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="mb-3">
                                   <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-1">Analisis AI</p>
                                   <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">

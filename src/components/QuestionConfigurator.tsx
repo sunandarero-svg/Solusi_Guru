@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { getDefaultPresetIndicators, QuestionIndicator } from "@/modules/grading/indicators";
+
+export interface QuestionIndicatorItem {
+  name: string;
+  weight: number; // Dalam persentase (%)
+}
 
 interface Question {
   order: number;
   questionType: string;
   maxScore: number;
   correctAnswer?: string;
+  indicators?: QuestionIndicatorItem[];
 }
 
 interface QuestionConfiguratorProps {
@@ -38,9 +45,6 @@ const PG_OPTIONS = ["A", "B", "C", "D", "E"];
 
 /**
  * Render input kunci jawaban berdasarkan tipe soal.
- * - PG: dropdown A-E
- * - BS: dropdown Benar/Salah
- * - PG Kompleks: multi-checkbox A-E (disimpan sebagai "A,C,E")
  */
 function CorrectAnswerInput({ question, onChange }: { question: Question; onChange: (val: string) => void }) {
   const { questionType, correctAnswer } = question;
@@ -111,7 +115,7 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
     );
   }
 
-  // Untuk ISIAN_SINGKAT: input kunci jawaban opsional (text field, multi-jawaban dipisah koma)
+  // Untuk ISIAN_SINGKAT
   if (questionType === "ISIAN_SINGKAT") {
     return (
       <div className="space-y-1">
@@ -127,7 +131,7 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
     );
   }
 
-  // Untuk ESSAY: textarea poin kunci opsional (panduan untuk AI)
+  // Untuk ESSAY
   if (questionType === "ESSAY") {
     return (
       <div className="space-y-1">
@@ -143,7 +147,6 @@ function CorrectAnswerInput({ question, onChange }: { question: Question; onChan
     );
   }
 
-  // Fallback: tipe soal tidak dikenal
   return (
     <span className="text-xs text-gray-400 italic">Dinilai AI</span>
   );
@@ -155,6 +158,9 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
   const [loading, setLoading] = useState(initialQuestions.length === 0);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
+
+  // State untuk melacak nomor baris soal yang indikatornya sedang dibuka untuk diedit
+  const [openIndicatorIndex, setOpenIndicatorIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (initialQuestions.length > 0) {
@@ -185,12 +191,26 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
 
   const handleAddQuestion = () => {
     const nextOrder = questions.length > 0 ? Math.max(...questions.map(q => q.order)) + 1 : 1;
-    setQuestions([...questions, { order: nextOrder, questionType: "PILIHAN_GANDA", maxScore: 10, correctAnswer: "" }]);
+    setQuestions([
+      ...questions,
+      {
+        order: nextOrder,
+        questionType: "PILIHAN_GANDA",
+        maxScore: 10,
+        correctAnswer: "",
+        indicators: [] // Default: tidak ada indikator kustom (berarti nilai default 100%)
+      }
+    ]);
   };
 
   const handleRemoveQuestion = (index: number) => {
     const newQs = [...questions];
     newQs.splice(index, 1);
+    if (openIndicatorIndex === index) {
+      setOpenIndicatorIndex(null);
+    } else if (openIndicatorIndex !== null && openIndicatorIndex > index) {
+      setOpenIndicatorIndex(openIndicatorIndex - 1);
+    }
     setQuestions(newQs);
   };
 
@@ -210,8 +230,70 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
     setQuestions(newQs);
   };
 
+  // === Indikator Handlers ===
+  const handleApplyPresetIndicators = (index: number) => {
+    const q = questions[index];
+    const presets = getDefaultPresetIndicators(q.questionType);
+    const newQs = [...questions];
+    newQs[index] = {
+      ...newQs[index],
+      indicators: presets.map(p => ({ ...p }))
+    };
+    setQuestions(newQs);
+  };
+
+  const handleResetToDefaultIndicator = (index: number) => {
+    const newQs = [...questions];
+    newQs[index] = {
+      ...newQs[index],
+      indicators: [] // Kosong berarti kembali ke Nilai Default 100%
+    };
+    setQuestions(newQs);
+  };
+
+  const handleAddCustomIndicator = (index: number) => {
+    const newQs = [...questions];
+    const current = newQs[index].indicators || [];
+    const currentTotal = current.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const remaining = Math.max(0, 100 - currentTotal);
+    
+    newQs[index] = {
+      ...newQs[index],
+      indicators: [
+        ...current,
+        { name: "Indikator Baru", weight: remaining > 0 ? remaining : 10 }
+      ]
+    };
+    setQuestions(newQs);
+  };
+
+  const handleUpdateIndicator = (questionIndex: number, indicatorIndex: number, field: keyof QuestionIndicatorItem, value: any) => {
+    const newQs = [...questions];
+    const current = [...(newQs[questionIndex].indicators || [])];
+    current[indicatorIndex] = {
+      ...current[indicatorIndex],
+      [field]: field === 'weight' ? (parseFloat(value) || 0) : value
+    };
+    newQs[questionIndex] = {
+      ...newQs[questionIndex],
+      indicators: current
+    };
+    setQuestions(newQs);
+  };
+
+  const handleRemoveIndicator = (questionIndex: number, indicatorIndex: number) => {
+    const newQs = [...questions];
+    const current = [...(newQs[questionIndex].indicators || [])];
+    current.splice(indicatorIndex, 1);
+    newQs[questionIndex] = {
+      ...newQs[questionIndex],
+      indicators: current
+    };
+    setQuestions(newQs);
+  };
+
   const handleSave = async () => {
-    // Validasi: soal objektif wajib punya kunci jawaban
+    // 1. Validasi: soal objektif wajib punya kunci jawaban
     const missingKeys = questions.filter(q =>
       OBJECTIVE_TYPES.includes(q.questionType) && (!q.correctAnswer || q.correctAnswer.trim() === "")
     );
@@ -219,6 +301,31 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
       const nums = missingKeys.map(q => q.order).join(", ");
       setMessage({ type: 'error', text: `Kunci jawaban belum diisi untuk soal nomor: ${nums}` });
       return;
+    }
+
+    // 2. Validasi: Jika guru menambahkan indikator pada soal, total bobot indikator harus 100%
+    for (const q of questions) {
+      if (q.indicators && q.indicators.length > 0) {
+        const totalWeight = q.indicators.reduce((sum, ind) => sum + (Number(ind.weight) || 0), 0);
+        if (Math.round(totalWeight) !== 100) {
+          setMessage({
+            type: 'error',
+            text: `Soal nomor ${q.order} memiliki total bobot indikator ${totalWeight}%. Total bobot indikator wajib 100%!`
+          });
+          setOpenIndicatorIndex(questions.indexOf(q));
+          return;
+        }
+
+        const emptyName = q.indicators.some(ind => !ind.name || ind.name.trim() === "");
+        if (emptyName) {
+          setMessage({
+            type: 'error',
+            text: `Soal nomor ${q.order} memiliki nama indikator yang masih kosong.`
+          });
+          setOpenIndicatorIndex(questions.indexOf(q));
+          return;
+        }
+      }
     }
 
     setSaving(true);
@@ -230,8 +337,9 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
         body: JSON.stringify({ questions })
       });
       if (res.ok) {
-        setMessage({ type: 'success', text: "Konfigurasi soal berhasil disimpan!" });
+        setMessage({ type: 'success', text: "Konfigurasi soal dan indikator penilaian berhasil disimpan!" });
         setIsExpanded(false);
+        setOpenIndicatorIndex(null);
         if (onSaveSuccess) onSaveSuccess();
       } else {
         const data = await res.json();
@@ -262,10 +370,10 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
             <span className={`transform transition-transform text-sm ${isExpanded ? "rotate-90" : ""}`}>
               ▶
             </span>
-            ⚙️ Konfigurasi Soal & Bobot Nilai
+            ⚙️ Konfigurasi Soal, Bobot & Indikator Penilaian
           </button>
           <p className="text-sm text-gray-500 mt-1">
-            Atur tipe soal, kunci jawaban, dan bobot nilai per nomor. Soal objektif (PG, Benar/Salah, PG Kompleks) dinilai otomatis oleh sistem.
+            Atur tipe soal, kunci jawaban, bobot nilai, serta <strong>indikator penilaian (%)</strong> per nomor soal.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -303,60 +411,225 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b border-gray-200 text-gray-700">
                   <tr>
-                    <th className="px-4 py-3 font-semibold w-20">Nomor</th>
-                    <th className="px-4 py-3 font-semibold">Tipe Soal</th>
-                    <th className="px-4 py-3 font-semibold w-40">Kunci Jawaban</th>
-                    <th className="px-4 py-3 font-semibold w-28">Bobot Nilai</th>
-                    <th className="px-4 py-3 font-semibold w-16 text-center">Aksi</th>
+                    <th className="px-3 py-3 font-semibold w-14 text-center">No</th>
+                    <th className="px-3 py-3 font-semibold w-36">Tipe Soal</th>
+                    <th className="px-3 py-3 font-semibold w-36">Kunci Jawaban</th>
+                    <th className="px-3 py-3 font-semibold w-24 text-center">Bobot Nilai</th>
+                    <th className="px-3 py-3 font-semibold">Indikator Penilaian (Bobot %)</th>
+                    <th className="px-3 py-3 font-semibold w-14 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {questions.map((q, index) => (
-                    <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                      <td className="px-4 py-2">
-                        <input 
-                          type="number" 
-                          value={q.order}
-                          onChange={(e) => handleChange(index, 'order', parseInt(e.target.value) || 0)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-center bg-white text-gray-900"
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <select 
-                          value={q.questionType}
-                          onChange={(e) => handleChange(index, 'questionType', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white text-gray-900"
-                        >
-                          {QUESTION_TYPES.map(type => (
-                            <option key={type} value={type} className="text-gray-900 bg-white">{QUESTION_TYPE_LABELS[type]}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-2">
-                        <CorrectAnswerInput
-                          question={q}
-                          onChange={(val) => handleCorrectAnswerChange(index, val)}
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input 
-                          type="number" 
-                          value={q.maxScore}
-                          onChange={(e) => handleChange(index, 'maxScore', parseInt(e.target.value) || 0)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-center"
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        <button 
-                          onClick={() => handleRemoveQuestion(index)}
-                          className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition"
-                          title="Hapus"
-                        >
-                          ❌
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-gray-100">
+                  {questions.map((q, index) => {
+                    const isIndicatorOpen = openIndicatorIndex === index;
+                    const hasCustomIndicators = Array.isArray(q.indicators) && q.indicators.length > 0;
+                    const totalWeight = hasCustomIndicators 
+                      ? q.indicators!.reduce((sum, ind) => sum + (Number(ind.weight) || 0), 0)
+                      : 100;
+
+                    return (
+                      <React.Fragment key={index}>
+                        <tr className={`hover:bg-gray-50/50 transition-colors ${isIndicatorOpen ? 'bg-emerald-50/30' : ''}`}>
+                          <td className="px-3 py-2 text-center">
+                            <input 
+                              type="number" 
+                              value={q.order}
+                              onChange={(e) => handleChange(index, 'order', parseInt(e.target.value) || 0)}
+                              className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-center bg-white text-gray-900 font-bold"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <select 
+                              value={q.questionType}
+                              onChange={(e) => handleChange(index, 'questionType', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-xs font-medium"
+                            >
+                              {QUESTION_TYPES.map(type => (
+                                <option key={type} value={type} className="text-gray-900 bg-white">{QUESTION_TYPE_LABELS[type]}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <CorrectAnswerInput
+                              question={q}
+                              onChange={(val) => handleCorrectAnswerChange(index, val)}
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <input 
+                              type="number" 
+                              value={q.maxScore}
+                              onChange={(e) => handleChange(index, 'maxScore', parseInt(e.target.value) || 0)}
+                              className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-center font-bold"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {hasCustomIndicators ? (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {q.indicators!.map((ind, i) => (
+                                    <span 
+                                      key={i} 
+                                      className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-semibold border border-emerald-200"
+                                      title={ind.name}
+                                    >
+                                      {ind.name.length > 22 ? `${ind.name.slice(0, 20)}...` : ind.name} ({ind.weight}%)
+                                    </span>
+                                  ))}
+                                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${totalWeight === 100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    Total: {totalWeight}%
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-xs font-medium border border-gray-200">
+                                  🎯 Nilai Default (100%)
+                                </span>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => setOpenIndicatorIndex(isIndicatorOpen ? null : index)}
+                                className={`text-xs px-2.5 py-1 rounded-lg border font-semibold transition-all ${
+                                  hasCustomIndicators 
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                                    : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
+                                }`}
+                              >
+                                {isIndicatorOpen 
+                                  ? '▲ Tutup' 
+                                  : hasCustomIndicators 
+                                    ? '⚙️ Edit Indikator' 
+                                    : '+ Atur Indikator'}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <button 
+                              onClick={() => handleRemoveQuestion(index)}
+                              className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition"
+                              title="Hapus Soal"
+                            >
+                              ❌
+                            </button>
+                          </td>
+                        </tr>
+
+                        {/* Expandable Indicator Editor Drawer */}
+                        {isIndicatorOpen && (
+                          <tr className="bg-emerald-50/40">
+                            <td colSpan={6} className="px-4 py-3 border-b border-emerald-100">
+                              <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                                  <div>
+                                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
+                                      <span>📊 Pengaturan Indikator Penilaian — Soal #{q.order}</span>
+                                      <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold normal-case">
+                                        {QUESTION_TYPE_LABELS[q.questionType]}
+                                      </span>
+                                    </h4>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                      Jika tidak ditambahkan indikator kustom, sistem menggunakan nilai default 100%.
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleApplyPresetIndicators(index)}
+                                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-1"
+                                      title="Terapkan pembagian bobot standar sesuai jenis soal"
+                                    >
+                                      <span>⚡ Terapkan Template Standar ({q.questionType})</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleResetToDefaultIndicator(index)}
+                                      className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition"
+                                      title="Hapus indikator kustom dan gunakan default 100%"
+                                    >
+                                      🔄 Reset Default (100%)
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Indicator Table / Rows */}
+                                {hasCustomIndicators ? (
+                                  <div className="space-y-2">
+                                    {q.indicators!.map((ind, indIdx) => (
+                                      <div key={indIdx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
+                                        <span className="w-5 text-center text-xs font-bold text-gray-400">
+                                          {indIdx + 1}.
+                                        </span>
+                                        <div className="flex-1">
+                                          <input
+                                            type="text"
+                                            value={ind.name}
+                                            onChange={(e) => handleUpdateIndicator(index, indIdx, 'name', e.target.value)}
+                                            placeholder="Nama indikator (contoh: Pilihan jawaban benar)"
+                                            className="w-full p-1.5 bg-white border border-gray-300 rounded-md text-xs text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none"
+                                          />
+                                        </div>
+                                        <div className="w-28 flex items-center gap-1">
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            max="100"
+                                            value={ind.weight}
+                                            onChange={(e) => handleUpdateIndicator(index, indIdx, 'weight', e.target.value)}
+                                            className="w-16 p-1.5 bg-white border border-gray-300 rounded-md text-xs text-center font-bold text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none"
+                                          />
+                                          <span className="text-xs font-bold text-gray-600">%</span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveIndicator(index, indIdx)}
+                                          className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                                          title="Hapus indikator ini"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ))}
+
+                                    <div className="flex items-center justify-between pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddCustomIndicator(index)}
+                                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                                      >
+                                        + Tambah Baris Indikator Kustom
+                                      </button>
+
+                                      <div className={`text-xs font-black px-3 py-1 rounded-lg border ${
+                                        totalWeight === 100 
+                                          ? 'bg-green-100 text-green-800 border-green-200' 
+                                          : 'bg-red-100 text-red-800 border-red-200'
+                                      }`}>
+                                        Total Bobot: {totalWeight}% {totalWeight === 100 ? '✅ (Pas 100%)' : '⚠️ (Wajib 100%)'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="py-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200 space-y-2">
+                                    <p className="text-xs text-gray-600">
+                                      Soal ini saat ini menggunakan <strong>Nilai Default 100%</strong> tanpa pembagian sub-indikator.
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleApplyPresetIndicators(index)}
+                                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5"
+                                    >
+                                      <span>⚡ Aktifkan Indikator Standar ({QUESTION_TYPE_LABELS[q.questionType]})</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -374,9 +647,9 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
+                className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
               >
-                {saving ? "Menyimpan..." : "💾 Simpan Konfigurasi"}
+                <span>{saving ? "Menyimpan..." : "💾 Simpan Konfigurasi & Indikator"}</span>
               </button>
             </div>
           )}

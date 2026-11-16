@@ -131,6 +131,14 @@ const AIAssessmentSchema: Schema = new Schema({
 
 export const AIAssessment = mongoose.models.AIAssessment || mongoose.model<IAIAssessment>('AIAssessment', AIAssessmentSchema);
 
+export interface IIndicatorScore {
+  name: string;
+  weight: number; // Persentase bobot (%)
+  score: number; // Skor riil diperoleh siswa
+  maxScore: number; // Skor maksimal indikator (weight% * totalMaxScore)
+  feedback?: string;
+}
+
 export interface IStudentAnswerAnalysis extends Document {
   assessmentId: mongoose.Types.ObjectId;
   questionNumber: string;
@@ -139,6 +147,7 @@ export interface IStudentAnswerAnalysis extends Document {
   maxScore: number;
   analysis: string;
   status: "OK" | "UNREADABLE" | "MANUAL_EDIT";
+  indicators?: IIndicatorScore[]; // Rincian skor per indikator
   typos?: Array<{ salah: string; perbaikan: string }>;
   appealStatus: "NONE" | "PENDING" | "RESOLVED" | "REJECTED";
   appealReason?: string;
@@ -152,6 +161,15 @@ const StudentAnswerAnalysisSchema: Schema = new Schema({
   maxScore: { type: Number, required: true },
   analysis: { type: String, required: true },
   status: { type: String, enum: ["OK", "UNREADABLE", "MANUAL_EDIT"], default: "OK" },
+  indicators: [
+    {
+      name: { type: String, required: true },
+      weight: { type: Number, required: true },
+      score: { type: Number, required: true },
+      maxScore: { type: Number, required: true },
+      feedback: { type: String }
+    }
+  ],
   typos: [{ salah: String, perbaikan: String }],
   appealStatus: { type: String, enum: ["NONE", "PENDING", "RESOLVED", "REJECTED"], default: "NONE" },
   appealReason: { type: String }

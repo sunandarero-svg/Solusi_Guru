@@ -6,7 +6,8 @@ import { Assignment, AssignmentAttachment, AssignmentQuestion } from "@/models/A
 import { AIAssessment, StudentAnswerAnalysis, Submission } from "@/models/Submission";
 import { attachmentService } from "@/modules/attachment/attachmentService";
 import { compressImageForOCR } from "@/modules/ai/compressImageForOCR";
-import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap, isAmbiguousBSAnswer } from "@/modules/grading/systemGrader";
+import { gradeObjectiveQuestion, hasValidCorrectAnswer, isPureObjectiveType, parseAnswerKeyMap, isAmbiguousBSAnswer, normalizePGAnswer, normalizeBSAnswer } from "@/modules/grading/systemGrader";
+import { getDefaultPresetIndicators, QuestionIndicator } from "@/modules/grading/indicators";
 
 interface CompressedImage {
   base64Data: string;
@@ -178,15 +179,24 @@ function buildUnifiedPrompt(
       return aNum - bNum;
     });
     const qList = sortedQuestions.map((q: any) => {
-      let line = `Nomor ${q.order}: Tipe ${q.questionType}, Bobot ${q.maxScore}`;
+      let line = `Nomor ${q.order}: Tipe ${q.questionType}, Bobot Nilai Maksimal ${q.maxScore}`;
       if (q.correctAnswer && q.correctAnswer.trim().length > 0) {
-        line += `, Referensi/Kunci: ${q.correctAnswer}`;
+        line += `, Kunci Jawaban Referensi: ${q.correctAnswer}`;
+      }
+      if (Array.isArray(q.indicators) && q.indicators.length > 0) {
+        line += `\n   * Indikator Penilaian (${q.indicators.length} indikator, Total 100%):\n` +
+          q.indicators.map((ind: any, i: number) => {
+            const indMax = Math.round((Number(ind.weight) / 100) * q.maxScore * 10) / 10;
+            return `     - Indikator ${i + 1}: "${ind.name}" (Bobot ${ind.weight}% = maks ${indMax} poin)`;
+          }).join("\n");
+      } else {
+        line += `\n   * Indikator Penilaian: Nilai Default 100% (maks ${q.maxScore} poin)`;
       }
       return line;
-    }).join("\n");
-    questionsInstruction = `KONFIGURASI SOAL & BOBOT:\n${qList}\nNilailah setiap soal siswa berpatokan pada bobot maksimal tersebut (maxScore).\n`;
+    }).join("\n\n");
+    questionsInstruction = `KONFIGURASI SOAL, BOBOT & INDIKATOR PENILAIAN:\n${qList}\nNilailah setiap soal berpatokan pada bobot maksimal tersebut (maxScore) dan rincian indikator penilaian (jika tersedia).\n`;
   } else {
-    questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N.`;
+    questionsInstruction = `2. Identifikasi jumlah total soal (N). Alokasikan nilai maksimal (maxScore) proporsional, yaitu 100 / N. Nilai Default 100% per soal.`;
   }
 
   return `Anda adalah asisten guru (AI) penilai tugas siswa. Anda bertugas mengekstrak tulisan tangan siswa (OCR) lalu menilainya secara berurutan.
@@ -267,6 +277,19 @@ ${questionsInstruction}
    - 25% maxScore: Hanya sedikit poin kunci, jawaban menunjukkan sedikit pemahaman
    - 0% maxScore: Jawaban salah total, tidak relevan, atau kosong
    JANGAN berikan 0 jika siswa menunjukkan USAHA menjawab dengan benar sebagian.
+4c. PANDUAN KHUSUS INDIKATOR PENILAIAN PER SOAL (%):
+   Jika pada konfigurasi suatu soal tertera rincian 'Indikator Penilaian', alokasikan penilaian berdasarkan bobot persentase indikator tersebut:
+   - Pilihan Ganda (PILIHAN_GANDA):
+     * Indikator "Pilihan jawaban benar" (Bobot 50%): Nilai ketepatan huruf pilihan (A, B, C, D, E) terhadap kunci jawaban.
+     * Indikator "Terdapat Cara pengerjaan yang tepat" (Bobot 50%): Nilai apakah pada lembar jawaban terdapat cara kerja, rumus, atau langkah pengerjaan yang relevan. Jika ada cara lengkap & tepat: 50% maxScore. Jika cara sebagian/kurang: skor proporsional. Jika hanya menulis huruf tanpa cara pengerjaan: skor 0 untuk indikator cara pengerjaan ini.
+   - Benar dan Salah (BENAR_SALAH):
+     * Indikator "Pilihan jawaban Benar" (Bobot 50%): Nilai ketepatan pilihan kata "Benar" atau "Salah".
+     * Indikator "Terdapat Penjelasan/Cara Pengerjaan" (Bobot 50%): Nilai apakah siswa menyertakan penjelasan/argumen pendukung mengapa pernyataan tersebut Benar/Salah. Jika ada penjelasan tepat: 50% maxScore. Jika penjelasan kurang lengkap: skor proporsional. Jika tanpa penjelasan sama sekali: skor 0 untuk indikator penjelasan ini.
+   - Essay (ESSAY / URAIAN):
+     * Indikator "Tulisan jawaban Tidak ada Typo" (Bobot 25%): Nilai ketelitian ejaan dan ketiadaan salah tulis/typo. Tanpa typo: 25% maxScore penuh. Sedikit typo minor: 15-20%. Banyak typo: 0-10%.
+     * Indikator "Tulisan tidak sesuai dengan kunci jawaban tapi sesuai konteks pertanyaan" (Bobot 75%): Nilai pemahaman konsep dan substansi jawaban yang relevan dengan pertanyaan, meskipun susunan kalimat atau istilah berbeda dari kunci jawaban guru.
+   - Nilai Default 100%: Jika guru tidak menambahkan indikator pada soal, nilai diberikan 100% secara utuh pada kesesuaian jawaban.
+   Pada setiap soal yang memiliki indikator, sertakan array 'indicators' yang mengevaluasi masing-masing indikator.
 5. ATURAN TEKS TIDAK TERBACA: Jika tulisan mengandung kata aneh tak bermakna (UNREADABLE), anggap salah. Jangan menebak.
 6. KONSISTENSI MUTLAK (SANGAT PENTING): Jika dua atau lebih siswa memberikan jawaban dengan makna dan substansi yang sama persis, Anda WAJIB memberikan skor yang SAMA PERSIS. Jangan mengubah standar penilaian di tengah jalan. Jangan mengurangi poin tanpa alasan logis yang kuat.
 7. STATUS PENILAIAN ('status'): Kolom ini HANYA boleh diisi dengan "OK" atau "UNREADABLE". Jangan gunakan kata lain seperti "Salah", "Benar", atau "ERROR".
@@ -296,6 +319,15 @@ Struktur JSON yang dihasilkan:
       "score": number,
       "maxScore": number,
       "analysisText": "Penjelasan singkat",
+      "indicators": [
+        {
+          "name": "nama indikator",
+          "weight": number,
+          "score": number,
+          "maxScore": number,
+          "feedback": "ulasan pemenuhan indikator"
+        }
+      ],
       "status": "OK"
     }
   ]
@@ -606,6 +638,15 @@ async function processFullGradingInBackground(
         let analysisText = "Jawaban tidak ditemukan pada hasil pembacaan tulisan.";
         let validStatus = "UNREADABLE";
         let studentAnswer = "[Kosong/Tidak Terjawab]";
+        let evaluatedIndicators: any[] = [
+          {
+            name: "Kesesuaian Jawaban",
+            weight: 100,
+            score: 0,
+            maxScore,
+            feedback: "Jawaban kosong atau tidak ditemukan."
+          }
+        ];
 
         if (aiAnalysis) {
           studentAnswer = aiAnalysis.studentAnswer || "[Kosong]";
@@ -616,64 +657,191 @@ async function processFullGradingInBackground(
             ? q.correctAnswer
             : (fallbackKey || "");
 
-          // === ATURAN: Soal Objektif Murni (PILIHAN_GANDA, BENAR_SALAH, PILIHAN_GANDA_BERTINGKAT/KOMPLEKS) HANYA DINILAI OLEH APLIKASI ===
-          if (isPureObjectiveType(q.questionType)) {
-            const systemResult = gradeObjectiveQuestion({
-              questionNumber: String(q.order),
-              questionType: q.questionType,
-              studentAnswer,
-              correctAnswer: effectiveCorrectAnswer,
-              maxScore
-            });
+          const hasCustomIndicators = Array.isArray(q.indicators) && q.indicators.length > 0;
+          evaluatedIndicators = [];
 
-            if (systemResult !== null) {
-              finalScore = systemResult.score;
-              reasoning = systemResult.reasoning;
-              analysisText = systemResult.analysisText;
-              studentAnswer = systemResult.studentAnswer;
-              validStatus = systemResult.status;
-              console.log(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
-            } else {
-              finalScore = 0;
-              reasoning = `Kunci jawaban untuk soal ${q.questionType} tidak ditemukan.`;
-              analysisText = `⚠️ Kunci jawaban belum dikonfigurasi.`;
-              validStatus = "OK";
-              console.warn(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): Kunci jawaban tidak ditemukan.`);
+          if (hasCustomIndicators) {
+            // === KASUS 1: GURU MENAMBAHKAN INDIKATOR PADA SOAL (BOBOT %) ===
+            for (let indIdx = 0; indIdx < q.indicators.length; indIdx++) {
+              const ind = q.indicators[indIdx];
+              const indWeight = Number(ind.weight) || 0;
+              const indMaxScore = Math.round((indWeight / 100) * maxScore * 10) / 10;
+              let indScore = 0;
+              let indFeedback = "";
+              const indNameLower = (ind.name || "").toLowerCase();
+
+              // A. PILIHAN GANDA (Pilihan jawaban benar 50%, Terdapat Cara pengerjaan yang tepat 50%)
+              if (q.questionType === "PILIHAN_GANDA") {
+                if (indNameLower.includes("pilihan") || indNameLower.includes("jawaban") || indNameLower.includes("benar") || indNameLower.includes("opsi")) {
+                  const normStudent = normalizePGAnswer(studentAnswer);
+                  const normKey = normalizePGAnswer(effectiveCorrectAnswer);
+                  if (normStudent && normKey && normStudent === normKey) {
+                    indScore = indMaxScore;
+                    indFeedback = `Pilihan huruf (${normStudent}) benar (Kunci: ${normKey}).`;
+                  } else {
+                    indScore = 0;
+                    indFeedback = `Pilihan huruf (${normStudent || studentAnswer}) salah (Kunci: ${normKey || effectiveCorrectAnswer}).`;
+                  }
+                } else {
+                  // Indikator Cara Pengerjaan / Langkah Kerja
+                  const aiInd = aiAnalysis.indicators?.find((aiI: any) =>
+                    aiI.name?.toLowerCase().includes("cara") ||
+                    aiI.name?.toLowerCase().includes("pengerjaan") ||
+                    aiI.name?.toLowerCase().includes("langkah") ||
+                    aiI.name === ind.name
+                  ) || aiAnalysis.indicators?.[indIdx];
+
+                  const rawScore = Number(aiInd?.score);
+                  if (!isNaN(rawScore)) {
+                    indScore = Math.min(indMaxScore, Math.max(0, Math.round(rawScore * 10) / 10));
+                  } else {
+                    indScore = 0;
+                  }
+                  indFeedback = aiInd?.feedback || (indScore > 0 ? "Cara pengerjaan ditemukan dan tepat." : "Cara pengerjaan tidak ditemukan pada lembar siswa.");
+                }
+              }
+              // B. BENAR DAN SALAH (Pilihan jawaban Benar 50%, Terdapat Penjelasan/Cara Pengerjaan 50%)
+              else if (q.questionType === "BENAR_SALAH") {
+                if (indNameLower.includes("pilihan") || (indNameLower.includes("benar") && !indNameLower.includes("penjelasan"))) {
+                  if (isAmbiguousBSAnswer(studentAnswer)) {
+                    indScore = 0;
+                    indFeedback = '❌ Jawaban ambigu/menulis kedua opsi ("Benar/Salah"). Skor: 0.';
+                  } else {
+                    const normStudent = normalizeBSAnswer(studentAnswer);
+                    const normKey = normalizeBSAnswer(effectiveCorrectAnswer);
+                    if (normStudent && normKey && normStudent === normKey) {
+                      indScore = indMaxScore;
+                      indFeedback = `Pilihan jawaban (${normStudent}) benar.`;
+                    } else {
+                      indScore = 0;
+                      indFeedback = `Pilihan jawaban (${normStudent || studentAnswer}) salah (Kunci: ${normKey || effectiveCorrectAnswer}).`;
+                    }
+                  }
+                } else {
+                  // Indikator Penjelasan / Cara Pengerjaan
+                  const aiInd = aiAnalysis.indicators?.find((aiI: any) =>
+                    aiI.name?.toLowerCase().includes("penjelasan") ||
+                    aiI.name?.toLowerCase().includes("alasan") ||
+                    aiI.name?.toLowerCase().includes("cara") ||
+                    aiI.name === ind.name
+                  ) || aiAnalysis.indicators?.[indIdx];
+
+                  const rawScore = Number(aiInd?.score);
+                  if (!isNaN(rawScore)) {
+                    indScore = Math.min(indMaxScore, Math.max(0, Math.round(rawScore * 10) / 10));
+                  } else {
+                    indScore = 0;
+                  }
+                  indFeedback = aiInd?.feedback || (indScore > 0 ? "Terdapat penjelasan/cara pengerjaan yang relevan." : "Tidak ada penjelasan/cara pengerjaan yang disertakan.");
+                }
+              }
+              // C. ESSAY (Tulisan jawaban Tidak ada Typo: 25%, Tulisan tidak sesuai kunci tapi sesuai konteks: 75%)
+              else {
+                const aiInd = aiAnalysis.indicators?.find((aiI: any) => {
+                  const aName = (aiI.name || "").toLowerCase();
+                  if (indNameLower.includes("typo") || indNameLower.includes("type")) return aName.includes("typo") || aName.includes("ejaan");
+                  if (indNameLower.includes("konteks")) return aName.includes("konteks") || aName.includes("substansi") || aName.includes("kunci");
+                  return aName === indNameLower;
+                }) || aiAnalysis.indicators?.[indIdx];
+
+                const rawScore = Number(aiInd?.score);
+                if (!isNaN(rawScore)) {
+                  indScore = Math.min(indMaxScore, Math.max(0, Math.round(rawScore * 10) / 10));
+                } else {
+                  // Proporsikan dari skor total AI jika LLM tidak memecah per-sub-item
+                  const aiRatio = maxScore > 0 ? (Number(aiAnalysis.score) || 0) / maxScore : 0;
+                  indScore = Math.round(indMaxScore * aiRatio * 10) / 10;
+                }
+                indFeedback = aiInd?.feedback || aiAnalysis.analysisText || "Dinilai berdasarkan rubrik indikator.";
+              }
+
+              evaluatedIndicators.push({
+                name: ind.name,
+                weight: indWeight,
+                score: indScore,
+                maxScore: indMaxScore,
+                feedback: indFeedback
+              });
             }
-          } else if (hasValidCorrectAnswer({ questionType: q.questionType, correctAnswer: effectiveCorrectAnswer })) {
-            // Soal Isian Singkat dengan kunci jawaban
-            const systemResult = gradeObjectiveQuestion({
-              questionNumber: String(q.order),
-              questionType: q.questionType,
-              studentAnswer,
-              correctAnswer: effectiveCorrectAnswer,
-              maxScore
-            });
-            if (systemResult !== null) {
-              finalScore = systemResult.score;
-              reasoning = systemResult.reasoning;
-              analysisText = systemResult.analysisText;
-              studentAnswer = systemResult.studentAnswer;
-              validStatus = systemResult.status;
-              console.log(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
+
+            finalScore = evaluatedIndicators.reduce((sum, item) => sum + item.score, 0);
+            finalScore = Math.min(maxScore, Math.max(0, Math.round(finalScore * 10) / 10));
+            reasoning = evaluatedIndicators.map(i => `${i.name} (${i.weight}%): ${i.score}/${i.maxScore}`).join("; ");
+            analysisText = evaluatedIndicators.map(i => `• ${i.name} (${i.weight}%): ${i.score}/${i.maxScore} — ${i.feedback || ''}`).join("\n");
+            validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
+
+            console.log(`[Indicator Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): Total ${finalScore}/${maxScore} (${evaluatedIndicators.map(i => `${i.name}: ${i.score}/${i.maxScore}`).join(', ')})`);
+          } else {
+            // === KASUS 2: NILAI DEFAULT 100% (GURU TIDAK MENAMBAHKAN INDIKATOR) ===
+            // Soal Objektif Murni (PILIHAN_GANDA, BENAR_SALAH, PILIHAN_GANDA_BERTINGKAT/KOMPLEKS) HANYA DINILAI OLEH APLIKASI
+            if (isPureObjectiveType(q.questionType)) {
+              const systemResult = gradeObjectiveQuestion({
+                questionNumber: String(q.order),
+                questionType: q.questionType,
+                studentAnswer,
+                correctAnswer: effectiveCorrectAnswer,
+                maxScore
+              });
+
+              if (systemResult !== null) {
+                finalScore = systemResult.score;
+                reasoning = systemResult.reasoning;
+                analysisText = systemResult.analysisText;
+                studentAnswer = systemResult.studentAnswer;
+                validStatus = systemResult.status;
+                console.log(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
+              } else {
+                finalScore = 0;
+                reasoning = `Kunci jawaban untuk soal ${q.questionType} tidak ditemukan.`;
+                analysisText = `⚠️ Kunci jawaban belum dikonfigurasi.`;
+                validStatus = "OK";
+                console.warn(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): Kunci jawaban tidak ditemukan.`);
+              }
+            } else if (hasValidCorrectAnswer({ questionType: q.questionType, correctAnswer: effectiveCorrectAnswer })) {
+              // Soal Isian Singkat dengan kunci jawaban
+              const systemResult = gradeObjectiveQuestion({
+                questionNumber: String(q.order),
+                questionType: q.questionType,
+                studentAnswer,
+                correctAnswer: effectiveCorrectAnswer,
+                maxScore
+              });
+              if (systemResult !== null) {
+                finalScore = systemResult.score;
+                reasoning = systemResult.reasoning;
+                analysisText = systemResult.analysisText;
+                studentAnswer = systemResult.studentAnswer;
+                validStatus = systemResult.status;
+                console.log(`[System Grader][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): "${studentAnswer}" vs "${effectiveCorrectAnswer}" → ${finalScore}/${maxScore}`);
+              } else {
+                // Similarity rendah pada ISIAN_SINGKAT → evaluasi kontekstual AI
+                finalScore = Number(aiAnalysis.score) || 0;
+                if (finalScore > maxScore) finalScore = maxScore;
+                if (finalScore < 0) finalScore = 0;
+                reasoning = aiAnalysis.reasoning || "";
+                analysisText = aiAnalysis.analysisText || "";
+                validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
+                console.log(`[AI Fallback][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): Evaluasi kontekstual AI: ${finalScore}/${maxScore}`);
+              }
             } else {
-              // Similarity rendah pada ISIAN_SINGKAT → evaluasi kontekstual AI
+              // Soal Non-Objektif (ESSAY atau tanpa kunci jawaban)
               finalScore = Number(aiAnalysis.score) || 0;
               if (finalScore > maxScore) finalScore = maxScore;
               if (finalScore < 0) finalScore = 0;
               reasoning = aiAnalysis.reasoning || "";
               analysisText = aiAnalysis.analysisText || "";
               validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
-              console.log(`[AI Fallback][Sub ${submissionId.slice(-6)}] Soal ${q.order} (${q.questionType}): Evaluasi kontekstual AI: ${finalScore}/${maxScore}`);
             }
-          } else {
-            // Soal Non-Objektif (ESSAY atau tanpa kunci jawaban)
-            finalScore = Number(aiAnalysis.score) || 0;
-            if (finalScore > maxScore) finalScore = maxScore;
-            if (finalScore < 0) finalScore = 0;
-            reasoning = aiAnalysis.reasoning || "";
-            analysisText = aiAnalysis.analysisText || "";
-            validStatus = (aiAnalysis.status === "UNREADABLE" || aiAnalysis.status === "MANUAL_EDIT") ? aiAnalysis.status : "OK";
+
+            evaluatedIndicators = [
+              {
+                name: "Kesesuaian Jawaban",
+                weight: 100,
+                score: finalScore,
+                maxScore,
+                feedback: reasoning || analysisText
+              }
+            ];
           }
         }
 
@@ -686,6 +854,7 @@ async function processFullGradingInBackground(
           reasoning,
           analysisText,
           studentAnswer,
+          indicators: evaluatedIndicators,
           status: validStatus
         });
       }
@@ -745,6 +914,15 @@ async function processFullGradingInBackground(
           maxScore,
           reasoning,
           analysisText,
+          indicators: [
+            {
+              name: "Kesesuaian Jawaban",
+              weight: 100,
+              score: finalScore,
+              maxScore,
+              feedback: reasoning || analysisText
+            }
+          ],
           status: validStatus
         });
       });
@@ -777,6 +955,7 @@ async function processFullGradingInBackground(
         score: analysis.score,
         maxScore: analysis.maxScore,
         analysis: combinedAnalysis,
+        indicators: analysis.indicators || [],
         status: validStatus,
       });
     }

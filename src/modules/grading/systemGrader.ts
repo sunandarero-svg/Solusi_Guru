@@ -63,7 +63,7 @@ export interface SystemGradingResult {
  * Jika ada coretan atau koreksi dua huruf berurutan (misal: "A B", "A -> B", "~~A~~ B"), ambil huruf terakhir / tidak dicoret.
  * Contoh: "a", "A.", "A. Jawaban", "a)", "1. A", "(B)", "A B" → "B"
  */
-function normalizePGAnswer(answer: string): string {
+export function normalizePGAnswer(answer: string): string {
   if (!answer) return "";
 
   // 1. Bersihkan tanda coretan (strikethrough markdown atau tag coret)
@@ -256,7 +256,7 @@ function isSalahToken(word: string): boolean {
  * 4. Mendukung simbol: centang (✓, ✔, v) = Benar, silang (✗, x, ✕, ✖) = Salah.
  * 5. Tahan terhadap kesalahan pembacaan OCR handwriting/cursive (misal "lenar" / "terlah" → "Benar").
  */
-function normalizeBSAnswer(answer: string): string {
+export function normalizeBSAnswer(answer: string): string {
   if (!answer) return "";
 
   // 1. Bersihkan tanda coretan (strikethrough markdown atau tag coret)

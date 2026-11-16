@@ -232,6 +232,20 @@ export default function StudentAssignmentDetailPage({ params }: { params: Promis
                           
                           <p className={`text-sm mt-1 ${c.status === 'UNREADABLE' ? 'text-red-700' : 'text-gray-600'}`}>{c.analysis || c.reason}</p>
                           
+                          {c.indicators && c.indicators.length > 0 && (
+                            <div className="mt-2.5 pt-2 border-t border-gray-200/60 space-y-1.5">
+                              <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Rincian Indikator Penilaian:</p>
+                              <div className="space-y-1">
+                                {c.indicators.map((ind: any, iIdx: number) => (
+                                  <div key={iIdx} className="flex justify-between items-center text-xs bg-white/90 px-2.5 py-1.5 rounded-md border border-gray-200/80">
+                                    <span className="text-gray-700 font-medium">{ind.name} <span className="text-gray-400">({ind.weight}%)</span></span>
+                                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{ind.score} / {ind.maxScore}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
                           {/* Tombol Banding */}
                           {c.status !== 'UNREADABLE' && c.status !== 'MANUAL_EDIT' && (
                             <div className="mt-3 text-right">

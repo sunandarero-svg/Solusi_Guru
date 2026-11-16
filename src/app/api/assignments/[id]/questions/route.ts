@@ -89,7 +89,13 @@ export async function PUT(
         order: Number(q.order) || 0,
         questionType: q.questionType,
         maxScore: Number(q.maxScore) || 0,
-        correctAnswer: q.correctAnswer || undefined
+        correctAnswer: q.correctAnswer || undefined,
+        indicators: (Array.isArray(q.indicators) && q.indicators.length > 0)
+          ? q.indicators.map((ind: any) => ({
+              name: String(ind.name || "").trim(),
+              weight: Number(ind.weight) || 0
+            })).filter((ind: any) => ind.name.length > 0)
+          : []
       })).sort((a: any, b: any) => a.order - b.order);
       await AssignmentQuestion.insertMany(questionsToInsert);
     }
