@@ -411,11 +411,11 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b border-gray-200 text-gray-700">
                   <tr>
-                    <th className="px-3 py-3 font-semibold w-14 text-center">No</th>
-                    <th className="px-3 py-3 font-semibold w-36">Tipe Soal</th>
-                    <th className="px-3 py-3 font-semibold w-36">Kunci Jawaban</th>
-                    <th className="px-3 py-3 font-semibold w-24 text-center">Bobot Nilai</th>
-                    <th className="px-3 py-3 font-semibold">Indikator Penilaian (Bobot %)</th>
+                    <th className="px-3 py-3 font-bold w-20 min-w-[76px] text-center">No</th>
+                    <th className="px-3 py-3 font-semibold w-40 min-w-[150px]">Tipe Soal</th>
+                    <th className="px-3 py-3 font-semibold w-40 min-w-[150px]">Kunci Jawaban</th>
+                    <th className="px-3 py-3 font-bold w-28 min-w-[100px] text-center">Bobot Nilai</th>
+                    <th className="px-3 py-3 font-semibold min-w-[280px]">Indikator Penilaian (Bobot %)</th>
                     <th className="px-3 py-3 font-semibold w-14 text-center">Aksi</th>
                   </tr>
                 </thead>
@@ -430,12 +430,12 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
                     return (
                       <React.Fragment key={index}>
                         <tr className={`hover:bg-gray-50/50 transition-colors ${isIndicatorOpen ? 'bg-emerald-50/30' : ''}`}>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-2 py-2 text-center">
                             <input 
                               type="number" 
                               value={q.order}
                               onChange={(e) => handleChange(index, 'order', parseInt(e.target.value) || 0)}
-                              className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-center bg-white text-gray-900 font-bold"
+                              className="w-14 min-w-[52px] mx-auto py-1.5 px-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-center bg-white text-gray-900 font-black text-sm shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -455,12 +455,12 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
                               onChange={(val) => handleCorrectAnswerChange(index, val)}
                             />
                           </td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-2 py-2 text-center">
                             <input 
                               type="number" 
                               value={q.maxScore}
                               onChange={(e) => handleChange(index, 'maxScore', parseInt(e.target.value) || 0)}
-                              className="w-full p-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-center font-bold"
+                              className="w-20 min-w-[68px] mx-auto py-1.5 px-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-emerald-50/60 text-emerald-800 text-center font-black text-sm shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -569,17 +569,17 @@ export default function QuestionConfigurator({ assignmentId, initialQuestions = 
                                             className="w-full p-1.5 bg-white border border-gray-300 rounded-md text-xs text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none"
                                           />
                                         </div>
-                                        <div className="w-28 flex items-center gap-1">
-                                          <input
-                                            type="number"
-                                            min="1"
-                                            max="100"
-                                            value={ind.weight}
-                                            onChange={(e) => handleUpdateIndicator(index, indIdx, 'weight', e.target.value)}
-                                            className="w-16 p-1.5 bg-white border border-gray-300 rounded-md text-xs text-center font-bold text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none"
-                                          />
-                                          <span className="text-xs font-bold text-gray-600">%</span>
-                                        </div>
+                                          <div className="w-28 flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              max="100"
+                                              value={ind.weight}
+                                              onChange={(e) => handleUpdateIndicator(index, indIdx, 'weight', e.target.value)}
+                                              className="w-16 p-1.5 bg-white border border-gray-300 rounded-md text-xs text-center font-black text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            />
+                                            <span className="text-xs font-bold text-gray-600">%</span>
+                                          </div>
                                         <button
                                           type="button"
                                           onClick={() => handleRemoveIndicator(index, indIdx)}
