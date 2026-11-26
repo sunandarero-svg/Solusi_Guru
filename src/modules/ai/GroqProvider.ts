@@ -627,7 +627,7 @@ Output WAJIB berupa JSON MURNI (tanpa block code markdown) dengan struktur:
     }
 
     // Fallback ke OpenRouter jika Groq gagal membuat kunci jawaban
-    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim().replace(/^["']|["']$/g, "");
+    const openRouterKey = (process.env.OPENROUTER_API_KEY2 || process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY)?.trim().replace(/^["']|["']$/g, "");
     if (openRouterKey && openRouterKey.length > 10 && !openRouterKey.includes("sk-or-dummy")) {
       console.warn(`[Groq] Gagal membuat kunci jawaban. Mencoba fallback ke OpenRouterProvider...`);
       try {

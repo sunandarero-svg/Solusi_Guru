@@ -5,7 +5,7 @@ import { Assignment, Rubric, RubricCriterion } from "@/models/Assignment";
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 import { TeacherProfile } from "@/models/Profile";
-// import { OpenRouterProvider } from "@/modules/ai/OpenRouterProvider";
+import { OpenRouterProvider } from "@/modules/ai/OpenRouterProvider";
 
 export async function POST(
   req: NextRequest,
@@ -34,11 +34,15 @@ export async function POST(
       throw new Error("Unauthorized or Assignment not found");
     }
 
+    // Get attachments with image files for visual analysis
+    const attachments = await attachmentService.getAttachmentsByAssignment(resolvedParams.id);
+    const imageAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("image/"));
+
     // Get combined extracted text from all attachments
     const combinedText = await attachmentService.getCombinedText(resolvedParams.id);
-    if (!combinedText || combinedText.trim().length === 0) {
+    if ((!combinedText || combinedText.trim().length === 0) && imageAttachments.length === 0) {
       return NextResponse.json(
-        { error: "Tidak ada teks yang bisa diekstrak dari lampiran. Pastikan lampiran berisi teks soal." },
+        { error: "Tidak ada teks atau gambar yang bisa diekstrak dari lampiran. Pastikan lampiran berisi soal." },
         { status: 400 }
       );
     }
@@ -50,13 +54,11 @@ export async function POST(
       return { ...r, criteria };
     }));
 
-    // Get attachments with image files for visual analysis
-    const attachments = await attachmentService.getAttachmentsByAssignment(resolvedParams.id);
-    const imageAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("image/"));
-
     // Estimate tokens
     // Text token estimation (~4 chars per token) + ~2000 tokens per image
-    let finalTaskText = combinedText;
+    let finalTaskText = combinedText && combinedText.trim().length > 0
+      ? combinedText
+      : "[Lampiran berupa gambar soal - silakan ekstrak dan buatkan kunci jawaban dari gambar terlampir]";
     
     // Check for existing answer key and use as reference
     try {
@@ -74,11 +76,13 @@ export async function POST(
     
     console.log(`[Generate Answer Key] Estimated tokens: ${estimatedTokens}`);
 
-    // Generate answer key using AI (Smart Routing)
-    // Use GroqProvider.
-    console.log("[Generate Answer Key] Routing exclusively to GroqProvider");
-    const { GroqProvider } = await import("@/modules/ai/GroqProvider");
-    const provider = new GroqProvider();
+    // Generate answer key using OpenRouterProvider:
+    // 1. Primary: OpenRouter2 (nvidia/nemotron-3.5-super-vl:free)
+    // 2. Fallback 1: NVIDIA Direct API (nvidia/nemotron-3.5-super-vl-120b-a12b & meta/muse-glimmer-30b)
+    // 3. Fallback 2: OpenRouter Paid (nvidia/nemotron-3.5-super-vl)
+    // 4. Fallback 3: Groq (Qwen)
+    console.log("[Generate Answer Key] Routing to OpenRouterProvider (Primary: nvidia/nemotron-3.5-super-vl:free)");
+    const provider = new OpenRouterProvider();
     
     const result = await provider.generateAnswerKey(finalTaskText, rubricsWithCriteria, imageAttachments);
 

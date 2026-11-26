@@ -9,6 +9,22 @@ export interface CascadeOptions {
   logPrefix?: string;
 }
 
+function cleanCascadeOutput(raw: string, responseJson: boolean): string | null {
+  if (!raw) return null;
+  let cleaned = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  if (cleaned.length <= 30) return null;
+
+  if (responseJson) {
+    const jsonCleaned = cleaned.replace(/```json/gi, "").replace(/```/g, "").trim();
+    const hasJsonBounds =
+      (jsonCleaned.includes("{") && jsonCleaned.includes("}")) ||
+      (jsonCleaned.includes("[") && jsonCleaned.includes("]"));
+    if (!hasJsonBounds) return null;
+  }
+
+  return cleaned;
+}
+
 /**
  * Menjalankan pembuatan teks AI dengan urutan kaskade:
  * 1. Primary: OpenRouter2 Free (https://openrouter.ai/api/v1) - nvidia/nemotron-3.5-super-vl:free (OPENROUTER_API_KEY2)
@@ -58,11 +74,12 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
 
       if (res.ok) {
         const data = await res.json();
-        const content = data.choices?.[0]?.message?.content;
-        if (content && content.trim().length > 30) {
-          console.log(`${logPrefix} Berhasil menggunakan OpenRouter2 Primary (${freeModel})! Panjang respon: ${content.length}`);
-          return content;
+        const cleaned = cleanCascadeOutput(data.choices?.[0]?.message?.content || "", responseJson);
+        if (cleaned) {
+          console.log(`${logPrefix} Berhasil menggunakan OpenRouter2 Primary (${freeModel})! Panjang respon: ${cleaned.length}`);
+          return cleaned;
         }
+        console.warn(`${logPrefix} OpenRouter2 Primary ${freeModel} mengembalikan respon tidak valid/kosong.`);
       } else {
         const errText = await res.text();
         console.warn(`${logPrefix} OpenRouter2 Primary ${freeModel} returned ${res.status}: ${errText}`);
@@ -101,11 +118,12 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
 
         if (res.ok) {
           const data = await res.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content && content.trim().length > 30) {
-            console.log(`${logPrefix} Berhasil menggunakan NVIDIA Fallback 1 (${nvModel})! Panjang respon: ${content.length}`);
-            return content;
+          const cleaned = cleanCascadeOutput(data.choices?.[0]?.message?.content || "", responseJson);
+          if (cleaned) {
+            console.log(`${logPrefix} Berhasil menggunakan NVIDIA Fallback 1 (${nvModel})! Panjang respon: ${cleaned.length}`);
+            return cleaned;
           }
+          console.warn(`${logPrefix} NVIDIA Fallback 1 ${nvModel} mengembalikan respon tidak valid/kosong.`);
         } else {
           const errText = await res.text();
           console.warn(`${logPrefix} NVIDIA Fallback 1 ${nvModel} returned ${res.status}: ${errText}`);
@@ -142,11 +160,12 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
 
       if (res.ok) {
         const data = await res.json();
-        const content = data.choices?.[0]?.message?.content;
-        if (content && content.trim().length > 30) {
-          console.log(`${logPrefix} Berhasil menggunakan OpenRouter Fallback 2 (${openRouterModel})! Panjang respon: ${content.length}`);
-          return content;
+        const cleaned = cleanCascadeOutput(data.choices?.[0]?.message?.content || "", responseJson);
+        if (cleaned) {
+          console.log(`${logPrefix} Berhasil menggunakan OpenRouter Fallback 2 (${openRouterModel})! Panjang respon: ${cleaned.length}`);
+          return cleaned;
         }
+        console.warn(`${logPrefix} OpenRouter Fallback 2 ${openRouterModel} mengembalikan respon tidak valid/kosong.`);
       } else {
         const errText = await res.text();
         console.warn(`${logPrefix} OpenRouter Fallback 2 ${openRouterModel} returned ${res.status}: ${errText}`);
@@ -203,11 +222,12 @@ export async function callAICascade(options: CascadeOptions): Promise<string> {
           }
 
           const data = await res.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content && content.trim().length > 30) {
-            console.log(`${logPrefix} Berhasil menggunakan Groq (${groqModel})! Panjang respon: ${content.length}`);
-            return content;
+          const cleaned = cleanCascadeOutput(data.choices?.[0]?.message?.content || "", responseJson);
+          if (cleaned) {
+            console.log(`${logPrefix} Berhasil menggunakan Groq (${groqModel})! Panjang respon: ${cleaned.length}`);
+            return cleaned;
           }
+          console.warn(`${logPrefix} Groq (${groqModel}) mengembalikan respon tidak valid/kosong.`);
         } catch (mErr: any) {
           console.warn(`${logPrefix} Groq ${groqModel} exception:`, mErr?.message || mErr);
         }
